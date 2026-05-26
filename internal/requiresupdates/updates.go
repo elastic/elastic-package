@@ -177,52 +177,10 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		latestCompatible = latestRevisionNewerThan(compatible, currentEffective)
 	}
 
-	latestUnfiltered, err := latestRevision(unfiltered)
-	if err != nil {
-		return nil, fmt.Errorf("package %q: %w", dep.Package, err)
-	}
+	latestUnfiltered := latestRevision(unfiltered)
 
-	var warning string
 	if latestCompatible == nil {
-		if latestUnfiltered != nil {
-			latestVer, _ := semver.NewVersion(latestUnfiltered.Version)
-			if latestVer != nil && isOutdatedBy(latestVer) {
-				warning = formatKibanaBumpWarning(
-					dep.Package,
-					latestUnfiltered.Version,
-					latestUnfiltered.Conditions.Kibana.Version,
-					integrationKibana,
-				)
-			}
-		}
-		if warning != "" {
-			return &UpdateProposal{
-				Kind:    kind,
-				Package: dep.Package,
-				Current: dep.Version,
-				Warning: warning,
-			}, nil
-		}
-		return nil, nil
-	}
-
-	latestCompatibleVer, err := semver.NewVersion(latestCompatible.Version)
-	if err != nil {
-		return nil, fmt.Errorf("invalid compatible version %q: %w", latestCompatible.Version, err)
-	}
-	if !isOutdatedBy(latestCompatibleVer) {
-		if latestUnfiltered != nil {
-			latestUnfilteredVer, _ := semver.NewVersion(latestUnfiltered.Version)
-			if latestUnfilteredVer != nil && isOutdatedBy(latestUnfilteredVer) &&
-				latestUnfilteredVer.GreaterThan(latestCompatibleVer) {
-				warning = formatKibanaBumpWarning(
-					dep.Package,
-					latestUnfiltered.Version,
-					latestUnfiltered.Conditions.Kibana.Version,
-					integrationKibana,
-				)
-			}
-		}
+		warning := kibanaBumpWarning(dep, latestUnfiltered, integrationKibana, nil, isOutdatedBy)
 		if warning == "" {
 			return nil, nil
 		}
@@ -234,27 +192,31 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		}, nil
 	}
 
-	proposal := &UpdateProposal{
+	latestCompatibleVer, err := semver.NewVersion(latestCompatible.Version)
+	if err != nil {
+		return nil, fmt.Errorf("invalid compatible version %q: %w", latestCompatible.Version, err)
+	}
+	if !isOutdatedBy(latestCompatibleVer) {
+		warning := kibanaBumpWarning(dep, latestUnfiltered, integrationKibana, latestCompatibleVer, isOutdatedBy)
+		if warning == "" {
+			return nil, nil
+		}
+		return &UpdateProposal{
+			Kind:    kind,
+			Package: dep.Package,
+			Current: dep.Version,
+			Warning: warning,
+		}, nil
+	}
+
+	return &UpdateProposal{
 		Kind:             kind,
 		Package:          dep.Package,
 		Current:          dep.Version,
 		Proposed:         latestCompatible.Version,
 		KibanaConstraint: latestCompatible.Conditions.Kibana.Version,
-	}
-
-	if latestUnfiltered != nil && latestUnfiltered.Version != latestCompatible.Version {
-		latestUnfilteredVer, err := semver.NewVersion(latestUnfiltered.Version)
-		if err == nil && latestUnfilteredVer.GreaterThan(latestCompatibleVer) {
-			proposal.Warning = formatKibanaBumpWarning(
-				dep.Package,
-				latestUnfiltered.Version,
-				latestUnfiltered.Conditions.Kibana.Version,
-				integrationKibana,
-			)
-		}
-	}
-
-	return proposal, nil
+		Warning:          kibanaBumpWarning(dep, latestUnfiltered, integrationKibana, latestCompatibleVer, nil),
+	}, nil
 }
 
 func fetchCompatibleRevisions(opts Options, integrationKibana, packageName string) ([]packages.PackageManifest, error) {
@@ -344,66 +306,65 @@ func parseCurrentVersion(kind DependencyKind, version string) (*semver.Version, 
 	return nil, c, nil
 }
 
-// latestRevisionBeyondConstraint returns the latest revision whose version does
-// not satisfy constraint — meaning it falls outside the currently-pinned range
-// and would represent a version bump.
-func latestRevisionBeyondConstraint(revisions []packages.PackageManifest, constraint *semver.Constraints) *packages.PackageManifest {
-	var best *packages.PackageManifest
-	var bestVer *semver.Version
-	for _, rev := range revisions {
-		ver, err := semver.NewVersion(rev.Version)
-		if err != nil {
-			continue
-		}
-		if constraint.Check(ver) {
-			continue
-		}
-		if bestVer == nil || ver.GreaterThan(bestVer) {
-			copy := rev
-			best = &copy
-			bestVer = ver
-		}
+// kibanaBumpWarning returns a warning when latest is available but requires a
+// Kibana version incompatible with the integration. minVer, when non-nil, gates
+// the warning on latest being strictly greater than that baseline. isOutdated,
+// when non-nil, additionally requires the version to represent an actual bump
+// over the current dependency spec.
+func kibanaBumpWarning(dep packages.PackageDependency, latest *packages.PackageManifest, integrationKibana string, minVer *semver.Version, isOutdated func(*semver.Version) bool) string {
+	if latest == nil {
+		return ""
 	}
-	return best
+	v, _ := semver.NewVersion(latest.Version)
+	if v == nil {
+		return ""
+	}
+	if minVer != nil && !v.GreaterThan(minVer) {
+		return ""
+	}
+	if isOutdated != nil && !isOutdated(v) {
+		return ""
+	}
+	return formatKibanaBumpWarning(dep.Package, latest.Version, latest.Conditions.Kibana.Version, integrationKibana)
 }
 
-// latestRevision returns the revision with the highest semantic version in the
-// slice. Order of the input does not matter. Entries with unparseable versions
-// are skipped. Returns nil (no error) when the slice is empty or every entry
-// has an unparseable version.
-func latestRevision(revisions []packages.PackageManifest) (*packages.PackageManifest, error) {
+// latestRevisionWhere returns the manifest with the highest parseable semantic
+// version among those for which keep returns true.
+func latestRevisionWhere(revisions []packages.PackageManifest, keep func(*semver.Version) bool) *packages.PackageManifest {
 	var best *packages.PackageManifest
 	var bestVer *semver.Version
 	for i := range revisions {
 		ver, err := semver.NewVersion(revisions[i].Version)
-		if err != nil {
+		if err != nil || !keep(ver) {
 			continue
 		}
 		if bestVer == nil || ver.GreaterThan(bestVer) {
-			copy := revisions[i]
-			best = &copy
-			bestVer = ver
-		}
-	}
-	return best, nil
-}
-
-func latestRevisionNewerThan(revisions []packages.PackageManifest, current *semver.Version) *packages.PackageManifest {
-	var best *packages.PackageManifest
-	var bestVer *semver.Version
-	for _, rev := range revisions {
-		ver, err := semver.NewVersion(rev.Version)
-		if err != nil {
-			continue
-		}
-		if current != nil && !ver.GreaterThan(current) {
-			continue
-		}
-		if bestVer == nil || ver.GreaterThan(bestVer) {
-			copy := rev
-			best = &copy
+			revCopy := revisions[i]
+			best = &revCopy
 			bestVer = ver
 		}
 	}
 	return best
+}
+
+// latestRevision returns the revision with the highest semantic version.
+// Entries with unparseable versions are skipped. Returns nil when the slice is
+// empty or every entry has an unparseable version.
+func latestRevision(revisions []packages.PackageManifest) *packages.PackageManifest {
+	return latestRevisionWhere(revisions, func(*semver.Version) bool { return true })
+}
+
+// latestRevisionBeyondConstraint returns the latest revision whose version does
+// not satisfy constraint — meaning it falls outside the currently-pinned range
+// and would represent a version bump.
+func latestRevisionBeyondConstraint(revisions []packages.PackageManifest, constraint *semver.Constraints) *packages.PackageManifest {
+	return latestRevisionWhere(revisions, func(ver *semver.Version) bool {
+		return !constraint.Check(ver)
+	})
+}
+
+func latestRevisionNewerThan(revisions []packages.PackageManifest, current *semver.Version) *packages.PackageManifest {
+	return latestRevisionWhere(revisions, func(ver *semver.Version) bool {
+		return current == nil || ver.GreaterThan(current)
+	})
 }
