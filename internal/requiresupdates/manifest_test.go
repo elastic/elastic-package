@@ -92,32 +92,34 @@ func TestSetRequiresDependencyVersion_roundTripFile(t *testing.T) {
 
 func Test_replaceVersionOnLine(t *testing.T) {
 	t.Run("double quoted with comment", func(t *testing.T) {
-		got, err := replaceVersionOnLine(`      version: "0.2.0"   # note`, "0.3.0", false)
+		got, err := replaceVersionOnLine(`      version: "0.2.0"   # note`, "0.3.0")
 		require.NoError(t, err)
 		require.Equal(t, `      version: "0.3.0"   # note`, got)
 	})
 
 	t.Run("single quoted", func(t *testing.T) {
-		got, err := replaceVersionOnLine(`      version: '0.2.0'`, "0.3.0", false)
+		got, err := replaceVersionOnLine(`      version: '0.2.0'`, "0.3.0")
 		require.NoError(t, err)
 		require.Equal(t, `      version: '0.3.0'`, got)
 	})
 
 	t.Run("unquoted constraint", func(t *testing.T) {
-		got, err := replaceVersionOnLine(`      version: ^0.1.0`, "^0.2.0", false)
+		got, err := replaceVersionOnLine(`      version: ^0.1.0`, "^0.2.0")
 		require.NoError(t, err)
 		require.Equal(t, `      version: ^0.2.0`, got)
 	})
 
-	t.Run("exact pin for content", func(t *testing.T) {
-		got, err := replaceVersionOnLine(`      version: ^0.3.0`, "0.4.0", true)
+	t.Run("unquoted constraint bumped to unquoted exact", func(t *testing.T) {
+		// Constraint operator is dropped; unquoted style is preserved.
+		got, err := replaceVersionOnLine(`      version: ^0.3.0`, "0.4.0")
 		require.NoError(t, err)
-		require.Equal(t, `      version: "0.4.0"`, got)
+		require.Equal(t, `      version: 0.4.0`, got)
 	})
 }
 
-func TestSetRequiresDependencyVersion_contentUsesExactPin(t *testing.T) {
-	manifest := `name: test_integration
+func TestSetRequiresDependencyVersion_contentPreservesQuoteStyle(t *testing.T) {
+	t.Run("unquoted constraint becomes unquoted exact", func(t *testing.T) {
+		manifest := `name: test_integration
 version: 1.0.0
 type: integration
 requires:
@@ -125,8 +127,23 @@ requires:
     - package: dashboards
       version: ^0.3.0
 `
-	updated, err := setRequiresDependencyVersion([]byte(manifest), "content", "dashboards", "0.4.0")
-	require.NoError(t, err)
-	require.Contains(t, string(updated), `version: "0.4.0"`)
-	require.NotContains(t, string(updated), "^0.4.0")
+		updated, err := setRequiresDependencyVersion([]byte(manifest), "content", "dashboards", "0.4.0")
+		require.NoError(t, err)
+		require.Contains(t, string(updated), `version: 0.4.0`)
+		require.NotContains(t, string(updated), `"0.4.0"`)
+	})
+
+	t.Run("double-quoted constraint becomes double-quoted exact", func(t *testing.T) {
+		manifest := `name: test_integration
+version: 1.0.0
+type: integration
+requires:
+  content:
+    - package: dashboards
+      version: "^0.3.0"
+`
+		updated, err := setRequiresDependencyVersion([]byte(manifest), "content", "dashboards", "0.4.0")
+		require.NoError(t, err)
+		require.Contains(t, string(updated), `version: "0.4.0"`)
+	})
 }

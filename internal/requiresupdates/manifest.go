@@ -54,11 +54,10 @@ func setRequiresDependencyVersion(manifestBytes []byte, section, packageName, ne
 		return nil, fmt.Errorf("package %q not found under requires.%s", packageName, section)
 	}
 
-	exactPin := section == string(ContentDependency)
-	return replaceVersionLine(manifestBytes, versionNode, newVersion, exactPin)
+	return replaceVersionLine(manifestBytes, versionNode, newVersion)
 }
 
-func replaceVersionLine(manifestBytes []byte, versionNode *yaml.Node, newVersion string, exactPin bool) ([]byte, error) {
+func replaceVersionLine(manifestBytes []byte, versionNode *yaml.Node, newVersion string) ([]byte, error) {
 	if versionNode.Line <= 0 {
 		return nil, errors.New("version field has no source line information")
 	}
@@ -70,7 +69,7 @@ func replaceVersionLine(manifestBytes []byte, versionNode *yaml.Node, newVersion
 	}
 
 	line := string(lines[lineIdx])
-	updated, err := replaceVersionOnLine(line, newVersion, exactPin)
+	updated, err := replaceVersionOnLine(line, newVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +78,9 @@ func replaceVersionLine(manifestBytes []byte, versionNode *yaml.Node, newVersion
 	return bytes.Join(lines, []byte("\n")), nil
 }
 
-// replaceVersionOnLine rewrites only the value of a "version:" key on a single line.
-// When exactPin is true, the new value is written as a double-quoted exact semver pin.
-func replaceVersionOnLine(line, newVersion string, exactPin bool) (string, error) {
+// replaceVersionOnLine rewrites only the value of a "version:" key on a single line,
+// preserving the existing quote style.
+func replaceVersionOnLine(line, newVersion string) (string, error) {
 	key := "version:"
 	idx := strings.Index(line, key)
 	if idx < 0 {
@@ -113,17 +112,8 @@ func replaceVersionOnLine(line, newVersion string, exactPin bool) (string, error
 		valuePart = valuePart[:len(valuePart)-1]
 	}
 
-	var newLiteral string
-	if exactPin {
-		newLiteral = formatExactVersionLiteral(newVersion)
-	} else {
-		newLiteral = formatVersionLiteral(strings.TrimSpace(valuePart), newVersion)
-	}
+	newLiteral := formatVersionLiteral(strings.TrimSpace(valuePart), newVersion)
 	return prefix + leadingSpace + newLiteral + trailingSpace + comment, nil
-}
-
-func formatExactVersionLiteral(version string) string {
-	return `"` + version + `"`
 }
 
 func formatVersionLiteral(oldLiteral, newVersion string) string {
