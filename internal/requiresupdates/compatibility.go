@@ -16,16 +16,6 @@ import (
 
 var constraintVersionRE = regexp.MustCompile(`(\d+\.\d+\.\d+)`)
 
-// representativeKibanaVersions are used to test whether integration and dependency Kibana constraints overlap.
-var representativeKibanaVersions = []*semver.Version{
-	semver.MustParse("8.0.0"),
-	semver.MustParse("8.12.0"),
-	semver.MustParse("8.17.0"),
-	semver.MustParse("9.0.0"),
-	semver.MustParse("9.4.0"),
-	semver.MustParse("9.17.0"),
-}
-
 // deriveEPRKibanaVersions returns concrete Kibana versions to pass to EPR search when filtering by stack compatibility.
 func deriveEPRKibanaVersions(integrationKibanaConstraint string) []string {
 	if integrationKibanaConstraint == "" {
@@ -61,9 +51,14 @@ func kibanaConstraintsOverlap(integrationKibana, dependencyKibana string) (bool,
 	if integrationKibana == "" || dependencyKibana == "" {
 		return true, nil
 	}
-	candidates, err := kibanaVersionsSatisfyingIntegration(integrationKibana)
+	candidates, err := candidateKibanaVersions(integrationKibana, dependencyKibana)
 	if err != nil {
 		return false, err
+	}
+	integManifest := packages.PackageManifest{
+		Conditions: packages.Conditions{
+			Kibana: packages.KibanaConditions{Version: integrationKibana},
+		},
 	}
 	depManifest := packages.PackageManifest{
 		Conditions: packages.Conditions{
@@ -71,19 +66,19 @@ func kibanaConstraintsOverlap(integrationKibana, dependencyKibana string) (bool,
 		},
 	}
 	for _, v := range candidates {
-		if err := packages.CheckConditions(depManifest, []string{fmt.Sprintf("kibana.version=%s", v.Original())}); err == nil {
+		vStr := fmt.Sprintf("kibana.version=%s", v.Original())
+		if packages.CheckConditions(integManifest, []string{vStr}) == nil &&
+			packages.CheckConditions(depManifest, []string{vStr}) == nil {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func kibanaVersionsSatisfyingIntegration(integrationKibana string) ([]*semver.Version, error) {
-	integrationManifest := packages.PackageManifest{
-		Conditions: packages.Conditions{
-			Kibana: packages.KibanaConditions{Version: integrationKibana},
-		},
-	}
+// candidateKibanaVersions extracts probe versions from one or more constraint strings.
+// For each branch it adds the literal version and patch+1 to cover strict-greater-than
+// lower bounds (e.g. >9.5.0 → also probe 9.5.1).
+func candidateKibanaVersions(constraints ...string) ([]*semver.Version, error) {
 	seen := make(map[string]struct{})
 	var result []*semver.Version
 	add := func(v *semver.Version) {
@@ -94,31 +89,23 @@ func kibanaVersionsSatisfyingIntegration(integrationKibana string) ([]*semver.Ve
 		if _, ok := seen[key]; ok {
 			return
 		}
-		if err := packages.CheckConditions(integrationManifest, []string{fmt.Sprintf("kibana.version=%s", key)}); err != nil {
-			return
-		}
 		seen[key] = struct{}{}
 		result = append(result, v)
 	}
-	for _, v := range representativeKibanaVersions {
-		add(v)
-	}
-	for _, branch := range strings.Split(integrationKibana, "||") {
-		raw, ok := minVersionFromConstraintBranch(branch)
-		if !ok {
-			continue
+	for _, constraint := range constraints {
+		for _, branch := range strings.Split(constraint, "||") {
+			raw, ok := minVersionFromConstraintBranch(branch)
+			if !ok {
+				continue
+			}
+			v, err := semver.NewVersion(raw)
+			if err != nil {
+				return nil, fmt.Errorf("invalid version in kibana constraint: %w", err)
+			}
+			add(v)
+			next, _ := semver.NewVersion(fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()+1))
+			add(next)
 		}
-		v, err := semver.NewVersion(raw)
-		if err != nil {
-			return nil, fmt.Errorf("invalid version in integration kibana constraint: %w", err)
-		}
-		add(v)
-		// The regex always returns the first literal version in the branch (e.g. "9.5.0"
-		// for ">9.5.0,<9.6.0"). When that boundary is a strict-greater lower bound,
-		// the floor itself fails the constraint and the narrow window goes uncovered.
-		// Adding patch+1 gives a representative inside ranges like (9.5.0, 9.6.0).
-		next, _ := semver.NewVersion(fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()+1))
-		add(next)
 	}
 	return result, nil
 }

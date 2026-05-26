@@ -58,6 +58,12 @@ func TestKibanaConstraintsOverlap(t *testing.T) {
 			want:        true,
 		},
 		{
+			name:        "empty dependency constraint always overlaps",
+			integration: "^9.4.0",
+			dependency:  "",
+			want:        true,
+		},
+		{
 			// Strict-greater lower bound: the regex floor 9.5.0 fails >9.5.0; 9.5.1 must be
 			// tried as a representative so the window (9.5.0, 9.6.0) is not missed.
 			name:        "strict-greater lower bound covered by patch+1 representative",
