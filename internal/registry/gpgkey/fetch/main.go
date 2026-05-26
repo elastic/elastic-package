@@ -37,6 +37,19 @@ func main() {
 	log.Printf("Fetching key from %s ...", upstreamKeyURL)
 	keyBytes, newFingerprint := fetchKey(upstreamKeyURL)
 
+	fmt.Printf("old_fingerprint=%s\n", oldFingerprint)
+	fmt.Printf("new_fingerprint=%s\n", newFingerprint)
+
+	// Only write to disk when the fingerprint actually changes. Elastic
+	// periodically refreshes the self-signature on their key (extending its
+	// expiration, etc.) without rotating the primary key — those refreshes
+	// produce a different .asc byte sequence but the same fingerprint, and we
+	// don't want to churn the embedded file or open noisy update PRs for them.
+	if oldFingerprint == newFingerprint {
+		log.Print("Key unchanged; not writing files.")
+		return
+	}
+
 	if err := os.WriteFile(keyFileName, keyBytes, 0o644); err != nil {
 		log.Fatalf("writing %s: %v", keyFileName, err)
 	}
@@ -45,15 +58,8 @@ func main() {
 		log.Fatalf("updating fingerprint constant in %s: %v", testFileName, err)
 	}
 
-	fmt.Printf("old_fingerprint=%s\n", oldFingerprint)
-	fmt.Printf("new_fingerprint=%s\n", newFingerprint)
-
-	if oldFingerprint == newFingerprint {
-		log.Print("Key unchanged.")
-	} else {
-		log.Printf("Key updated: %s -> %s", oldFingerprint, newFingerprint)
-		log.Printf("Review the new key carefully before committing %s.", keyFileName)
-	}
+	log.Printf("Key updated: %s -> %s", oldFingerprint, newFingerprint)
+	log.Printf("Review the new key carefully before committing %s.", keyFileName)
 }
 
 // fetchKey downloads the armored GPG key from url, validates it parses as an

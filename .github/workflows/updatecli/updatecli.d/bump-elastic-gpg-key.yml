@@ -65,10 +65,19 @@ targets:
     name: '[updatecli] Update embedded Elastic GPG key'
     kind: shell
     scmid: default
-    sourceid: newFingerprint
+    disablesourceinput: true
     spec:
       # Overwrites elastic-gpg-key.asc and updates the fingerprint constant in
-      # gpgkey_test.go. The source value (fingerprint) is appended as a trailing
-      # argument by updatecli but is ignored by the tool.
-      command: >-
-        go run ./internal/registry/gpgkey/fetch
+      # gpgkey_test.go. Updatecli detects changes via the checksum of those
+      # files, so disablesourceinput is set to avoid appending the source value
+      # as an unused trailing argument.
+      command: go run ./internal/registry/gpgkey/fetch
+      changedif:
+        kind: file/checksum
+        spec:
+          files:
+            - internal/registry/elastic-gpg-key.asc
+            - internal/registry/gpgkey_test.go
+      environments:
+        - name: HOME
+        - name: PATH
