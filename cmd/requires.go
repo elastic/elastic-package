@@ -21,7 +21,6 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/requiresupdates"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -90,21 +89,14 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	prof, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("loading configuration failed: %w", err)
-	}
-
-	profileName, err := cmd.Flags().GetString(cobraext.ProfileFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ProfileFlagName)
-	}
-	if profileName == "" {
-		profileName = appConfig.CurrentProfile()
-	}
-	prof, err := profile.LoadProfile(profileName)
-	if err != nil {
-		return fmt.Errorf("loading profile %q failed: %w", profileName, err)
 	}
 
 	baseURL := stack.PackageRegistryBaseURL(prof, appConfig)
