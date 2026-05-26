@@ -121,6 +121,10 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
+	if format == requiresFormatJSON {
+		return nil
+	}
+
 	hasBumps := slices.ContainsFunc(result.Proposals, func(p requiresupdates.UpdateProposal) bool {
 		return p.Proposed != ""
 	})
@@ -129,7 +133,7 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		cmd.Println("Dry run: manifest.yml was not modified")
 	} else if result.Applied {
 		cmd.Println("Updated manifest.yml")
-	} else if len(result.Proposals) == 0 {
+	} else if len(result.Proposals) == 0 && result.SkipReason == "" {
 		cmd.Println("No dependencies to update")
 	}
 
