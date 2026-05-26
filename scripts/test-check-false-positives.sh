@@ -55,7 +55,7 @@ function check_expected_errors() {
   rm -f ${result_tests}
   elastic-package test -C "$package_root" -v --report-format xUnit --report-output file --test-coverage --coverage-format=generic --defer-cleanup 1s || true
 
-  echo "--- Validate expected errors: ${package_name}"
+  echo "--- Validate expected errors: ${package_root}"
   cat ${result_tests} | tr -d '\n' > ${results_no_spaces}
 
   # check number of expected errors
@@ -96,7 +96,7 @@ function check_build_output() {
   mkdir -p "$(dirname "$output_file")"
   elastic-package build -C "$package_root" 2>&1 | tee "$output_file" || true # Ignore errors here
 
-  echo "--- Validate build output: ${package_name}"
+  echo "--- Validate build output: ${package_root}"
   diff -w -u "$expected_build_output" "$output_file" || (
     echo "Error: Build output has differences with expected output"
     exit 1
