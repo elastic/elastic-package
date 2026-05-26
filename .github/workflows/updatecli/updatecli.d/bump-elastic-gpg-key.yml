@@ -11,6 +11,17 @@ actions:
       labels:
         - automation
         - dependency
+      description: |
+        This PR was opened automatically by updatecli. It updates the Elastic
+        public GPG key embedded in the binary to the key currently published at
+        https://artifacts.elastic.co/GPG-KEY-elasticsearch.
+
+        **Before merging, please verify:**
+        - The new fingerprint (`{{ source "newFingerprint" }}`) matches the one
+          listed on https://pgp.mit.edu for key ID `D88E42B4` (Elasticsearch
+          Signing Key), which is an independent source from the download URL.
+        - The key file `internal/registry/elastic-gpg-key.asc` looks like a
+          valid OpenPGP public key block and not something unexpected.
 
 scms:
   default:

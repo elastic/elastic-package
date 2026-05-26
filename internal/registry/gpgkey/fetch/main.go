@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	upstreamKeyURL = "https://packages.elasticsearch.org/GPG-KEY-elasticsearch"
+	upstreamKeyURL = "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
 
 	// Paths relative to the module root (where the tool must be run from).
 	keyFileName  = "internal/registry/elastic-gpg-key.asc"
