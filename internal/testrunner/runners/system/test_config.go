@@ -182,6 +182,7 @@ func applyServiceInfo(data []byte, serviceInfo servicedeployer.ServiceInfo) ([]b
 		return data, fmt.Errorf("parsing template body failed: %w", err)
 	}
 	tmpl.RegisterHelpers(serviceInfo.Aliases())
+	tmpl.RegisterHelpers(tlsHelpers())
 
 	result, err := tmpl.Exec(serviceInfo)
 	if err != nil {
