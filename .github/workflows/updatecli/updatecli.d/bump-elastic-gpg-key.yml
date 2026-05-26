@@ -12,31 +12,34 @@ actions:
         - automation
         - dependency
       description: |
-        This PR was opened automatically by updatecli. It updates the Elastic
-        public GPG key embedded in the binary to the key currently published at
+        This PR was opened automatically by updatecli. It refreshes the Elastic
+        public GPG key embedded in the binary from the upstream copy at
         https://artifacts.elastic.co/GPG-KEY-elasticsearch.
 
         New fingerprint: `{{ source "newFingerprint" }}`
 
-        **Before merging, please verify out-of-band that Elastic actually rotated
-        their signing key.** The links and fingerprints in this PR all come from
-        the same download URL, so they cannot be used to confirm authenticity
-        on their own.
+        **Compare the new fingerprint with the one in
+        `internal/registry/gpgkey_test.go` on `main`:**
 
-        Suggested checks (use independent sources, not anything linked from
-        this PR):
-        - Confirm the new fingerprint appears in Elastic's official install
-          documentation, e.g. the Debian/RPM install pages under
-          https://www.elastic.co/docs/, which hardcode the expected fingerprint
-          in human-written text.
-        - Look for a public announcement from Elastic about a key rotation
-          (release notes, security advisory, blog post).
-        - Cross-check against a previously-trusted copy of the key (e.g. from a
-          long-standing OS package repository configured on a machine you trust).
-        - Sanity-check `internal/registry/elastic-gpg-key.asc` looks like a
-          valid OpenPGP public key block.
+        - **If they match**: this is a self-signature refresh of the same
+          primary key (e.g. updated cryptographic parameters from the self-signature,
+          refreshed subkey bindings, etc.). The primary key material
+          is unchanged. Merging is low-risk; check the diff is plausible
+          (binary armored OpenPGP key block).
+        - **If they differ**: this is a key rotation. **Verify out-of-band that
+          Elastic actually rotated their signing key** — the links and
+          fingerprints in this PR all come from the same download URL, so they
+          cannot confirm authenticity on their own. Suggested independent
+          checks:
+          - Look for the new fingerprint in Elastic's official install docs
+            (Debian/RPM install pages under https://www.elastic.co/docs/),
+            which hardcode the expected fingerprint in human-written text.
+          - Look for a public announcement from Elastic (release notes,
+            security advisory, blog post).
+          - Cross-check against a previously-trusted copy of the key (e.g.
+            from a long-standing OS package repository on a machine you trust).
 
-        If you cannot independently confirm the rotation, do **not** merge.
+        If you cannot independently confirm a rotation, do **not** merge.
 
 scms:
   default:
