@@ -976,11 +976,42 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 		}
 	}
 
-	// Check if there is any error or failure reported
+	// Collect failures and errors into a summary.
+	var failures []string
 	for _, r := range results {
-		if r.ErrorMsg != "" || r.FailureMsg != "" {
-			return errors.New("one or more test cases failed")
+		if r.ErrorMsg == "" && r.FailureMsg == "" {
+			continue
 		}
+		var b strings.Builder
+		b.WriteString("--- FAIL: ")
+		if r.Package != "" {
+			b.WriteString(r.Package)
+		}
+		if r.DataStream != "" {
+			b.WriteByte('/')
+			b.WriteString(r.DataStream)
+		}
+		if r.Name != "" {
+			b.WriteByte('/')
+			b.WriteString(r.Name)
+		}
+		if r.TestType != "" {
+			b.WriteString(" (")
+			b.WriteString(string(r.TestType))
+			b.WriteByte(')')
+		}
+		if r.FailureMsg != "" {
+			b.WriteString("\n    ")
+			b.WriteString(r.FailureMsg)
+		}
+		if r.ErrorMsg != "" {
+			b.WriteString("\n    error: ")
+			b.WriteString(r.ErrorMsg)
+		}
+		failures = append(failures, b.String())
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%d test case(s) failed:\n\n%s", len(failures), strings.Join(failures, "\n\n"))
 	}
 	return nil
 }
