@@ -41,10 +41,7 @@ Version pins must be exact semver versions (constraints such as ^0.3.0 are not a
 When a newer dependency exists but requires a higher Kibana version than this package allows, a warning is printed suggesting to bump conditions.kibana.version on the integration package.`
 )
 
-var (
-	requiresBold = color.New(color.Bold)
-	requiresWarn = color.New(color.FgYellow, color.Bold)
-)
+var requiresBold = color.New(color.Bold)
 
 func setupRequiresCommand() *cobraext.Command {
 	updateCmd := &cobra.Command{
@@ -126,19 +123,15 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	if result.SkipReason != "" {
-		logger.Info(result.SkipReason)
-		// Skipped packages are omitted from JSON output; info log is sufficient for foreach runs.
-		if format != requiresFormatJSON {
-			if err := printRequiresUpdateResult(result, os.Stdout, format); err != nil {
-				return err
-			}
+		if err := printRequiresUpdateResult(result, os.Stdout, format); err != nil {
+			return err
 		}
 		return nil
 	}
 
 	for _, p := range result.Proposals {
 		if p.Warning != "" {
-			requiresWarn.Fprintln(os.Stderr, "WARN:", p.Warning) //nolint:errcheck
+			logger.Warn(p.Warning)
 		}
 	}
 
@@ -179,6 +172,10 @@ func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, form
 		if result.CodeOwner != "" {
 			requiresBold.Fprint(w, "Code owner: ") //nolint:errcheck
 			fmt.Fprintln(w, result.CodeOwner)      //nolint:errcheck
+		}
+		if result.SkipReason != "" {
+			fmt.Fprintln(w, result.SkipReason) //nolint:errcheck
+			return nil
 		}
 		if len(result.Proposals) == 0 {
 			return nil

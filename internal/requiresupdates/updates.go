@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -273,16 +273,19 @@ func fetchCompatibleRevisions(opts Options, integrationKibana, packageName strin
 	for _, rev := range byVersion {
 		merged = append(merged, rev)
 	}
-	sort.SliceStable(merged, func(i, j int) bool {
-		vi, _ := semver.NewVersion(merged[i].Version)
-		vj, _ := semver.NewVersion(merged[j].Version)
-		if vi == nil {
-			return true
+	slices.SortStableFunc(merged, func(a, b packages.PackageManifest) int {
+		va, _ := semver.NewVersion(a.Version)
+		vb, _ := semver.NewVersion(b.Version)
+		if va == nil && vb == nil {
+			return 0
 		}
-		if vj == nil {
-			return false
+		if va == nil {
+			return -1
 		}
-		return vi.LessThan(vj)
+		if vb == nil {
+			return 1
+		}
+		return va.Compare(vb)
 	})
 	return filterByKibanaOverlap(merged, integrationKibana)
 }
