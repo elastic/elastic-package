@@ -16,12 +16,27 @@ actions:
         public GPG key embedded in the binary to the key currently published at
         https://artifacts.elastic.co/GPG-KEY-elasticsearch.
 
-        **Before merging, please verify:**
-        - The new fingerprint (`{{ source "newFingerprint" }}`) matches the one
-          listed on https://pgp.mit.edu for key ID `D88E42B4` (Elasticsearch
-          Signing Key), which is an independent source from the download URL.
-        - The key file `internal/registry/elastic-gpg-key.asc` looks like a
-          valid OpenPGP public key block and not something unexpected.
+        New fingerprint: `{{ source "newFingerprint" }}`
+
+        **Before merging, please verify out-of-band that Elastic actually rotated
+        their signing key.** The links and fingerprints in this PR all come from
+        the same download URL, so they cannot be used to confirm authenticity
+        on their own.
+
+        Suggested checks (use independent sources, not anything linked from
+        this PR):
+        - Confirm the new fingerprint appears in Elastic's official install
+          documentation, e.g. the Debian/RPM install pages under
+          https://www.elastic.co/docs/, which hardcode the expected fingerprint
+          in human-written text.
+        - Look for a public announcement from Elastic about a key rotation
+          (release notes, security advisory, blog post).
+        - Cross-check against a previously-trusted copy of the key (e.g. from a
+          long-standing OS package repository configured on a machine you trust).
+        - Sanity-check `internal/registry/elastic-gpg-key.asc` looks like a
+          valid OpenPGP public key block.
+
+        If you cannot independently confirm the rotation, do **not** merge.
 
 scms:
   default:
