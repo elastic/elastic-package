@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
 	"github.com/spf13/cobra"
@@ -39,8 +38,6 @@ Version pins must be exact semver versions (constraints such as ^0.3.0 are not a
 
 When a newer dependency exists but requires a higher Kibana version than this package allows, a warning is printed suggesting to bump conditions.kibana.version on the integration package.`
 )
-
-var requiresBold = color.New(color.Bold)
 
 func setupRequiresCommand() *cobraext.Command {
 	updateCmd := &cobra.Command{
@@ -158,12 +155,12 @@ func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, form
 		return enc.Encode(result)
 	case requiresFormatTable:
 		if result.Package != "" {
-			requiresBold.Fprint(w, "Package: ") //nolint:errcheck
-			fmt.Fprintln(w, result.Package)     //nolint:errcheck
+			bold.Fprint(w, "Package: ")     //nolint:errcheck
+			fmt.Fprintln(w, result.Package) //nolint:errcheck
 		}
 		if result.CodeOwner != "" {
-			requiresBold.Fprint(w, "Code owner: ") //nolint:errcheck
-			fmt.Fprintln(w, result.CodeOwner)      //nolint:errcheck
+			bold.Fprint(w, "Code owner: ")    //nolint:errcheck
+			fmt.Fprintln(w, result.CodeOwner) //nolint:errcheck
 		}
 		if result.SkipReason != "" {
 			fmt.Fprintln(w, result.SkipReason) //nolint:errcheck
@@ -172,7 +169,7 @@ func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, form
 		if len(result.Proposals) == 0 {
 			return nil
 		}
-		requiresBold.Fprintln(w, "Requires updates:") //nolint:errcheck
+		bold.Fprintln(w, "Requires updates:") //nolint:errcheck
 		table := tablewriter.NewTable(w,
 			tablewriter.WithRenderer(renderer.NewColorized(defaultColorizedConfig())),
 			tablewriter.WithConfig(defaultTableConfig),
