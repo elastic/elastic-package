@@ -179,6 +179,104 @@ requires:
 	require.Contains(t, p.Warning, "^9.6.0")
 }
 
+func TestUpdate_contentDep_exactPin_bumps(t *testing.T) {
+	revisions := []packages.PackageManifest{
+		manifestRevision("0.2.0", "^9.4.0"),
+		manifestRevision("0.3.0", "^9.4.0"),
+	}
+	srv, client := testRegistryServer(t, revisions)
+	t.Cleanup(srv.Close)
+
+	packageRoot := writeIntegrationPackage(t, `name: test_pkg
+version: 1.0.0
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  content:
+    - package: sql_input
+      version: "0.2.0"
+`)
+
+	result, err := Update(Options{
+		PackageRoot:    packageRoot,
+		RegistryClient: client,
+		DryRun:         true,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Proposals, 1)
+	p := result.Proposals[0]
+	require.Equal(t, ContentDependency, p.Kind)
+	require.Equal(t, "0.2.0", p.Current)
+	require.Equal(t, "0.3.0", p.Proposed)
+	require.Empty(t, p.Warning)
+}
+
+func TestUpdate_contentDep_constraintStyle_bumps(t *testing.T) {
+	// ^0.3.0 covers >=0.3.0,<0.4.0; 0.3.5 satisfies it, 0.4.0 does not → propose 0.4.0.
+	revisions := []packages.PackageManifest{
+		manifestRevision("0.3.5", "^9.4.0"),
+		manifestRevision("0.4.0", "^9.4.0"),
+	}
+	srv, client := testRegistryServer(t, revisions)
+	t.Cleanup(srv.Close)
+
+	packageRoot := writeIntegrationPackage(t, `name: test_pkg
+version: 1.0.0
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  content:
+    - package: sql_input
+      version: "^0.3.0"
+`)
+
+	result, err := Update(Options{
+		PackageRoot:    packageRoot,
+		RegistryClient: client,
+		DryRun:         true,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Proposals, 1)
+	p := result.Proposals[0]
+	require.Equal(t, ContentDependency, p.Kind)
+	require.Equal(t, "^0.3.0", p.Current)
+	require.Equal(t, "0.4.0", p.Proposed)
+	require.Empty(t, p.Warning)
+}
+
+func TestUpdate_contentDep_constraintStyle_noUpdate(t *testing.T) {
+	// All registry versions satisfy ^0.3.0 → no update needed.
+	revisions := []packages.PackageManifest{
+		manifestRevision("0.3.5", "^9.4.0"),
+	}
+	srv, client := testRegistryServer(t, revisions)
+	t.Cleanup(srv.Close)
+
+	packageRoot := writeIntegrationPackage(t, `name: test_pkg
+version: 1.0.0
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  content:
+    - package: sql_input
+      version: "^0.3.0"
+`)
+
+	result, err := Update(Options{
+		PackageRoot:    packageRoot,
+		RegistryClient: client,
+		DryRun:         true,
+	})
+	require.NoError(t, err)
+	require.Empty(t, result.Proposals)
+}
+
 func TestUpdate_errorsOnConstraintStylePin(t *testing.T) {
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.2.0", "^9.4.0"),

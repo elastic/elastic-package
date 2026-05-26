@@ -155,12 +155,27 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		return nil, err
 	}
 
-	currentEffective, err := effectiveCurrentVersion(dep.Version)
+	currentEffective, currentConstraint, err := parseCurrentVersion(kind, dep.Version)
 	if err != nil {
 		return nil, fmt.Errorf("package %q: %w", dep.Package, err)
 	}
 
-	latestCompatible := latestRevisionNewerThan(compatible, currentEffective)
+	// isOutdatedBy reports whether ver represents a version bump over the current spec.
+	// For an exact pin: ver must be strictly greater. For a constraint: ver must fall
+	// outside it (i.e. it's a newer range the constraint does not cover).
+	isOutdatedBy := func(ver *semver.Version) bool {
+		if currentConstraint != nil {
+			return !currentConstraint.Check(ver)
+		}
+		return currentEffective != nil && ver.GreaterThan(currentEffective)
+	}
+
+	var latestCompatible *packages.PackageManifest
+	if currentConstraint != nil {
+		latestCompatible = latestRevisionBeyondConstraint(compatible, currentConstraint)
+	} else {
+		latestCompatible = latestRevisionNewerThan(compatible, currentEffective)
+	}
 
 	latestUnfiltered, err := latestRevision(unfiltered)
 	if err != nil {
@@ -169,9 +184,9 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 
 	var warning string
 	if latestCompatible == nil {
-		if latestUnfiltered != nil && currentEffective != nil {
+		if latestUnfiltered != nil {
 			latestVer, _ := semver.NewVersion(latestUnfiltered.Version)
-			if latestVer != nil && latestVer.GreaterThan(currentEffective) {
+			if latestVer != nil && isOutdatedBy(latestVer) {
 				warning = formatKibanaBumpWarning(
 					dep.Package,
 					latestUnfiltered.Version,
@@ -195,10 +210,10 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 	if err != nil {
 		return nil, fmt.Errorf("invalid compatible version %q: %w", latestCompatible.Version, err)
 	}
-	if currentEffective != nil && !latestCompatibleVer.GreaterThan(currentEffective) {
+	if !isOutdatedBy(latestCompatibleVer) {
 		if latestUnfiltered != nil {
 			latestUnfilteredVer, _ := semver.NewVersion(latestUnfiltered.Version)
-			if latestUnfilteredVer != nil && latestUnfilteredVer.GreaterThan(currentEffective) &&
+			if latestUnfilteredVer != nil && isOutdatedBy(latestUnfilteredVer) &&
 				latestUnfilteredVer.GreaterThan(latestCompatibleVer) {
 				warning = formatKibanaBumpWarning(
 					dep.Package,
@@ -307,12 +322,49 @@ func filterByKibanaOverlap(revisions []packages.PackageManifest, integrationKiba
 	return filtered, nil
 }
 
-func effectiveCurrentVersion(pinned string) (*semver.Version, error) {
-	ver, err := semver.NewVersion(pinned)
-	if err != nil {
-		return nil, fmt.Errorf("invalid requires version %q (must be an exact semver, not a constraint): %w", pinned, err)
+// parseCurrentVersion returns the current dependency version as either an exact
+// semver.Version or a semver.Constraints, depending on the dep kind and the
+// string format. Input deps must be exact semver pins; content deps additionally
+// accept constraint expressions (e.g. "^0.3.0").
+func parseCurrentVersion(kind DependencyKind, version string) (*semver.Version, *semver.Constraints, error) {
+	if kind != ContentDependency {
+		v, err := semver.NewVersion(version)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid requires version %q (must be an exact semver, not a constraint): %w", version, err)
+		}
+		return v, nil, nil
 	}
-	return ver, nil
+	if v, err := semver.NewVersion(version); err == nil {
+		return v, nil, nil
+	}
+	c, err := semver.NewConstraint(version)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid requires version %q (not a valid semver or constraint): %w", version, err)
+	}
+	return nil, c, nil
+}
+
+// latestRevisionBeyondConstraint returns the latest revision whose version does
+// not satisfy constraint — meaning it falls outside the currently-pinned range
+// and would represent a version bump.
+func latestRevisionBeyondConstraint(revisions []packages.PackageManifest, constraint *semver.Constraints) *packages.PackageManifest {
+	var best *packages.PackageManifest
+	var bestVer *semver.Version
+	for _, rev := range revisions {
+		ver, err := semver.NewVersion(rev.Version)
+		if err != nil {
+			continue
+		}
+		if constraint.Check(ver) {
+			continue
+		}
+		if bestVer == nil || ver.GreaterThan(bestVer) {
+			copy := rev
+			best = &copy
+			bestVer = ver
+		}
+	}
+	return best
 }
 
 func latestRevision(revisions []packages.PackageManifest) (*packages.PackageManifest, error) {
