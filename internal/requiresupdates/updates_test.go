@@ -339,6 +339,52 @@ func testRegistryServer(t *testing.T, revisions []packages.PackageManifest) (*ht
 	return srv, client
 }
 
+func TestLatestRevision_empty(t *testing.T) {
+	got, err := latestRevision(nil)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+func TestLatestRevision_single(t *testing.T) {
+	revisions := []packages.PackageManifest{manifestRevision("1.0.0", "^9.0.0")}
+	got, err := latestRevision(revisions)
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0", got.Version)
+}
+
+func TestLatestRevision_unsortedPicksMax(t *testing.T) {
+	// Input order is intentionally non-ascending to confirm no sorted assumption.
+	revisions := []packages.PackageManifest{
+		manifestRevision("0.3.0", "^9.0.0"),
+		manifestRevision("0.1.0", "^9.0.0"),
+		manifestRevision("0.5.0", "^9.0.0"),
+		manifestRevision("0.2.0", "^9.0.0"),
+	}
+	got, err := latestRevision(revisions)
+	require.NoError(t, err)
+	require.Equal(t, "0.5.0", got.Version)
+}
+
+func TestLatestRevision_skipsUnparseableVersions(t *testing.T) {
+	revisions := []packages.PackageManifest{
+		manifestRevision("not-a-version", "^9.0.0"),
+		manifestRevision("0.2.0", "^9.0.0"),
+		manifestRevision("bad", "^9.0.0"),
+	}
+	got, err := latestRevision(revisions)
+	require.NoError(t, err)
+	require.Equal(t, "0.2.0", got.Version)
+}
+
+func TestLatestRevision_allUnparseable(t *testing.T) {
+	revisions := []packages.PackageManifest{
+		manifestRevision("not-semver", "^9.0.0"),
+	}
+	got, err := latestRevision(revisions)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
 func writeIntegrationPackage(t *testing.T, manifest string) string {
 	t.Helper()
 	dir := t.TempDir()

@@ -367,26 +367,25 @@ func latestRevisionBeyondConstraint(revisions []packages.PackageManifest, constr
 	return best
 }
 
+// latestRevision returns the revision with the highest semantic version in the
+// slice. Order of the input does not matter. Entries with unparseable versions
+// are skipped. Returns nil (no error) when the slice is empty or every entry
+// has an unparseable version.
 func latestRevision(revisions []packages.PackageManifest) (*packages.PackageManifest, error) {
-	if len(revisions) == 0 {
-		return nil, nil
-	}
-	best := revisions[len(revisions)-1]
-	bestVer, err := semver.NewVersion(best.Version)
-	if err != nil {
-		return nil, fmt.Errorf("invalid version %q: %w", best.Version, err)
-	}
-	for i := len(revisions) - 2; i >= 0; i-- {
+	var best *packages.PackageManifest
+	var bestVer *semver.Version
+	for i := range revisions {
 		ver, err := semver.NewVersion(revisions[i].Version)
 		if err != nil {
 			continue
 		}
-		if ver.GreaterThan(bestVer) {
-			best = revisions[i]
+		if bestVer == nil || ver.GreaterThan(bestVer) {
+			copy := revisions[i]
+			best = &copy
 			bestVer = ver
 		}
 	}
-	return &best, nil
+	return best, nil
 }
 
 func latestRevisionNewerThan(revisions []packages.PackageManifest, current *semver.Version) *packages.PackageManifest {
