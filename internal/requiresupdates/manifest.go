@@ -97,22 +97,12 @@ func replaceVersionOnLine(line, newVersion string) (string, error) {
 		valuePart = remainder[:hash]
 	}
 
-	leadingSpace := ""
-	for len(valuePart) > 0 && (valuePart[0] == ' ' || valuePart[0] == '\t') {
-		leadingSpace += string(valuePart[0])
-		valuePart = valuePart[1:]
-	}
-	trailingSpace := ""
-	for len(valuePart) > 0 {
-		c := valuePart[len(valuePart)-1]
-		if c != ' ' && c != '\t' {
-			break
-		}
-		trailingSpace = string(c) + trailingSpace
-		valuePart = valuePart[:len(valuePart)-1]
-	}
+	trimmed := strings.TrimLeft(valuePart, " \t")
+	leadingSpace := valuePart[:len(valuePart)-len(trimmed)]
+	valuePart = strings.TrimRight(trimmed, " \t")
+	trailingSpace := trimmed[len(valuePart):]
 
-	newLiteral := formatVersionLiteral(strings.TrimSpace(valuePart), newVersion)
+	newLiteral := formatVersionLiteral(valuePart, newVersion)
 	return prefix + leadingSpace + newLiteral + trailingSpace + comment, nil
 }
 

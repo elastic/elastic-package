@@ -160,14 +160,8 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		return nil, fmt.Errorf("package %q: %w", dep.Package, err)
 	}
 
-	// isOutdatedBy reports whether ver represents a version bump over the current spec.
-	// For an exact pin: ver must be strictly greater. For a constraint: ver must fall
-	// outside it (i.e. it's a newer range the constraint does not cover).
 	isOutdatedBy := func(ver *semver.Version) bool {
-		if currentConstraint != nil {
-			return !currentConstraint.Check(ver)
-		}
-		return currentEffective != nil && ver.GreaterThan(currentEffective)
+		return isVersionOutdated(currentEffective, currentConstraint, ver)
 	}
 
 	var latestCompatible *packages.PackageManifest
@@ -304,6 +298,16 @@ func parseCurrentVersion(kind DependencyKind, version string) (*semver.Version, 
 		return nil, nil, fmt.Errorf("invalid requires version %q (not a valid semver or constraint): %w", version, err)
 	}
 	return nil, c, nil
+}
+
+// isVersionOutdated reports whether ver represents a version bump over the current spec.
+// For an exact pin: ver must be strictly greater. For a constraint: ver must fall
+// outside it (i.e. it's a newer range the constraint does not cover).
+func isVersionOutdated(current *semver.Version, constraint *semver.Constraints, ver *semver.Version) bool {
+	if constraint != nil {
+		return !constraint.Check(ver)
+	}
+	return current != nil && ver.GreaterThan(current)
 }
 
 // kibanaBumpWarning returns a warning when latest is available but requires a

@@ -144,8 +144,8 @@ type: integration
 
 func TestUpdate_warningOnlyWhenAllRevisionsRequireHigherKibana(t *testing.T) {
 	// All available revisions require ^9.6.0; the integration is capped at <9.6.0.
-	// latestCompatible == nil, but a newer unfiltered revision exists, so the result
-	// should be a proposal with Proposed=="" and a non-empty Warning (lines 183-202 in updates.go).
+	// latestCompatible == nil but a newer unfiltered revision exists: expect a
+	// proposal with Proposed=="" and a non-empty Warning.
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.3.0", "^9.6.0"),
 	}
