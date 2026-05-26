@@ -48,14 +48,13 @@ func main() {
 	fmt.Printf("old_fingerprint=%s\n", oldFingerprint)
 	fmt.Printf("new_fingerprint=%s\n", newFingerprint)
 
-	switch {
-	case oldFingerprint == newFingerprint:
+	if oldFingerprint == newFingerprint {
 		// Same fingerprint, different bytes: Elastic refreshed the self-signature
 		// on their key (e.g. SHA-1 → SHA-256, new subkey binding, etc.) without
 		// rotating the primary key. We still want to refresh the embedded copy
 		// so it includes the modern self-signature.
 		log.Printf("Key fingerprint unchanged (%s); embedded copy refreshed with new self-signature.", newFingerprint)
-	default:
+	} else {
 		log.Printf("Key rotated: %s -> %s", oldFingerprint, newFingerprint)
 		log.Printf("Review the new key carefully before committing %s.", keyFileName)
 	}
