@@ -983,7 +983,7 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 			continue
 		}
 		var b strings.Builder
-		b.WriteString("--- FAIL : ")
+		b.WriteString("FAIL: ")
 		if r.Package != "" {
 			b.WriteString(r.Package)
 		}
@@ -1011,7 +1011,7 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 		failures = append(failures, b.String())
 	}
 	if len(failures) > 0 {
-		return fmt.Errorf("%d test case(s) failed:\n\n%s", len(failures), strings.Join(failures, "\n\n"))
+		return fmt.Errorf("--- %d test case(s) failed:\n\n%s", len(failures), strings.Join(failures, "\n\n"))
 	}
 	return nil
 }
