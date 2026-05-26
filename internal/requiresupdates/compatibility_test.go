@@ -42,4 +42,14 @@ func TestKibanaConstraintsOverlap(t *testing.T) {
 	ok, err = kibanaConstraintsOverlap("", "^9.6.0")
 	require.NoError(t, err)
 	require.True(t, ok)
+
+	// Strict-greater lower bound: the regex floor 9.5.0 fails >9.5.0; 9.5.1 must be
+	// tried as a representative so the window (9.5.0, 9.6.0) is not missed.
+	ok, err = kibanaConstraintsOverlap(">9.5.0,<9.6.0", ">=9.5.1")
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	ok, err = kibanaConstraintsOverlap(">9.5.0,<9.6.0", "^9.6.0")
+	require.NoError(t, err)
+	require.False(t, ok)
 }

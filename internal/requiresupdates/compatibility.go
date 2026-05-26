@@ -113,6 +113,12 @@ func kibanaVersionsSatisfyingIntegration(integrationKibana string) ([]*semver.Ve
 			return nil, fmt.Errorf("invalid version in integration kibana constraint: %w", err)
 		}
 		add(v)
+		// The regex always returns the first literal version in the branch (e.g. "9.5.0"
+		// for ">9.5.0,<9.6.0"). When that boundary is a strict-greater lower bound,
+		// the floor itself fails the constraint and the narrow window goes uncovered.
+		// Adding patch+1 gives a representative inside ranges like (9.5.0, 9.6.0).
+		next, _ := semver.NewVersion(fmt.Sprintf("%d.%d.%d", v.Major(), v.Minor(), v.Patch()+1))
+		add(next)
 	}
 	return result, nil
 }
