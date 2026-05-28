@@ -80,7 +80,7 @@ func NewForPackage(options Options) (Installer, error) {
 			logger.Debug("Skip validation of the built .zip package")
 		} else {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
-			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
+			errs, skipped := validation.ValidateBuiltFromZip(options.ZipPath)
 			if skipped != nil {
 				logger.Infof("Skipped errors: %v", skipped)
 			}

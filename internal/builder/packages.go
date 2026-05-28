@@ -272,7 +272,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debugf("Validating built package (path: %s)", buildPackageRoot)
-	errs, skipped := validation.ValidateAndFilterFromPath(buildPackageRoot)
+	errs, skipped := validation.ValidateBuiltFromPath(buildPackageRoot)
 	if skipped != nil {
 		logger.Infof("Skipped errors: %v", skipped)
 	}
@@ -300,7 +300,7 @@ func buildZippedPackage(options BuildOptions, buildPackageRoot string) (string, 
 		logger.Debug("Skip validation of the built .zip package")
 	} else {
 		logger.Debugf("Validating built .zip package (path: %s)", zippedPackagePath)
-		errs, skipped := validation.ValidateAndFilterFromZip(zippedPackagePath)
+		errs, skipped := validation.ValidateBuiltFromZip(zippedPackagePath)
 		if skipped != nil {
 			logger.Infof("Skipped errors: %v", skipped)
 		}
