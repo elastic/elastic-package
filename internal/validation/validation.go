@@ -15,52 +15,6 @@ import (
 	"github.com/elastic/package-spec/v3/code/go/pkg/validator"
 )
 
-func ValidateFromPath(rootPath string) error {
-	return validator.ValidateFromPath(rootPath)
-}
-
-func ValidateFromZip(packagePath string) error {
-	return validator.ValidateFromZip(packagePath)
-}
-
-func ValidateAndFilterFromPath(packageRoot string) (error, error) {
-	allErrors := validator.ValidateFromPath(packageRoot)
-	if allErrors == nil {
-		return nil, nil
-	}
-
-	fsys := os.DirFS(packageRoot)
-	result, err := filterErrors(allErrors, fsys)
-	if err != nil {
-		return err, nil
-	}
-	return result.Processed, result.Removed
-}
-
-func ValidateAndFilterFromZip(zipPackagePath string) (error, error) {
-	allErrors := validator.ValidateFromZip(zipPackagePath)
-	if allErrors == nil {
-		return nil, nil
-	}
-
-	fsys, err := zip.OpenReader(zipPackagePath)
-	if err != nil {
-		return fmt.Errorf("failed to open zip file (%s): %w", zipPackagePath, err), nil
-	}
-	defer fsys.Close()
-
-	fsZip, err := fsFromPackageZip(fsys)
-	if err != nil {
-		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", zipPackagePath, err), nil
-	}
-
-	result, err := filterErrors(allErrors, fsZip)
-	if err != nil {
-		return err, nil
-	}
-	return result.Processed, result.Removed
-}
-
 // ValidateSourceFromPath validates a package source tree — checked out from version
 // control, not yet built. Source-only artifacts (_dev/, .link files, external: ecs
 // references) are permitted. Validation errors are filtered against the package's
