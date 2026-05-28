@@ -63,7 +63,9 @@ func ValidateAndFilterFromZip(zipPackagePath string) (error, error) {
 
 // ValidateSourceFromPath validates a package source tree — checked out from version
 // control, not yet built. Source-only artifacts (_dev/, .link files, external: ecs
-// references) are permitted.
+// references) are permitted. Validation errors are filtered against the package's
+// validation.yml config; the first return value is the remaining errors after filtering,
+// the second is the errors that were filtered out.
 func ValidateSourceFromPath(packageRoot string) (error, error) {
 	v, err := validator.NewFromPath(validator.ModeSource, packageRoot)
 	if err != nil {
@@ -82,7 +84,10 @@ func ValidateSourceFromPath(packageRoot string) (error, error) {
 }
 
 // ValidateBuiltFromPath validates a built (unzipped) package directory. Source-only
-// artifacts (_dev/, .link files, external: ecs references) are rejected.
+// artifacts (_dev/, .link files, external: ecs references) are rejected. Validation
+// errors are filtered against the package's validation.yml config; the first return
+// value is the remaining errors after filtering, the second is the errors that were
+// filtered out.
 func ValidateBuiltFromPath(packageRoot string) (error, error) {
 	v, err := validator.NewFromPath(validator.ModeBuild, packageRoot)
 	if err != nil {
@@ -101,7 +106,10 @@ func ValidateBuiltFromPath(packageRoot string) (error, error) {
 }
 
 // ValidateBuiltFromZip validates a built package zip archive. Zip files are always
-// treated as built artifacts; source-only artifacts are rejected.
+// treated as built artifacts; source-only artifacts are rejected. Validation errors
+// are filtered against the package's validation.yml config; the first return value
+// is the remaining errors after filtering, the second is the errors that were
+// filtered out.
 func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
 	v, err := validator.NewFromZip(zipPackagePath)
 	if err != nil {
