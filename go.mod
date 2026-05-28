@@ -55,8 +55,6 @@ require (
 	k8s.io/client-go v0.36.1
 )
 
-replace github.com/elastic/package-spec/v3 => ../package-spec
-
 require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.20.0 // indirect
