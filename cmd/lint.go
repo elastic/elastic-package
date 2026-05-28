@@ -83,7 +83,7 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	errs, skipped := validation.ValidateAndFilterFromPath(packageRoot)
+	errs, skipped := validation.ValidateSourceFromPath(packageRoot)
 	if skipped != nil {
 		logger.Infof("Skipped errors: %v", skipped)
 	}
