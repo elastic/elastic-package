@@ -55,6 +55,10 @@ require (
 	k8s.io/client-go v0.36.1
 )
 
+// Local replace pointing to elastic/package-spec PR #1175 (teresaromero/package-spec@9c3e7024).
+// Go cannot fetch fork commits for /v3 modules until the PR is merged and the proxy indexes it.
+replace github.com/elastic/package-spec/v3 => ../package-spec
+
 require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.20.0 // indirect
