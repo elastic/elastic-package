@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -170,10 +170,12 @@ func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, form
 	}
 	switch format {
 	case requiresFormatJSON:
-		enc := json.NewEncoder(w)
-		enc.SetEscapeHTML(false)
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+		data, err := formatter.NewJSONFormatter().Encode(result)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(w, string(data))
+		return err
 	case requiresFormatTable:
 		if result.Package != "" {
 			bold.Fprint(w, "Package: ")     //nolint:errcheck

@@ -19,6 +19,17 @@ type JSONFormatter interface {
 	Encode(doc any) ([]byte, error)
 }
 
+// NewJSONFormatter returns a JSONFormatter that encodes JSON without HTML escaping
+// and with consistent indentation. Use this for non-spec content (e.g. CLI output).
+// For package-spec content whose format varies by spec version, use JSONFormatterBuilder.
+func NewJSONFormatter() JSONFormatter {
+	return &jsonFormatter{}
+}
+
+// JSONFormatterBuilder returns a JSONFormatter appropriate for the given spec version.
+// The version gate controls HTML-encoding behaviour introduced in spec 2.12.0 and is
+// only meaningful for content that is part of the package spec (sample events, test
+// result definitions). For non-spec content, use NewJSONFormatter instead.
 func JSONFormatterBuilder(specVersion semver.Version) JSONFormatter {
 	if specVersion.LessThan(semver.MustParse("2.12.0")) {
 		return &jsonFormatterWithHTMLEncoding{}
