@@ -97,9 +97,9 @@ and use a following field definition:
   external: ecs
 ```
 
-## Integrations with requires and the package registry
+## Integrations with required packages and the package registry
 
-Integration packages with `requires` can depend on input or content packages by declaring them under
+Integration packages can depend on input or content packages by declaring them under
 `requires` in `manifest.yml`. Depending on the package type, dependencies are resolved
 differently: **input package** dependencies are fetched at build time; **content package**
 dependencies are resolved at runtime by Fleet.
