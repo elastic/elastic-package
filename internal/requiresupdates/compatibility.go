@@ -14,28 +14,6 @@ import (
 
 var constraintVersionRE = regexp.MustCompile(`(\d+\.\d+\.\d+)`)
 
-// deriveEPRKibanaVersions returns concrete Kibana versions to pass to EPR search when filtering by stack compatibility.
-func deriveEPRKibanaVersions(integrationKibanaConstraint string) []string {
-	if integrationKibanaConstraint == "" {
-		return nil
-	}
-	branches := strings.Split(integrationKibanaConstraint, "||")
-	seen := make(map[string]struct{})
-	var versions []string
-	for _, branch := range branches {
-		v, ok := minVersionFromConstraintBranch(branch)
-		if !ok {
-			continue
-		}
-		if _, exists := seen[v]; exists {
-			continue
-		}
-		seen[v] = struct{}{}
-		versions = append(versions, v)
-	}
-	return versions
-}
-
 func minVersionFromConstraintBranch(branch string) (string, bool) {
 	m := constraintVersionRE.FindStringSubmatch(strings.TrimSpace(branch))
 	if len(m) < 2 {

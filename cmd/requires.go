@@ -49,6 +49,7 @@ func setupRequiresCommand() *cobraext.Command {
 	}
 	updateCmd.Flags().Bool(cobraext.RequiresDryRunFlagName, false, cobraext.RequiresDryRunFlagDescription)
 	updateCmd.Flags().String(cobraext.RequiresFormatFlagName, requiresFormatTable, fmt.Sprintf(cobraext.RequiresFormatFlagDescription, strings.Join(requiresFormatChoices, "|")))
+	updateCmd.Flags().Bool(cobraext.RequiresPrereleaseFlagName, false, cobraext.RequiresPrereleaseFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "requires",
@@ -80,6 +81,10 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	if !slices.Contains(requiresFormatChoices, format) {
 		return fmt.Errorf("unsupported format %q, supported formats: %s", format, strings.Join(requiresFormatChoices, ", "))
 	}
+	prerelease, err := cmd.Flags().GetBool(cobraext.RequiresPrereleaseFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.RequiresPrereleaseFlagName)
+	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
@@ -106,6 +111,7 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		PackageRoot:    packageRoot,
 		RegistryClient: eprClient,
 		DryRun:         dryRun,
+		Prerelease:     prerelease,
 	})
 	if err != nil {
 		return err

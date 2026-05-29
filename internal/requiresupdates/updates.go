@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -41,6 +40,7 @@ type Options struct {
 	PackageRoot    string
 	RegistryClient *registry.Client
 	DryRun         bool
+	Prerelease     bool
 }
 
 // Result holds proposals and whether manifest.yml was written.
@@ -139,10 +139,7 @@ func resolveSection(opts Options, integrationKibana string, kind DependencyKind,
 }
 
 func resolveDependency(opts Options, integrationKibana string, kind DependencyKind, dep packages.PackageDependency) (*UpdateProposal, error) {
-	unfiltered, err := opts.RegistryClient.Revisions(dep.Package, registry.SearchOptions{
-		Prerelease:   true,
-		Experimental: true,
-	})
+	unfiltered, err := fetchAllRevisions(opts.RegistryClient, dep.Package, opts.Prerelease)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving revisions for package %q failed: %w", dep.Package, err)
 	}
@@ -150,7 +147,7 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		return nil, nil
 	}
 
-	compatible, err := fetchCompatibleRevisions(opts, integrationKibana, dep.Package)
+	compatible, err := filterByKibanaSubset(unfiltered, integrationKibana)
 	if err != nil {
 		return nil, err
 	}
@@ -213,52 +210,31 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 	}, nil
 }
 
-func fetchCompatibleRevisions(opts Options, integrationKibana, packageName string) ([]packages.PackageManifest, error) {
-	kibanaVersions := deriveEPRKibanaVersions(integrationKibana)
-	if len(kibanaVersions) == 0 {
-		revisions, err := opts.RegistryClient.Revisions(packageName, registry.SearchOptions{
+// fetchAllRevisions fetches all versions of packageName from the registry.
+func fetchAllRevisions(client *registry.Client, packageName string, prerelease bool) ([]packages.PackageManifest, error) {
+	revisions, err := client.Revisions(packageName, registry.SearchOptions{
+		All:          true,
+		Prerelease:   prerelease,
+		Experimental: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// If no stable versions exist, fall back to pre-releases so that packages
+	// that have not yet shipped a stable release are still visible. Without this,
+	// resolveDependency would treat the dependency as non-existent and produce
+	// neither a proposal nor a warning.
+	if len(revisions) == 0 && !prerelease {
+		revisions, err = client.Revisions(packageName, registry.SearchOptions{
+			All:          true,
 			Prerelease:   true,
 			Experimental: true,
 		})
 		if err != nil {
 			return nil, err
 		}
-		return filterByKibanaSubset(revisions, integrationKibana)
 	}
-
-	byVersion := make(map[string]packages.PackageManifest)
-	for _, kv := range kibanaVersions {
-		revisions, err := opts.RegistryClient.Revisions(packageName, registry.SearchOptions{
-			KibanaVersion: kv,
-			Prerelease:    true,
-			Experimental:  true,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("retrieving revisions for kibana.version=%s failed: %w", kv, err)
-		}
-		for _, rev := range revisions {
-			byVersion[rev.Version] = rev
-		}
-	}
-	merged := make([]packages.PackageManifest, 0, len(byVersion))
-	for _, rev := range byVersion {
-		merged = append(merged, rev)
-	}
-	slices.SortStableFunc(merged, func(a, b packages.PackageManifest) int {
-		va, _ := semver.NewVersion(a.Version)
-		vb, _ := semver.NewVersion(b.Version)
-		if va == nil && vb == nil {
-			return 0
-		}
-		if va == nil {
-			return -1
-		}
-		if vb == nil {
-			return 1
-		}
-		return va.Compare(vb)
-	})
-	return filterByKibanaSubset(merged, integrationKibana)
+	return revisions, nil
 }
 
 func filterByKibanaSubset(revisions []packages.PackageManifest, integrationKibana string) ([]packages.PackageManifest, error) {

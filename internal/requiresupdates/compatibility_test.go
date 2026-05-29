@@ -10,21 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDeriveEPRKibanaVersions(t *testing.T) {
-	t.Run("empty integration constraint", func(t *testing.T) {
-		require.Nil(t, deriveEPRKibanaVersions(""))
-	})
-
-	t.Run("single branch", func(t *testing.T) {
-		got := deriveEPRKibanaVersions("^9.4.0")
-		require.Equal(t, []string{"9.4.0"}, got)
-	})
-
-	t.Run("OR branches", func(t *testing.T) {
-		got := deriveEPRKibanaVersions("^8.0.0 || ^9.0.0")
-		require.ElementsMatch(t, []string{"8.0.0", "9.0.0"}, got)
-	})
-}
 
 func TestKibanaConstraintIsSubset(t *testing.T) {
 	tests := []struct {

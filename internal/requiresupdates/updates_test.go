@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -329,7 +330,19 @@ func testRegistryServer(t *testing.T, revisions []packages.PackageManifest) (*ht
 			return
 		}
 		pkg := r.URL.Query().Get("package")
-		body, err := json.Marshal(byPackage[pkg])
+		all := byPackage[pkg]
+		includePrerelease := r.URL.Query().Get("prerelease") == "true"
+		if !includePrerelease {
+			var stable []packages.PackageManifest
+			for _, rev := range all {
+				v, err := semver.NewVersion(rev.Version)
+				if err != nil || v.Prerelease() == "" {
+					stable = append(stable, rev)
+				}
+			}
+			all = stable
+		}
+		body, err := json.Marshal(all)
 		require.NoError(t, err)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(body)
@@ -375,6 +388,73 @@ func TestLatestRevision(t *testing.T) {
 		}
 		require.Nil(t, latestRevision(revisions))
 	})
+}
+
+func TestUpdate_prereleaseOnlyFallback(t *testing.T) {
+	// All available versions are pre-releases. Without --prerelease, the fallback
+	// should still include them so the dependency can be bumped.
+	revisions := []packages.PackageManifest{
+		manifestRevision("0.1.0-beta.1", "^9.4.0"),
+		manifestRevision("0.2.0-beta.1", "^9.4.0"),
+	}
+	srv, client := testRegistryServer(t, revisions)
+	t.Cleanup(srv.Close)
+
+	packageRoot := writeIntegrationPackage(t, `name: test_pkg
+version: 1.0.0
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  input:
+    - package: sql_input
+      version: "0.1.0-beta.1"
+`)
+
+	result, err := Update(Options{
+		PackageRoot:    packageRoot,
+		RegistryClient: client,
+		DryRun:         true,
+		Prerelease:     false,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Proposals, 1)
+	require.Equal(t, "0.1.0-beta.1", result.Proposals[0].Current)
+	require.Equal(t, "0.2.0-beta.1", result.Proposals[0].Proposed)
+}
+
+func TestUpdate_prereleaseExcludedWhenStableExists(t *testing.T) {
+	// Mix of stable and pre-release versions. Without --prerelease, only stable
+	// versions should be considered; the pre-release must not be proposed.
+	revisions := []packages.PackageManifest{
+		manifestRevision("0.2.0", "^9.4.0"),
+		manifestRevision("0.3.0-beta.1", "^9.4.0"),
+	}
+	srv, client := testRegistryServer(t, revisions)
+	t.Cleanup(srv.Close)
+
+	packageRoot := writeIntegrationPackage(t, `name: test_pkg
+version: 1.0.0
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  input:
+    - package: sql_input
+      version: "0.1.0"
+`)
+
+	result, err := Update(Options{
+		PackageRoot:    packageRoot,
+		RegistryClient: client,
+		DryRun:         true,
+		Prerelease:     false,
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Proposals, 1)
+	require.Equal(t, "0.2.0", result.Proposals[0].Proposed)
 }
 
 func writeIntegrationPackage(t *testing.T, manifest string) string {
