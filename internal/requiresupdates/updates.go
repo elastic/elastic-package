@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/registry"
 )
@@ -77,6 +78,9 @@ func Resolve(opts Options) (*Result, error) {
 	}
 
 	integrationKibana := manifest.Conditions.Kibana.Version
+	logger.Debugf("resolving requires for %q (type=%s, kibana=%q, input=%d, content=%d)",
+		manifest.Name, manifest.Type, integrationKibana,
+		len(manifest.Requires.Input), len(manifest.Requires.Content))
 	proposals := make([]UpdateProposal, 0, len(manifest.Requires.Input)+len(manifest.Requires.Content))
 
 	inputProposals, err := resolveSection(opts, integrationKibana, InputDependency, manifest.Requires.Input)
@@ -102,6 +106,7 @@ func Apply(manifestBytes []byte, proposals []UpdateProposal) ([]byte, error) {
 		if p.Proposed == "" {
 			continue
 		}
+		logger.Debugf("applying %s.%s: %s -> %s", p.Kind, p.Package, p.Current, p.Proposed)
 		var err error
 		manifestBytes, err = setRequiresDependencyVersion(manifestBytes, string(p.Kind), p.Package, p.Proposed)
 		if err != nil {
@@ -129,6 +134,7 @@ func resolveSection(opts Options, integrationKibana string, kind DependencyKind,
 }
 
 func resolveDependency(opts Options, integrationKibana string, kind DependencyKind, dep packages.PackageDependency) (*UpdateProposal, error) {
+	logger.Debugf("resolving dependency %q (kind=%s, current=%s)", dep.Package, kind, dep.Version)
 	unfiltered, err := fetchAllRevisions(opts.RegistryClient, dep.Package, opts.Prerelease)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving revisions for package %q failed: %w", dep.Package, err)
@@ -141,6 +147,7 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("%d/%d revisions compatible for %q", len(compatible), len(unfiltered), dep.Package)
 
 	currentEffective, currentConstraint, err := parseCurrentVersion(kind, dep.Version)
 	if err != nil {
@@ -161,6 +168,7 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 	latestUnfiltered := latestRevision(unfiltered)
 
 	if latestCompatible == nil {
+		logger.Debugf("no compatible version found for %q, checking for kibana bump warning", dep.Package)
 		warning := kibanaBumpWarning(dep, latestUnfiltered, integrationKibana, nil, isOutdatedBy)
 		if warning == "" {
 			return nil, nil
@@ -190,14 +198,16 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		}, nil
 	}
 
-	return &UpdateProposal{
+	proposal := &UpdateProposal{
 		Kind:             kind,
 		Package:          dep.Package,
 		Current:          dep.Version,
 		Proposed:         latestCompatible.Version,
 		KibanaConstraint: latestCompatible.Conditions.Kibana.Version,
 		Warning:          kibanaBumpWarning(dep, latestUnfiltered, integrationKibana, latestCompatibleVer, nil),
-	}, nil
+	}
+	logger.Debugf("proposal for %q: %s -> %s", dep.Package, dep.Version, latestCompatible.Version)
+	return proposal, nil
 }
 
 // fetchAllRevisions fetches all versions of packageName from the registry.
@@ -210,11 +220,13 @@ func fetchAllRevisions(client *registry.Client, packageName string, prerelease b
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("fetched %d revisions for %q (prerelease=%v)", len(revisions), packageName, prerelease)
 	// If no stable versions exist, fall back to pre-releases so that packages
 	// that have not yet shipped a stable release are still visible. Without this,
 	// resolveDependency would treat the dependency as non-existent and produce
 	// neither a proposal nor a warning.
 	if len(revisions) == 0 && !prerelease {
+		logger.Debugf("no stable revisions for %q, retrying with prerelease", packageName)
 		revisions, err = client.Revisions(packageName, registry.SearchOptions{
 			All:          true,
 			Prerelease:   true,
@@ -230,6 +242,8 @@ func fetchAllRevisions(client *registry.Client, packageName string, prerelease b
 func filterByKibanaSubset(revisions []packages.PackageManifest, integrationKibana string) ([]packages.PackageManifest, error) {
 	var filtered []packages.PackageManifest
 	for _, rev := range revisions {
+		logger.Debugf("checking %s %s: integration kibana=%q dep kibana=%q",
+			rev.Name, rev.Version, integrationKibana, rev.Conditions.Kibana.Version)
 		ok, err := kibanaConstraintIsSubset(integrationKibana, rev.Conditions.Kibana.Version)
 		if err != nil {
 			return nil, err

@@ -107,6 +107,7 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("creating package registry client failed: %w", err)
 	}
+	logger.Debugf("using package registry: %s", baseURL)
 
 	result, err := requiresupdates.Resolve(requiresupdates.Options{
 		PackageRoot:    packageRoot,
@@ -131,6 +132,7 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return err
 		}
+		logger.Debugf("writing updated manifest: %s", manifestPath)
 		if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
 			return fmt.Errorf("writing manifest file failed: %w", err)
 		}
