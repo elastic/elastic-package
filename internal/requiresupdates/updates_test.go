@@ -19,7 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
-func TestUpdate_bumpsCompatibleDependency(t *testing.T) {
+func TestResolve_bumpsCompatibleDependency(t *testing.T) {
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.2.0", "^9.4.0"),
 		manifestRevision("0.3.0", "^9.4.0"),
@@ -41,10 +41,9 @@ requires:
       version: "0.2.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "test_pkg", result.Package)
@@ -55,7 +54,7 @@ requires:
 	require.Empty(t, result.Proposals[0].Warning)
 }
 
-func TestUpdate_warnsWhenNewerRequiresHigherKibana(t *testing.T) {
+func TestResolve_warnsWhenNewerRequiresHigherKibana(t *testing.T) {
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.2.0", "^9.4.0"),
 		manifestRevision("0.3.0", "^9.4.0"),
@@ -76,10 +75,9 @@ requires:
       version: "0.2.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Proposals, 1)
@@ -88,7 +86,7 @@ requires:
 	require.Contains(t, result.Proposals[0].Warning, "^9.6.0")
 }
 
-func TestUpdate_appliesManifestChange(t *testing.T) {
+func TestResolve_appliesManifestChangeViaApply(t *testing.T) {
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.2.0", "^9.4.0"),
 		manifestRevision("0.4.0", "^9.4.0"),
@@ -96,7 +94,7 @@ func TestUpdate_appliesManifestChange(t *testing.T) {
 	srv, client := testRegistryServer(t, revisions)
 	t.Cleanup(srv.Close)
 
-	packageRoot := writeIntegrationPackage(t, `name: test_pkg
+	manifestContent := `name: test_pkg
 version: 1.0.0
 type: integration
 conditions:
@@ -106,44 +104,49 @@ requires:
   input:
     - package: sql_input
       version: "0.2.0"
-`)
+`
+	packageRoot := writeIntegrationPackage(t, manifestContent)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
 	})
 	require.NoError(t, err)
-	require.True(t, result.Applied)
+	require.Len(t, result.Proposals, 1)
 	require.Equal(t, "0.4.0", result.Proposals[0].Proposed)
+
+	updated, err := Apply([]byte(manifestContent), result.Proposals)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "manifest.yml"), updated, 0o644))
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	require.NoError(t, err)
 	require.Equal(t, "0.4.0", manifest.Requires.Input[0].Version)
 }
 
-func TestUpdate_skipsNonIntegration(t *testing.T) {
+func TestResolve_skipsNonIntegration(t *testing.T) {
 	packageRoot := writeIntegrationPackage(t, `name: test_input
 version: 1.0.0
 type: input
 `)
-	result, err := Update(Options{PackageRoot: packageRoot})
+	result, err := Resolve(Options{PackageRoot: packageRoot})
 	require.NoError(t, err)
 	require.NotEmpty(t, result.SkipReason)
 	require.Contains(t, result.SkipReason, "integration")
 }
 
-func TestUpdate_skipsIntegrationWithoutRequires(t *testing.T) {
+func TestResolve_skipsIntegrationWithoutRequires(t *testing.T) {
 	packageRoot := writeIntegrationPackage(t, `name: test_integration
 version: 1.0.0
 type: integration
 `)
-	result, err := Update(Options{PackageRoot: packageRoot})
+	result, err := Resolve(Options{PackageRoot: packageRoot})
 	require.NoError(t, err)
 	require.NotEmpty(t, result.SkipReason)
 	require.Contains(t, result.SkipReason, "requires")
 }
 
-func TestUpdate_warningOnlyWhenAllRevisionsRequireHigherKibana(t *testing.T) {
+func TestResolve_warningOnlyWhenAllRevisionsRequireHigherKibana(t *testing.T) {
 	// All available revisions require ^9.6.0; the integration is capped at <9.6.0.
 	// latestCompatible == nil but a newer unfiltered revision exists: expect a
 	// proposal with Proposed=="" and a non-empty Warning.
@@ -165,10 +168,9 @@ requires:
       version: "0.2.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Proposals, 1)
@@ -180,7 +182,7 @@ requires:
 	require.Contains(t, p.Warning, "^9.6.0")
 }
 
-func TestUpdate_contentDep_exactPin_bumps(t *testing.T) {
+func TestResolve_contentDep_exactPin_bumps(t *testing.T) {
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.2.0", "^9.4.0"),
 		manifestRevision("0.3.0", "^9.4.0"),
@@ -200,10 +202,9 @@ requires:
       version: "0.2.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Proposals, 1)
@@ -214,7 +215,7 @@ requires:
 	require.Empty(t, p.Warning)
 }
 
-func TestUpdate_contentDep_constraintStyle_bumps(t *testing.T) {
+func TestResolve_contentDep_constraintStyle_bumps(t *testing.T) {
 	// ^0.3.0 covers >=0.3.0,<0.4.0; 0.3.5 satisfies it, 0.4.0 does not → propose 0.4.0.
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.3.5", "^9.4.0"),
@@ -235,10 +236,9 @@ requires:
       version: "^0.3.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Proposals, 1)
@@ -249,7 +249,7 @@ requires:
 	require.Empty(t, p.Warning)
 }
 
-func TestUpdate_contentDep_constraintStyle_noUpdate(t *testing.T) {
+func TestResolve_contentDep_constraintStyle_noUpdate(t *testing.T) {
 	// All registry versions satisfy ^0.3.0 → no update needed.
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.3.5", "^9.4.0"),
@@ -269,16 +269,15 @@ requires:
       version: "^0.3.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.NoError(t, err)
 	require.Empty(t, result.Proposals)
 }
 
-func TestUpdate_errorsOnConstraintStylePin(t *testing.T) {
+func TestResolve_errorsOnConstraintStylePin(t *testing.T) {
 	revisions := []packages.PackageManifest{
 		manifestRevision("0.2.0", "^9.4.0"),
 		manifestRevision("0.3.0", "^9.4.0"),
@@ -298,10 +297,9 @@ requires:
       version: "^0.2.0"
 `)
 
-	_, err := Update(Options{
+	_, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not a constraint")
@@ -390,7 +388,7 @@ func TestLatestRevision(t *testing.T) {
 	})
 }
 
-func TestUpdate_prereleaseOnlyFallback(t *testing.T) {
+func TestResolve_prereleaseOnlyFallback(t *testing.T) {
 	// All available versions are pre-releases. Without --prerelease, the fallback
 	// should still include them so the dependency can be bumped.
 	revisions := []packages.PackageManifest{
@@ -412,10 +410,9 @@ requires:
       version: "0.1.0-beta.1"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 		Prerelease:     false,
 	})
 	require.NoError(t, err)
@@ -424,7 +421,7 @@ requires:
 	require.Equal(t, "0.2.0-beta.1", result.Proposals[0].Proposed)
 }
 
-func TestUpdate_prereleaseExcludedWhenStableExists(t *testing.T) {
+func TestResolve_prereleaseExcludedWhenStableExists(t *testing.T) {
 	// Mix of stable and pre-release versions. Without --prerelease, only stable
 	// versions should be considered; the pre-release must not be proposed.
 	revisions := []packages.PackageManifest{
@@ -446,10 +443,9 @@ requires:
       version: "0.1.0"
 `)
 
-	result, err := Update(Options{
+	result, err := Resolve(Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: client,
-		DryRun:         true,
 		Prerelease:     false,
 	})
 	require.NoError(t, err)

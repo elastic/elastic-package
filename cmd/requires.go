@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -107,14 +108,33 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("creating package registry client failed: %w", err)
 	}
 
-	result, err := requiresupdates.Update(requiresupdates.Options{
+	result, err := requiresupdates.Resolve(requiresupdates.Options{
 		PackageRoot:    packageRoot,
 		RegistryClient: eprClient,
-		DryRun:         dryRun,
 		Prerelease:     prerelease,
 	})
 	if err != nil {
 		return err
+	}
+
+	applied := false
+	hasBumps := slices.ContainsFunc(result.Proposals, func(p requiresupdates.UpdateProposal) bool {
+		return p.Proposed != ""
+	})
+	if !dryRun && hasBumps {
+		manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+		manifestBytes, err := os.ReadFile(manifestPath)
+		if err != nil {
+			return fmt.Errorf("reading manifest file failed: %w", err)
+		}
+		manifestBytes, err = requiresupdates.Apply(manifestBytes, result.Proposals)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
+			return fmt.Errorf("writing manifest file failed: %w", err)
+		}
+		applied = true
 	}
 
 	for _, p := range result.Proposals {
@@ -131,13 +151,9 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	hasBumps := slices.ContainsFunc(result.Proposals, func(p requiresupdates.UpdateProposal) bool {
-		return p.Proposed != ""
-	})
-
 	if dryRun && hasBumps {
 		cmd.Println("Dry run: manifest.yml was not modified")
-	} else if result.Applied {
+	} else if applied {
 		cmd.Println("Updated manifest.yml")
 	} else if len(result.Proposals) == 0 && result.SkipReason == "" {
 		cmd.Println("No dependencies to update")

@@ -6,8 +6,6 @@ package requiresupdates
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -39,16 +37,14 @@ type UpdateProposal struct {
 type Options struct {
 	PackageRoot    string
 	RegistryClient *registry.Client
-	DryRun         bool
 	Prerelease     bool
 }
 
-// Result holds proposals and whether manifest.yml was written.
+// Result holds proposals from a Resolve call.
 type Result struct {
 	Package    string           `json:"package"`
 	CodeOwner  string           `json:"codeowner,omitempty"`
 	Proposals  []UpdateProposal `json:"proposals,omitempty"`
-	Applied    bool             `json:"applied,omitempty"`
 	SkipReason string           `json:"skip_reason,omitempty"` // set when the package is not applicable (not an error)
 }
 
@@ -59,8 +55,10 @@ func resultFromManifest(manifest *packages.PackageManifest) Result {
 	}
 }
 
-// Update resolves and optionally applies dependency version bumps for an integration package with requires.
-func Update(opts Options) (*Result, error) {
+// Resolve reads the package manifest and resolves dependency version bumps
+// without writing any files. Call Apply to produce updated manifest bytes, and
+// write the result to disk only when not doing a dry-run.
+func Resolve(opts Options) (*Result, error) {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(opts.PackageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
@@ -93,26 +91,7 @@ func Update(opts Options) (*Result, error) {
 	}
 	proposals = append(proposals, contentProposals...)
 
-	if opts.DryRun || len(proposals) == 0 {
-		result.Proposals = proposals
-		return &result, nil
-	}
-
-	manifestPath := filepath.Join(opts.PackageRoot, packages.PackageManifestFile)
-	manifestBytes, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading manifest file failed: %w", err)
-	}
-	manifestBytes, err = Apply(manifestBytes, proposals)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
-		return nil, fmt.Errorf("writing manifest file failed: %w", err)
-	}
-
 	result.Proposals = proposals
-	result.Applied = true
 	return &result, nil
 }
 
