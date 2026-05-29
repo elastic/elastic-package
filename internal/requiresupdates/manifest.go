@@ -6,127 +6,50 @@ package requiresupdates
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
+
+	"github.com/elastic/elastic-package/internal/yamledit"
 )
 
 // setRequiresDependencyVersion updates the version of a package listed under requires.input or requires.content.
-// Only the matching version field line is changed; the rest of the file is left unchanged.
 func setRequiresDependencyVersion(manifestBytes []byte, section, packageName, newVersion string) ([]byte, error) {
-	var node yaml.Node
-	if err := yaml.Unmarshal(manifestBytes, &node); err != nil {
+	doc, err := yamledit.NewDocumentBytes(manifestBytes)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode manifest: %w", err)
 	}
-	if len(node.Content) == 0 || node.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.New("unexpected manifest content: not a map")
-	}
-	root := node.Content[0]
 
-	requiresNode := findMapValueNode(root, "requires")
-	if requiresNode == nil || requiresNode.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("manifest has no requires block")
+	seqPath := fmt.Sprintf("$.requires.%s", section)
+	seqNode, err := doc.GetSequenceNode(seqPath)
+	if err != nil {
+		return nil, fmt.Errorf("manifest has no requires.%s block: %w", section, err)
 	}
 
-	sectionNode := findMapValueNode(requiresNode, section)
-	if sectionNode == nil || sectionNode.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("manifest has no requires.%s block", section)
-	}
-
-	var versionNode *yaml.Node
-	for _, item := range sectionNode.Content {
-		if item.Kind != yaml.MappingNode {
+	idx := -1
+	for i, v := range seqNode.Values {
+		var item struct {
+			Package string `yaml:"package"`
+		}
+		if err := yaml.NodeToValue(v, &item); err != nil {
 			continue
 		}
-		pkgNode := findMapValueNode(item, "package")
-		if pkgNode == nil || pkgNode.Value != packageName {
-			continue
+		if item.Package == packageName {
+			idx = i
+			break
 		}
-		versionNode = findMapValueNode(item, "version")
-		if versionNode == nil {
-			return nil, fmt.Errorf("requires.%s entry for package %q has no version", section, packageName)
-		}
-		break
 	}
-	if versionNode == nil {
+	if idx < 0 {
 		return nil, fmt.Errorf("package %q not found under requires.%s", packageName, section)
 	}
 
-	return replaceVersionLine(manifestBytes, versionNode, newVersion)
-}
-
-func replaceVersionLine(manifestBytes []byte, versionNode *yaml.Node, newVersion string) ([]byte, error) {
-	if versionNode.Line <= 0 {
-		return nil, errors.New("version field has no source line information")
+	if _, err = doc.SetKeyValue(fmt.Sprintf("%s[%d]", seqPath, idx), "version", newVersion, 0); err != nil {
+		return nil, fmt.Errorf("updating version for package %q: %w", packageName, err)
 	}
 
-	lines := bytes.Split(manifestBytes, []byte("\n"))
-	lineIdx := versionNode.Line - 1
-	if lineIdx < 0 || lineIdx >= len(lines) {
-		return nil, fmt.Errorf("version field line %d is out of range", versionNode.Line)
+	var buf bytes.Buffer
+	if _, err = doc.Write(&buf); err != nil {
+		return nil, fmt.Errorf("writing manifest: %w", err)
 	}
-
-	line := string(lines[lineIdx])
-	updated, err := replaceVersionOnLine(line, newVersion)
-	if err != nil {
-		return nil, err
-	}
-	lines[lineIdx] = []byte(updated)
-
-	return bytes.Join(lines, []byte("\n")), nil
-}
-
-// replaceVersionOnLine rewrites only the value of a "version:" key on a single line,
-// preserving the existing quote style.
-func replaceVersionOnLine(line, newVersion string) (string, error) {
-	key := "version:"
-	idx := strings.Index(line, key)
-	if idx < 0 {
-		return "", fmt.Errorf("line does not contain %q", key)
-	}
-
-	prefix := line[:idx+len(key)]
-	remainder := line[idx+len(key):]
-
-	comment := ""
-	valuePart := remainder
-	if hash := strings.Index(remainder, "#"); hash >= 0 {
-		comment = remainder[hash:]
-		valuePart = remainder[:hash]
-	}
-
-	trimmed := strings.TrimLeft(valuePart, " \t")
-	leadingSpace := valuePart[:len(valuePart)-len(trimmed)]
-	valuePart = strings.TrimRight(trimmed, " \t")
-	trailingSpace := trimmed[len(valuePart):]
-
-	newLiteral := formatVersionLiteral(valuePart, newVersion)
-	return prefix + leadingSpace + newLiteral + trailingSpace + comment, nil
-}
-
-func formatVersionLiteral(oldLiteral, newVersion string) string {
-	if len(oldLiteral) >= 2 {
-		quote := oldLiteral[0]
-		if (quote == '"' || quote == '\'') && oldLiteral[len(oldLiteral)-1] == quote {
-			return string(quote) + newVersion + string(quote)
-		}
-	}
-	return newVersion
-}
-
-func findMapValueNode(mapNode *yaml.Node, key string) *yaml.Node {
-	if mapNode == nil || mapNode.Kind != yaml.MappingNode {
-		return nil
-	}
-	for i := 0; i < len(mapNode.Content); i += 2 {
-		if mapNode.Content[i].Kind == yaml.ScalarNode && mapNode.Content[i].Value == key {
-			if i+1 < len(mapNode.Content) {
-				return mapNode.Content[i+1]
-			}
-			return nil
-		}
-	}
-	return nil
+	return buf.Bytes(), nil
 }
