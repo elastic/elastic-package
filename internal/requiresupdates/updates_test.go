@@ -457,6 +457,43 @@ requires:
 	require.Equal(t, "0.2.0", result.Proposals[0].Proposed)
 }
 
+func TestApply_multiProposal(t *testing.T) {
+	manifest := []byte(sampleManifest)
+	proposals := []UpdateProposal{
+		{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"},
+		{Kind: ContentDependency, Package: "dashboards", Current: "^0.1.0", Proposed: "0.2.0"},
+	}
+	updated, err := Apply(manifest, proposals)
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), updated, 0o644))
+	pkg, err := packages.ReadPackageManifestFromPackageRoot(dir)
+	require.NoError(t, err)
+	require.Equal(t, "0.3.0", pkg.Requires.Input[0].Version)
+	require.Equal(t, "0.2.0", pkg.Requires.Content[0].Version)
+}
+
+func TestApply_skipsEmptyProposed(t *testing.T) {
+	manifest := []byte(sampleManifest)
+	proposals := []UpdateProposal{
+		{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "", Warning: "needs kibana bump"},
+	}
+	updated, err := Apply(manifest, proposals)
+	require.NoError(t, err)
+	require.Equal(t, manifest, updated)
+}
+
+func TestApply_unknownPackageReturnsError(t *testing.T) {
+	manifest := []byte(sampleManifest)
+	proposals := []UpdateProposal{
+		{Kind: InputDependency, Package: "nonexistent", Current: "0.1.0", Proposed: "0.2.0"},
+	}
+	_, err := Apply(manifest, proposals)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "nonexistent")
+}
+
 func writeIntegrationPackage(t *testing.T, manifest string) string {
 	t.Helper()
 	dir := t.TempDir()

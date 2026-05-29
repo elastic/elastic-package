@@ -103,14 +103,9 @@ func Update(opts Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading manifest file failed: %w", err)
 	}
-	for _, p := range proposals {
-		if p.Proposed == "" {
-			continue
-		}
-		manifestBytes, err = setRequiresDependencyVersion(manifestBytes, string(p.Kind), p.Package, p.Proposed)
-		if err != nil {
-			return nil, fmt.Errorf("updating requires.%s for package %q: %w", p.Kind, p.Package, err)
-		}
+	manifestBytes, err = Apply(manifestBytes, proposals)
+	if err != nil {
+		return nil, err
 	}
 	if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
 		return nil, fmt.Errorf("writing manifest file failed: %w", err)
@@ -119,6 +114,22 @@ func Update(opts Options) (*Result, error) {
 	result.Proposals = proposals
 	result.Applied = true
 	return &result, nil
+}
+
+// Apply applies the proposed version bumps in proposals to manifestBytes and
+// returns the modified YAML. Proposals with an empty Proposed field are skipped.
+func Apply(manifestBytes []byte, proposals []UpdateProposal) ([]byte, error) {
+	for _, p := range proposals {
+		if p.Proposed == "" {
+			continue
+		}
+		var err error
+		manifestBytes, err = setRequiresDependencyVersion(manifestBytes, string(p.Kind), p.Package, p.Proposed)
+		if err != nil {
+			return nil, fmt.Errorf("updating requires.%s for package %q: %w", p.Kind, p.Package, err)
+		}
+	}
+	return manifestBytes, nil
 }
 
 func resolveSection(opts Options, integrationKibana string, kind DependencyKind, deps []packages.PackageDependency) ([]UpdateProposal, error) {
