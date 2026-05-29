@@ -223,7 +223,7 @@ func fetchCompatibleRevisions(opts Options, integrationKibana, packageName strin
 		if err != nil {
 			return nil, err
 		}
-		return filterByKibanaOverlap(revisions, integrationKibana)
+		return filterByKibanaSubset(revisions, integrationKibana)
 	}
 
 	byVersion := make(map[string]packages.PackageManifest)
@@ -258,16 +258,13 @@ func fetchCompatibleRevisions(opts Options, integrationKibana, packageName strin
 		}
 		return va.Compare(vb)
 	})
-	return filterByKibanaOverlap(merged, integrationKibana)
+	return filterByKibanaSubset(merged, integrationKibana)
 }
 
-func filterByKibanaOverlap(revisions []packages.PackageManifest, integrationKibana string) ([]packages.PackageManifest, error) {
-	if integrationKibana == "" {
-		return revisions, nil
-	}
+func filterByKibanaSubset(revisions []packages.PackageManifest, integrationKibana string) ([]packages.PackageManifest, error) {
 	var filtered []packages.PackageManifest
 	for _, rev := range revisions {
-		ok, err := kibanaConstraintsOverlap(integrationKibana, rev.Conditions.Kibana.Version)
+		ok, err := kibanaConstraintIsSubset(integrationKibana, rev.Conditions.Kibana.Version)
 		if err != nil {
 			return nil, err
 		}

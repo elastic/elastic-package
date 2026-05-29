@@ -26,7 +26,7 @@ func TestDeriveEPRKibanaVersions(t *testing.T) {
 	})
 }
 
-func TestKibanaConstraintsOverlap(t *testing.T) {
+func TestKibanaConstraintIsSubset(t *testing.T) {
 	tests := []struct {
 		name        string
 		integration string
@@ -34,7 +34,7 @@ func TestKibanaConstraintsOverlap(t *testing.T) {
 		want        bool
 	}{
 		{
-			name:        "identical constraints overlap",
+			name:        "identical constraints",
 			integration: "^9.4.0",
 			dependency:  "^9.4.0",
 			want:        true,
@@ -52,13 +52,13 @@ func TestKibanaConstraintsOverlap(t *testing.T) {
 			want:        true,
 		},
 		{
-			name:        "empty integration constraint always overlaps",
+			name:        "empty integration constraint is not a subset",
 			integration: "",
 			dependency:  "^9.6.0",
-			want:        true,
+			want:        false,
 		},
 		{
-			name:        "empty dependency constraint always overlaps",
+			name:        "empty dependency constraint always passes",
 			integration: "^9.4.0",
 			dependency:  "",
 			want:        true,
@@ -72,15 +72,39 @@ func TestKibanaConstraintsOverlap(t *testing.T) {
 			want:        true,
 		},
 		{
-			name:        "strict-greater range does not overlap higher constraint",
+			name:        "strict-greater range does not satisfy higher constraint",
 			integration: ">9.5.0,<9.6.0",
+			dependency:  "^9.6.0",
+			want:        false,
+		},
+		{
+			name:        "integration floor below dependency floor is not a subset",
+			integration: "^9.4.0",
+			dependency:  "^9.6.0",
+			want:        false,
+		},
+		{
+			name:        "OR branch with lower floor prevents subset",
+			integration: "^9.5.0 || ^10.0.0",
+			dependency:  "^9.6.0",
+			want:        false,
+		},
+		{
+			name:        "OR ordering invariant: ^8.0.0 || ^9.0.0",
+			integration: "^8.0.0 || ^9.0.0",
+			dependency:  "^9.6.0",
+			want:        false,
+		},
+		{
+			name:        "OR ordering invariant: ^9.0.0 || ^8.0.0",
+			integration: "^9.0.0 || ^8.0.0",
 			dependency:  "^9.6.0",
 			want:        false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ok, err := kibanaConstraintsOverlap(tt.integration, tt.dependency)
+			ok, err := kibanaConstraintIsSubset(tt.integration, tt.dependency)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, ok)
 		})
