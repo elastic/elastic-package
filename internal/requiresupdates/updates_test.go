@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
@@ -495,4 +496,130 @@ func writeIntegrationPackage(t *testing.T, manifest string) string {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), []byte(manifest), 0o644))
 	return dir
+}
+
+// requestCapturingServer creates an httptest.Server that records all received
+// requests (protected by a mutex) and delegates to handler. Read *reqs only
+// after the fetchAllRevisions call returns.
+func requestCapturingServer(t *testing.T, handler http.HandlerFunc) (*registry.Client, *[]http.Request) {
+	t.Helper()
+	var mu sync.Mutex
+	var reqs []http.Request
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		reqs = append(reqs, *r)
+		mu.Unlock()
+		handler(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	client, err := registry.NewClient(srv.URL)
+	require.NoError(t, err)
+	return client, &reqs
+}
+
+func TestFetchAllRevisions(t *testing.T) {
+	jsonBody := func(revisions []packages.PackageManifest) []byte {
+		b, _ := json.Marshal(revisions)
+		return b
+	}
+
+	tests := []struct {
+		name       string
+		prerelease bool
+		handler    http.HandlerFunc
+		check      func(t *testing.T, revisions []packages.PackageManifest, err error, reqs []http.Request)
+	}{
+		{
+			name:       "correct query params sent",
+			prerelease: false,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte("[]"))
+			},
+			check: func(t *testing.T, _ []packages.PackageManifest, _ error, reqs []http.Request) {
+				require.GreaterOrEqual(t, len(reqs), 1)
+				q := reqs[0].URL.Query()
+				require.Equal(t, "true", q.Get("all"))
+				require.Equal(t, "true", q.Get("experimental"))
+				require.Equal(t, "sql_input", q.Get("package"))
+				require.Equal(t, "false", q.Get("prerelease"))
+			},
+		},
+		{
+			name:       "prerelease param forwarded",
+			prerelease: true,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(jsonBody([]packages.PackageManifest{manifestRevision("0.1.0-beta.1", "^9.4.0")}))
+			},
+			check: func(t *testing.T, _ []packages.PackageManifest, _ error, reqs []http.Request) {
+				require.GreaterOrEqual(t, len(reqs), 1)
+				require.Equal(t, "true", reqs[0].URL.Query().Get("prerelease"))
+			},
+		},
+		{
+			name:       "fallback to prerelease when stable list is empty",
+			prerelease: false,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Query().Get("prerelease") == "true" {
+					_, _ = w.Write(jsonBody([]packages.PackageManifest{manifestRevision("0.1.0-beta.1", "^9.4.0")}))
+					return
+				}
+				_, _ = w.Write([]byte("[]"))
+			},
+			check: func(t *testing.T, revisions []packages.PackageManifest, err error, reqs []http.Request) {
+				require.NoError(t, err)
+				require.Len(t, reqs, 2)
+				require.Equal(t, "false", reqs[0].URL.Query().Get("prerelease"))
+				require.Equal(t, "true", reqs[1].URL.Query().Get("prerelease"))
+				require.Len(t, revisions, 1)
+				require.Equal(t, "0.1.0-beta.1", revisions[0].Version)
+			},
+		},
+		{
+			name:       "no fallback when stable versions exist",
+			prerelease: false,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(jsonBody([]packages.PackageManifest{manifestRevision("0.2.0", "^9.4.0")}))
+			},
+			check: func(t *testing.T, revisions []packages.PackageManifest, err error, reqs []http.Request) {
+				require.NoError(t, err)
+				require.Len(t, reqs, 1)
+				require.Len(t, revisions, 1)
+			},
+		},
+		{
+			name:       "server error propagated",
+			prerelease: false,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			},
+			check: func(t *testing.T, _ []packages.PackageManifest, err error, _ []http.Request) {
+				require.Error(t, err)
+			},
+		},
+		{
+			name:       "both calls fire when all responses empty",
+			prerelease: false,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte("[]"))
+			},
+			check: func(t *testing.T, revisions []packages.PackageManifest, err error, reqs []http.Request) {
+				require.NoError(t, err)
+				require.Empty(t, revisions)
+				require.Len(t, reqs, 2, "stable call returns empty so prerelease fallback should fire")
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client, reqs := requestCapturingServer(t, tc.handler)
+			revisions, err := fetchAllRevisions(client, "sql_input", tc.prerelease)
+			tc.check(t, revisions, err, *reqs)
+		})
+	}
 }
