@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/adk/agent"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
 
@@ -57,7 +58,7 @@ type GetExampleResult struct {
 
 // listExamplesHandler returns a handler for the list_examples tool
 func listExamplesHandler() functiontool.Func[ListExamplesArgs, ListExamplesResult] {
-	return func(ctx tool.Context, args ListExamplesArgs) (ListExamplesResult, error) {
+	return func(ctx agent.ToolContext, args ListExamplesArgs) (ListExamplesResult, error) {
 		seen := make(map[string]bool)
 		var examples []string
 
@@ -90,7 +91,7 @@ func listExamplesHandler() functiontool.Func[ListExamplesArgs, ListExamplesResul
 
 // getExampleHandler returns a handler for the get_example tool
 func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
-	return func(ctx tool.Context, args GetExampleArgs) (GetExampleResult, error) {
+	return func(ctx agent.ToolContext, args GetExampleArgs) (GetExampleResult, error) {
 		content, err := GetExampleContent(args.Name, args.Section)
 		if err != nil {
 			return GetExampleResult{Error: err.Error()}, nil //nolint:nilerr // returning structured error in result for LLM tool protocol

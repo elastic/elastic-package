@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"google.golang.org/adk/agent"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
 
@@ -189,7 +190,7 @@ func validatePathInRoot(packageRoot, userPath string) (string, error) {
 
 // listDirectoryHandler returns a handler for the list_directory tool
 func listDirectoryHandler(packageRoot string) functiontool.Func[ListDirectoryArgs, ListDirectoryResult] {
-	return func(ctx tool.Context, args ListDirectoryArgs) (ListDirectoryResult, error) {
+	return func(ctx agent.ToolContext, args ListDirectoryArgs) (ListDirectoryResult, error) {
 		// Validate path security
 		fullPath, err := validatePathInRoot(packageRoot, args.Path)
 		if err != nil {
@@ -228,7 +229,7 @@ func listDirectoryHandler(packageRoot string) functiontool.Func[ListDirectoryArg
 
 // readFileHandler returns a handler for the read_file tool
 func readFileHandler(packageRoot string) functiontool.Func[ReadFileArgs, ReadFileResult] {
-	return func(ctx tool.Context, args ReadFileArgs) (ReadFileResult, error) {
+	return func(ctx agent.ToolContext, args ReadFileArgs) (ReadFileResult, error) {
 		// Block access to generated artifacts in docs/ directory, except docs/knowledge_base/
 		// which contains authoritative service information
 		if strings.HasPrefix(args.Path, "docs/") && !strings.HasPrefix(args.Path, "docs/knowledge_base/") {
@@ -252,7 +253,7 @@ func readFileHandler(packageRoot string) functiontool.Func[ReadFileArgs, ReadFil
 
 // writeFileHandler returns a handler for the write_file tool
 func writeFileHandler(packageRoot string) functiontool.Func[WriteFileArgs, WriteFileResult] {
-	return func(ctx tool.Context, args WriteFileArgs) (WriteFileResult, error) {
+	return func(ctx agent.ToolContext, args WriteFileArgs) (WriteFileResult, error) {
 		// First validate against package root
 		fullPath, err := validatePathInRoot(packageRoot, args.Path)
 		if err != nil {
@@ -300,7 +301,7 @@ func writeFileHandler(packageRoot string) functiontool.Func[WriteFileArgs, Write
 
 // getReadmeTemplateHandler returns a handler for the get_readme_template tool
 func getReadmeTemplateHandler() functiontool.Func[GetReadmeTemplateArgs, GetReadmeTemplateResult] {
-	return func(ctx tool.Context, args GetReadmeTemplateArgs) (GetReadmeTemplateResult, error) {
+	return func(ctx agent.ToolContext, args GetReadmeTemplateArgs) (GetReadmeTemplateResult, error) {
 		// Get the embedded template content
 		templateContent := archetype.GetPackageDocsReadmeTemplate()
 		return GetReadmeTemplateResult{Content: templateContent}, nil
@@ -309,7 +310,7 @@ func getReadmeTemplateHandler() functiontool.Func[GetReadmeTemplateArgs, GetRead
 
 // getServiceInfoHandler returns a handler for the get_service_info tool
 func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool.Func[GetServiceInfoArgs, GetServiceInfoResult] {
-	return func(ctx tool.Context, args GetServiceInfoArgs) (GetServiceInfoResult, error) {
+	return func(ctx agent.ToolContext, args GetServiceInfoArgs) (GetServiceInfoResult, error) {
 		// Check if service_info is available
 		if !serviceInfoProvider.IsAvailable() {
 			return GetServiceInfoResult{Content: "Note: service_info.md file is not available for this package."}, nil
