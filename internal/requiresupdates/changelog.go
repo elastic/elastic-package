@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
+	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 )
 
@@ -104,59 +104,31 @@ func (t BumpTier) NextMode() string {
 // NextVersion reads the changelog top version from packageRoot and returns it
 // incremented by tier. Returns 0.0.0 when the changelog is empty.
 func NextVersion(tier BumpTier, packageRoot string) (*semver.Version, error) {
-	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
-	if err != nil {
-		return nil, fmt.Errorf("reading changelog failed: %w", err)
-	}
-	var current *semver.Version
-	if len(revisions) == 0 {
-		current = semver.MustParse("0.0.0")
-	} else {
-		current, err = semver.NewVersion(revisions[0].Version)
-		if err != nil {
-			return nil, fmt.Errorf("invalid changelog top version %q: %w", revisions[0].Version, err)
-		}
-	}
-	switch tier {
-	case TierMajor:
-		v := current.IncMajor()
-		return &v, nil
-	case TierMinor:
-		v := current.IncMinor()
-		return &v, nil
-	case TierPatch:
-		v := current.IncPatch()
-		return &v, nil
-	default:
-		return current, nil
-	}
+	return changelog.NextVersion(packageRoot, tier.NextMode())
 }
 
-// AssertManifestMatchesChangelogTop errors if the manifest version differs from
-// the changelog top revision version; a divergence means the package is in an
-// unexpected state that should not be silently bumped.
-func AssertManifestMatchesChangelogTop(packageRoot string) error {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
-	if err != nil {
-		return fmt.Errorf("reading manifest failed: %w", err)
+// assertManifestVersionMatchesChangelogTop errors if the manifest version parsed
+// from manifestBytes differs from the changelog top revision version.
+func assertManifestVersionMatchesChangelogTop(manifestBytes []byte, revisions []changelog.Revision) error {
+	var m struct {
+		Version string `yaml:"version"`
 	}
-	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
-	if err != nil {
-		return fmt.Errorf("reading changelog failed: %w", err)
+	if err := yaml.Unmarshal(manifestBytes, &m); err != nil {
+		return fmt.Errorf("parsing manifest version failed: %w", err)
 	}
 	if len(revisions) == 0 {
 		return nil
 	}
-	manifestVer, err := semver.NewVersion(manifest.Version)
+	manifestVer, err := semver.NewVersion(m.Version)
 	if err != nil {
-		return fmt.Errorf("invalid manifest version %q: %w", manifest.Version, err)
+		return fmt.Errorf("invalid manifest version %q: %w", m.Version, err)
 	}
 	topVer, err := semver.NewVersion(revisions[0].Version)
 	if err != nil {
 		return fmt.Errorf("invalid changelog top version %q: %w", revisions[0].Version, err)
 	}
 	if !manifestVer.Equal(topVer) {
-		return fmt.Errorf("manifest version %s does not match changelog top version %s; resolve the divergence before running --changelog", manifest.Version, revisions[0].Version)
+		return fmt.Errorf("manifest version %s does not match changelog top version %s; resolve the divergence before running --changelog", m.Version, revisions[0].Version)
 	}
 	return nil
 }
@@ -193,22 +165,28 @@ func BuildChangelogRevision(version *semver.Version, proposals []UpdateProposal,
 // is written first so a failure before the manifest write leaves only the
 // changelog updated — the same partial-write risk as a single-file edit.
 func ApplyChangelog(packageRoot string, manifestBytes []byte, proposals []UpdateProposal, changelogType string) ([]byte, string, error) {
-	if err := AssertManifestMatchesChangelogTop(packageRoot); err != nil {
+	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
+	if err != nil {
+		return nil, "", fmt.Errorf("reading changelog failed: %w", err)
+	}
+	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
+	changelogBytes, err := os.ReadFile(changelogPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("reading changelog file failed: %w", err)
+	}
+
+	if err := assertManifestVersionMatchesChangelogTop(manifestBytes, revisions); err != nil {
 		return nil, "", err
 	}
+
 	tier := AggregateTier(proposals)
-	next, err := NextVersion(tier, packageRoot)
+	next, err := changelog.NextVersionFromRevisions(revisions, tier.NextMode())
 	if err != nil {
 		return nil, "", err
 	}
 	manifestBytes, err = changelog.SetManifestVersion(manifestBytes, next.String())
 	if err != nil {
 		return nil, "", err
-	}
-	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
-	changelogBytes, err := os.ReadFile(changelogPath)
-	if err != nil {
-		return nil, "", fmt.Errorf("reading changelog file failed: %w", err)
 	}
 	revision := BuildChangelogRevision(next, proposals, changelogType)
 	changelogBytes, err = changelog.PatchYAML(changelogBytes, revision)

@@ -141,7 +141,7 @@ func TestBumpTierNextMode(t *testing.T) {
 	}
 }
 
-// --- disk-level tests for ApplyChangelog, NextVersion, AssertManifestMatchesChangelogTop ---
+// --- disk-level tests for ApplyChangelog and NextVersion ---
 
 const baseChangelogFixture = `- version: "1.2.0"
   changes:

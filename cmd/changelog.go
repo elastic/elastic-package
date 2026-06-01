@@ -9,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Masterminds/semver/v3"
-
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -73,9 +71,9 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 			cobraext.ChangelogAddNextFlagName)
 	}
 	if version == "" {
-		v, err := changelogCmdVersion(nextMode, packageRoot)
+		v, err := changelog.NextVersion(packageRoot, nextMode)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid value for %q: %w", cobraext.ChangelogAddNextFlagName, err)
 		}
 		version = v.String()
 	}
@@ -106,40 +104,6 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) {
-	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read current changelog: %w", err)
-	}
-	if len(revisions) == 0 {
-		return semver.MustParse("0.0.0"), nil
-	}
-
-	version, err := semver.NewVersion(revisions[0].Version)
-	if err != nil {
-		return nil, fmt.Errorf("invalid version in changelog %q: %w", revisions[0].Version, err)
-	}
-
-	switch nextMode {
-	case "":
-		break
-	case "major":
-		v := version.IncMajor()
-		version = &v
-	case "minor":
-		v := version.IncMinor()
-		version = &v
-	case "patch":
-		v := version.IncPatch()
-		version = &v
-	default:
-		return nil, fmt.Errorf("invalid value for %q: %s",
-			cobraext.ChangelogAddNextFlagName, nextMode)
-	}
-
-	return version, nil
 }
 
 // patchChangelogFile looks for the proper place to add the new revision in the changelog,
