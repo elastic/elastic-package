@@ -72,6 +72,11 @@ const (
 
 var requiresFormatChoices = []string{requiresFormatTable, requiresFormatJSON}
 
+// changelogTypeChoices mirrors the changelog entry type enum defined in the package-spec
+// (spec/integration/changelog.spec.yml). The canonical validation happens when the
+// package is built and checked against the spec; this list enables early flag
+// validation. "deprecation" is intentionally excluded as it is not a valid type
+// for automated dependency-bump changelog entries.
 var changelogTypeChoices = []string{"bugfix", "enhancement", "breaking-change"}
 
 func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
