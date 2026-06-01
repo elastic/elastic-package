@@ -51,6 +51,8 @@ func setupRequiresCommand() *cobraext.Command {
 	updateCmd.Flags().Bool(cobraext.RequiresDryRunFlagName, false, cobraext.RequiresDryRunFlagDescription)
 	updateCmd.Flags().String(cobraext.RequiresFormatFlagName, requiresFormatTable, fmt.Sprintf(cobraext.RequiresFormatFlagDescription, strings.Join(requiresFormatChoices, "|")))
 	updateCmd.Flags().Bool(cobraext.RequiresPrereleaseFlagName, false, cobraext.RequiresPrereleaseFlagDescription)
+	updateCmd.Flags().Bool(cobraext.RequiresChangelogFlagName, false, cobraext.RequiresChangelogFlagDescription)
+	updateCmd.Flags().String(cobraext.RequiresChangelogTypeFlagName, "", cobraext.RequiresChangelogTypeFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "requires",
@@ -70,6 +72,8 @@ const (
 
 var requiresFormatChoices = []string{requiresFormatTable, requiresFormatJSON}
 
+var changelogTypeChoices = []string{"bugfix", "enhancement", "breaking-change"}
+
 func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	dryRun, err := cmd.Flags().GetBool(cobraext.RequiresDryRunFlagName)
 	if err != nil {
@@ -85,6 +89,20 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	prerelease, err := cmd.Flags().GetBool(cobraext.RequiresPrereleaseFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.RequiresPrereleaseFlagName)
+	}
+	changelogEnabled, err := cmd.Flags().GetBool(cobraext.RequiresChangelogFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.RequiresChangelogFlagName)
+	}
+	changelogType, err := cmd.Flags().GetString(cobraext.RequiresChangelogTypeFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.RequiresChangelogTypeFlagName)
+	}
+	if changelogType != "" && !changelogEnabled {
+		return fmt.Errorf("--%s requires --%s", cobraext.RequiresChangelogTypeFlagName, cobraext.RequiresChangelogFlagName)
+	}
+	if changelogType != "" && !slices.Contains(changelogTypeChoices, changelogType) {
+		return fmt.Errorf("unsupported changelog type %q, supported types: %s", changelogType, strings.Join(changelogTypeChoices, ", "))
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
@@ -123,19 +141,11 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return p.Proposed != ""
 	})
 	if !dryRun && hasBumps {
-		manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
-		manifestBytes, err := os.ReadFile(manifestPath)
-		if err != nil {
-			return fmt.Errorf("reading manifest file failed: %w", err)
-		}
-		manifestBytes, err = requiresupdates.Apply(manifestBytes, result.Proposals)
+		newVersion, err := applyRequiresUpdate(packageRoot, result.Proposals, changelogEnabled, changelogType)
 		if err != nil {
 			return err
 		}
-		logger.Debugf("writing updated manifest: %s", manifestPath)
-		if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
-			return fmt.Errorf("writing manifest file failed: %w", err)
-		}
+		result.NewVersion = newVersion
 		applied = true
 	}
 
@@ -155,6 +165,24 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 
 	if dryRun && hasBumps {
 		cmd.Println("Dry run: manifest.yml was not modified")
+		if changelogEnabled {
+			tier := requiresupdates.AggregateTier(result.Proposals)
+			next, err := requiresupdates.NextVersion(tier, packageRoot)
+			if err != nil {
+				return err
+			}
+			cmd.Printf("Dry run: would bump package version to %s and add changelog entries:\n", next)
+			for _, p := range result.Proposals {
+				if p.Proposed == "" {
+					continue
+				}
+				t := changelogType
+				if t == "" {
+					t = requiresupdates.DefaultChangelogType(p.Tier())
+				}
+				cmd.Printf("  - [%s] %s: %s -> %s\n", t, p.Package, p.Current, p.Proposed)
+			}
+		}
 	} else if applied {
 		cmd.Println("Updated manifest.yml")
 	} else if len(result.Proposals) == 0 && result.SkipReason == "" {
@@ -162,6 +190,37 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+// applyRequiresUpdate orchestrates the two-step write: first updates requires
+// pins via requiresupdates.Apply, then (when changelogEnabled) bumps the package
+// version and patches changelog.yml via requiresupdates.ApplyChangelog.
+// Returns the new package version when --changelog bumped it ("" otherwise).
+// Caller guarantees there is at least one bump (Proposed != "") in proposals.
+func applyRequiresUpdate(packageRoot string, proposals []requiresupdates.UpdateProposal, changelogEnabled bool, changelogType string) (newVersion string, err error) {
+	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+	manifestBytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", fmt.Errorf("reading manifest file failed: %w", err)
+	}
+
+	manifestBytes, err = requiresupdates.Apply(manifestBytes, proposals)
+	if err != nil {
+		return "", err
+	}
+
+	if changelogEnabled {
+		manifestBytes, newVersion, err = requiresupdates.ApplyChangelog(packageRoot, manifestBytes, proposals, changelogType)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	logger.Debugf("writing updated manifest: %s", manifestPath)
+	if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
+		return "", fmt.Errorf("writing manifest file failed: %w", err)
+	}
+	return newVersion, nil
 }
 
 func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, format string) error {
