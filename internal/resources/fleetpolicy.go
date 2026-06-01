@@ -7,6 +7,7 @@ package resources
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/elastic/go-resource"
 
@@ -144,12 +145,13 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 	}
 	f.ID = policy.ID
 
+	kibanaPolicy := &kibana.Policy{ID: f.ID, Namespace: f.Namespace}
 	for _, packagePolicy := range f.PackagePolicies {
-		pp, err := createPackagePolicy(*f, packagePolicy)
+		pp, err := buildFleetPackagePolicy(kibanaPolicy, f.DataOutputID, packagePolicy)
 		if err != nil {
 			return fmt.Errorf("could not prepare package policy: %w", err)
 		}
-		_, err = provider.Client.CreatePackagePolicy(ctx, *pp, packagePolicy.PolicyAPIFormat)
+		_, err = provider.Client.CreatePackagePolicy(ctx, pp, packagePolicy.PolicyAPIFormat)
 		if err != nil {
 			return fmt.Errorf("could not add package policy %q to agent policy %q: %w", packagePolicy.Name, f.Name, err)
 		}
@@ -158,89 +160,59 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 	return nil
 }
 
-func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
-	// Composable integrations (requires.input) use the built tree so manifest input types
-	// match the package Fleet installed; source alone can omit types and break input keys.
-	builtRoot, manifest, err := builder.ReadBuiltPackageManifest(packagePolicy.PackageRoot)
+// buildFleetPackagePolicy loads manifests from the built package tree and delegates
+// to kibana.BuildPackagePolicy, then applies fleet-specific overrides (name, output).
+// Composable integrations require the built tree so that RequiredInputsResolver has
+// already materialized package: references into concrete input types.
+func buildFleetPackagePolicy(kibanaPolicy *kibana.Policy, outputID string, fp FleetPackagePolicy) (kibana.PackagePolicy, error) {
+	builtRoot, manifest, err := builder.ReadBuiltPackageManifest(fp.PackageRoot)
 	if err != nil {
-		return nil, fmt.Errorf("reading built package manifest: %w", err)
+		return kibana.PackagePolicy{}, fmt.Errorf("reading built package manifest: %w", err)
 	}
 
-	switch manifest.Type {
-	case "integration":
-		return createIntegrationPackagePolicy(policy, *manifest, packagePolicy, builtRoot)
-	case "input":
-		return createInputPackagePolicy(policy, *manifest, packagePolicy)
-	default:
-		return nil, fmt.Errorf("package type %q is not supported", manifest.Type)
+	if manifest.Type == "input" && fp.DataStreamName != "" {
+		return kibana.PackagePolicy{}, fmt.Errorf("no data stream expected for input package policy %q, found %q", fp.Name, fp.DataStreamName)
 	}
-}
+	if manifest.Type == "integration" && fp.DataStreamName == "" {
+		return kibana.PackagePolicy{}, fmt.Errorf("expected data stream for integration package policy %q", fp.Name)
+	}
 
-func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy, materializationRoot string) (*kibana.PackagePolicy, error) {
-	if packagePolicy.DataStreamName == "" {
-		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
-	}
-	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(materializationRoot, packagePolicy.DataStreamName)
-	if err != nil {
-		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, materializationRoot, err)
-	}
-	policyTemplateName := packagePolicy.TemplateName
-	if policyTemplateName == "" {
-		name, err := packages.FindPolicyTemplateForInput(&manifest, dsManifest, packagePolicy.InputName)
+	var dsManifest *packages.DataStreamManifest
+	var allDatastreams []packages.DataStreamManifest
+	if manifest.Type == "integration" {
+		allDatastreams, err = packages.ReadAllDataStreamManifests(builtRoot)
 		if err != nil {
-			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
+			return kibana.PackagePolicy{}, fmt.Errorf("could not read data stream manifests: %w", err)
 		}
-		policyTemplateName = name
+		i := slices.IndexFunc(allDatastreams, func(ds packages.DataStreamManifest) bool {
+			return ds.Name == fp.DataStreamName
+		})
+		if i < 0 {
+			return kibana.PackagePolicy{}, fmt.Errorf("data stream %q not found in built package at %s", fp.DataStreamName, builtRoot)
+		}
+		dsManifest = &allDatastreams[i]
 	}
-	policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
+
+	policyTemplateName := fp.TemplateName
+	if policyTemplateName == "" {
+		policyTemplateName, err = packages.FindPolicyTemplateForInput(manifest, dsManifest, fp.InputName)
+		if err != nil {
+			return kibana.PackagePolicy{}, fmt.Errorf("failed to determine the associated policy_template: %w", err)
+		}
 	}
-	allDatastreams, err := packages.ReadAllDataStreamManifests(materializationRoot)
-	if err != nil {
-		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
-	}
-	pp, err := kibana.BuildIntegrationPackagePolicy(
-		policy.ID, policy.Namespace, packagePolicy.Name,
-		manifest, policyTemplate, *dsManifest,
-		packagePolicy.InputName,
-		common.MapStr(packagePolicy.Vars), common.MapStr(packagePolicy.DataStreamVars),
-		!packagePolicy.Disabled, allDatastreams,
+
+	pp, _, _, err := kibana.BuildPackagePolicy(
+		kibanaPolicy, policyTemplateName, fp.DataStreamName, fp.InputName,
+		common.MapStr(fp.Vars), common.MapStr(fp.DataStreamVars),
+		"", *manifest, dsManifest, allDatastreams,
 	)
 	if err != nil {
-		return nil, err
-	}
-	pp.OutputID = policy.DataOutputID
-	return &pp, nil
-}
-
-func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
-	if dsName := packagePolicy.DataStreamName; dsName != "" {
-		return nil, fmt.Errorf("no data stream expected for input package policy %q, found %q", packagePolicy.Name, dsName)
+		return kibana.PackagePolicy{}, err
 	}
 
-	policyTemplateName := packagePolicy.TemplateName
-	if policyTemplateName == "" {
-		name, err := packages.FindPolicyTemplateForInput(&manifest, nil, packagePolicy.InputName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
-		}
-		policyTemplateName = name
-	}
-
-	policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
-	}
-
-	pp := kibana.BuildInputPackagePolicy(
-		policy.ID, policy.Namespace, packagePolicy.Name,
-		manifest, policyTemplate,
-		common.MapStr(packagePolicy.Vars),
-		!packagePolicy.Disabled,
-	)
-	pp.OutputID = policy.DataOutputID
-	return &pp, nil
+	pp.Name = fp.Name
+	pp.OutputID = outputID
+	return pp, nil
 }
 
 func (f *FleetAgentPolicy) Update(ctx resource.Context) error {

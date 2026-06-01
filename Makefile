@@ -85,10 +85,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.16-3cd0280a-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.16-e7a53188-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.5.0-66b0c32f-SNAPSHOT
+	./scripts/test-stack-command.sh 9.5.0-bc8b28d6-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -111,6 +111,9 @@ test-check-packages-other:
 
 test-check-packages-independent-script:
 	elastic-package test script -C test/packages/other/with_script --external-stack=false --defer-cleanup 1s
+
+test-script-upgrade:
+	./scripts/test-script-upgrade.sh
 
 test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh

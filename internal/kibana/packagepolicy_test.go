@@ -569,3 +569,148 @@ func varValue(v any) packages.VarValue {
 	vv.Unpack(v)
 	return vv
 }
+
+// TestBuildPackagePolicy_Integration verifies that BuildPackagePolicy produces
+// a PackagePolicy with non-empty streams and correctly populated vars for an
+// integration package. This covers the add_package_policy -version scenario
+// where manifests are loaded from an EPR-extracted directory (not the built tree).
+// Regression test for https://github.com/elastic/elastic-package/issues/3552.
+func TestBuildPackagePolicy_Integration(t *testing.T) {
+	packageRoot := "testdata/packages/apache"
+	dsName := "access"
+
+	manifest, err := packages.ReadPackageManifest(filepath.Join(packageRoot, "manifest.yml"))
+	require.NoError(t, err)
+
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packageRoot, dsName)
+	require.NoError(t, err)
+
+	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
+	require.NoError(t, err)
+
+	kp := &Policy{ID: "test-policy-id", Namespace: "test"}
+	dsVars := common.MapStr{
+		"paths": []string{"/tmp/service_logs/access.log*"},
+	}
+
+	policy, dsType, dsDataset, err := BuildPackagePolicy(
+		kp, "apache", dsName, "logfile",
+		common.MapStr{}, dsVars, "test-suffix",
+		*manifest, dsManifest, allDatastreams,
+	)
+	require.NoError(t, err)
+
+	// The policy must have inputs with non-empty streams.
+	assert.NotEmpty(t, policy.Inputs, "policy must have inputs")
+	var foundEnabledInput bool
+	for key, input := range policy.Inputs {
+		if input.Enabled {
+			foundEnabledInput = true
+			assert.NotEmpty(t, input.Streams, "enabled input %q must have streams", key)
+
+			// The target stream must be enabled and have the user-provided var.
+			for streamKey, stream := range input.Streams {
+				if stream.Enabled {
+					assert.Contains(t, stream.Vars, "paths",
+						"stream %q must include user-provided paths var", streamKey)
+				}
+			}
+		}
+	}
+	assert.True(t, foundEnabledInput, "policy must have at least one enabled input")
+
+	assert.Equal(t, "logs", dsType)
+	assert.Equal(t, "apache.access", dsDataset)
+	assert.Equal(t, manifest.Name, policy.Package.Name)
+	assert.Equal(t, manifest.Version, policy.Package.Version)
+}
+
+// TestBuildPackagePolicy_IntegrationRejectsInvalidDatastreams verifies that
+// BuildPackagePolicy refuses inputs that would silently produce a broken
+// policy. Two cases:
+//   - allDatastreams is nil/empty: this is the #3552 root cause — silently
+//     accepting it produced an empty Streams map that Fleet rejected with
+//     misleading "required variable" errors.
+//   - dsManifest is not present in allDatastreams: the caller loaded the two
+//     from different roots, so the policy would reference streams that do not
+//     exist in the installed package.
+func TestBuildPackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) {
+	packageRoot := "testdata/packages/apache"
+	dsName := "access"
+
+	manifest, err := packages.ReadPackageManifest(filepath.Join(packageRoot, "manifest.yml"))
+	require.NoError(t, err)
+
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packageRoot, dsName)
+	require.NoError(t, err)
+
+	kp := &Policy{ID: "test-policy-id", Namespace: "test"}
+
+	t.Run("nil allDatastreams", func(t *testing.T) {
+		_, _, _, err := BuildPackagePolicy(
+			kp, "apache", dsName, "logfile",
+			common.MapStr{}, common.MapStr{}, "test-suffix",
+			*manifest, dsManifest, nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "allDatastreams is empty")
+	})
+
+	t.Run("empty allDatastreams", func(t *testing.T) {
+		_, _, _, err := BuildPackagePolicy(
+			kp, "apache", dsName, "logfile",
+			common.MapStr{}, common.MapStr{}, "test-suffix",
+			*manifest, dsManifest, []packages.DataStreamManifest{},
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "allDatastreams is empty")
+	})
+
+	t.Run("dsManifest not in allDatastreams", func(t *testing.T) {
+		mismatched := []packages.DataStreamManifest{{Name: "different"}}
+		_, _, _, err := BuildPackagePolicy(
+			kp, "apache", dsName, "logfile",
+			common.MapStr{}, common.MapStr{}, "test-suffix",
+			*manifest, dsManifest, mismatched,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not present in allDatastreams")
+	})
+}
+
+// TestBuildPackagePolicy_Input verifies BuildPackagePolicy for input packages
+// where dsManifest is nil.
+func TestBuildPackagePolicy_Input(t *testing.T) {
+	packageRoot := "testdata/packages/log_input"
+
+	manifest, err := packages.ReadPackageManifest(filepath.Join(packageRoot, "manifest.yml"))
+	require.NoError(t, err)
+
+	kp := &Policy{ID: "test-policy-id", Namespace: "test"}
+	vars := common.MapStr{
+		"paths":               []string{"/tmp/test.log"},
+		"data_stream.dataset": "log.custom",
+	}
+
+	policy, dsType, dsDataset, err := BuildPackagePolicy(
+		kp, "logs", "", "",
+		vars, common.MapStr{}, "test-suffix",
+		*manifest, nil, nil,
+	)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, policy.Inputs, "input package policy must have inputs")
+	var foundEnabled bool
+	for _, input := range policy.Inputs {
+		if input.Enabled {
+			foundEnabled = true
+			assert.NotEmpty(t, input.Streams, "enabled input must have streams")
+		}
+	}
+	assert.True(t, foundEnabled, "policy must have at least one enabled input")
+
+	assert.Equal(t, "logs", dsType)
+	assert.Equal(t, "log.custom", dsDataset)
+	assert.Equal(t, manifest.Name, policy.Package.Name)
+	assert.Equal(t, manifest.Version, policy.Package.Version)
+}

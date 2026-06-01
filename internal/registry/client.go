@@ -5,6 +5,7 @@
 package registry
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -130,18 +131,54 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 	}
 
 	zipPath := filepath.Join(destDir, fmt.Sprintf("%s-%s.zip", name, version))
-	shouldRemove := false
+	shouldRemove := true
 	defer func() {
 		if shouldRemove {
 			_ = os.Remove(zipPath)
 		}
 	}()
 
-	shouldRemove = true
 	if err := os.WriteFile(zipPath, body, 0o644); err != nil {
 		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
 	}
 
+	if verifyPackageSignatureDisabled() {
+		logger.Warnf("Package signature verification disabled via %s", disableVerifyPackageSignatureEnv)
+	} else {
+		if err := c.verifyPackage(name, version, body); err != nil {
+			return "", fmt.Errorf("verifying package %s-%s: %w", name, version, err)
+		}
+	}
+
 	shouldRemove = false
 	return zipPath, nil
+}
+
+// verifyPackage downloads the detached PGP signature for the package zip and
+// verifies it against zipData.
+//
+// Trust model: the package content is authenticated by the embedded Elastic
+// public GPG key (or the override keyring). The signature is fetched from the
+// same registry endpoint, so this does not authenticate the registry itself —
+// it only guarantees the zip was signed by a trusted key before publication.
+func (c *Client) verifyPackage(name, version string, zipData []byte) error {
+	sigPath := fmt.Sprintf("/epr/%s/%s-%s.zip.sig", name, name, version)
+	statusCode, sigBytes, err := c.get(sigPath)
+	if err != nil {
+		return fmt.Errorf("downloading signature: %w", err)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("downloading signature: unexpected status code %d (if the registry does not serve signatures, set %s=true to skip verification)",
+			statusCode, disableVerifyPackageSignatureEnv)
+	}
+
+	keyRing, err := loadVerifierKeyring()
+	if err != nil {
+		return fmt.Errorf("loading verifier keyring: %w", err)
+	}
+
+	if err := verifyDetachedPGP(bytes.NewReader(zipData), sigBytes, keyRing); err != nil {
+		return err
+	}
+	return nil
 }

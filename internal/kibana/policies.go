@@ -278,7 +278,7 @@ func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) V
 
 // PackagePolicy represents a Package Policy in Fleet using the simplified
 // (objects-based) inputs format.
-// CreatePackagePolicy transparently converts to the legacy format for older stacks.
+// Client.CreatePackagePolicy transparently converts to the legacy format for older stacks.
 type PackagePolicy struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`

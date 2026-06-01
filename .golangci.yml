@@ -5,6 +5,7 @@ linters:
     - contextcheck
     - errorlint
     - exhaustive
+    - forbidigo
     - gocognit
     - gocritic
     - gocyclo
@@ -33,6 +34,10 @@ linters:
         ruleguard:
           rules: '${base-path}/scripts/ruleguard/rules/rules.go'
           failOn: all
+    forbidigo:
+      forbid:
+        - pattern: 'os\.Chdir'
+          msg: "use t.Chdir in tests; os.Chdir mutates global process state"
     revive:
       rules:
         # TODO: lower to default 8 once BuildIntegrationPackagePolicy, CreatePackagePolicy,
