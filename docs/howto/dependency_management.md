@@ -15,7 +15,7 @@ Elastic Packages support two kinds of build-time dependency:
 
 - **Field dependencies** — import field definitions from external schemas (e.g. ECS) using
   `_dev/build/build.yml`. Resolved from Git references and cached locally.
-- **Package dependencies** — composable (integration) packages can depend on input and content packages
+- **Package dependencies** — integration packages with `requires` can depend on input and content packages
   declared under `requires` in `manifest.yml`. **Input package** dependencies are resolved
   at build time by downloading from the package registry. **Content package** dependencies are
   resolved at runtime by Fleet.
@@ -97,9 +97,9 @@ and use a following field definition:
   external: ecs
 ```
 
-## Composable packages and the package registry
+## Integrations with required packages and the package registry
 
-Composable (integration) packages can also depend on input or content packages by declaring them under
+Integration packages can depend on input or content packages by declaring them under
 `requires` in `manifest.yml`. Depending on the package type, dependencies are resolved
 differently: **input package** dependencies are fetched at build time; **content package**
 dependencies are resolved at runtime by Fleet.
@@ -114,7 +114,7 @@ requires:
 This type of dependency is resolved at **build time** by downloading the required input package
 from the **package registry**. During `elastic-package build`, elastic-package fetches those
 packages and updates the built integration: it bundles agent templates (policy and data stream),
-merges variable definitions from the input packages into the composable manifest, adds data
+merges variable definitions from the input packages into the integration manifest, adds data
 stream field definitions where configured, and rewrites `package:` references on inputs and
 streams to the concrete input types Fleet needs. Fleet still merges policy-specific values at
 policy creation time.
@@ -127,16 +127,61 @@ package dependencies are fetched from the configured package registry URL
 For details on using a local or custom registry when the required input packages are still
 under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).
 
-### Testing composable packages with source overrides
+### Updating `requires` pins from the package registry
 
-When running `elastic-package test` on a composable integration whose required input packages
+Integration packages with `requires` pin input and content dependencies in
+`manifest.yml`. Use `elastic-package requires update` to bump those pins to the latest
+versions published in the package registry that are compatible with this package's
+`conditions.kibana.version` constraint.
+
+The command queries the same registry URL used by `elastic-package build`: `stack.epr.base_url`
+in the active profile, then `package_registry.base_url` in `~/.elastic-package/config.yml`,
+defaulting to `https://epr.elastic.co`. To point the command at a local or custom registry,
+see [HOWTO: Use a local or custom package registry](./local_package_registry.md).
+
+By default the command writes updated versions to `manifest.yml`. Use `--dry-run` to preview
+bumps without modifying the file.
+
+```bash
+# Update requires pins for the package in the current directory
+elastic-package requires update
+
+# Preview changes
+elastic-package requires update --dry-run
+
+# Machine-readable output for automation (includes package name and owner.github for CI grouping)
+elastic-package requires update --dry-run --format json
+```
+
+`requires.content` pins are always written as exact semver versions (for example `"0.4.0"`).
+Constraint-style pins on content dependencies are normalized to an exact version on update.
+
+JSON output includes `package`, `codeowner` (from `owner.github` in `manifest.yml`), and `proposals`
+with each dependency bump. Use `codeowner` to group batch PRs in CI. Packages skipped because they
+are not applicable (for example, not an integration or no `requires` block) produce no JSON on stdout;
+an info log is written instead.
+
+When a newer dependency revision exists but its `conditions.kibana.version` does not overlap
+with this package's `conditions.kibana.version` constraint, the command prints a warning suggesting to bump
+`conditions.kibana.version` on the integration package. It does not change that field
+automatically.
+
+To refresh many integration packages in a repository (for example from a scheduled CI job):
+
+```bash
+elastic-package foreach --type integration requires update
+```
+
+### Testing integrations with requires using source overrides
+
+When running `elastic-package test` on an integration with `requires` whose required input packages
 are not yet published to the registry, you can point each test runner at a local copy of the
 input package using the `requires` key in `_dev/test/config.yml`.
 
 Each entry in the `requires` list uses one of two forms:
 
 - **`source`** — a path to a local package directory or `.zip` file. Relative paths are
-  resolved relative to the composable package root. The package name is read from the
+  resolved relative to the integration package root. The package name is read from the
   `manifest.yml` at that path.
 - **`package` + `version`** — forces a specific version to be fetched from the registry
   (useful in CI where the package is already published and you want to pin a version).
@@ -148,7 +193,7 @@ The `requires` key is supported under any test runner block: `policy`, `system`,
 in more than one block, the resolved absolute paths must be identical.
 
 ```yaml
-# _dev/test/config.yml — composable integration package
+# _dev/test/config.yml — integration with requires
 policy:
   requires:
     - source: "../my_input_pkg"       # local directory, relative to this package root
@@ -176,7 +221,7 @@ Some repositories share agent templates using **link files** (files ending in `.
 point at shared content). During `elastic-package build`, linked content is copied into the
 build output under the **target** path (the link filename without the `.link` suffix).
 
-Composable bundling (`requires.input`) runs **after** linked files are materialized in the
+`requires.input` bundling runs **after** linked files are materialized in the
 build directory. In `manifest.yml`, always set `template_path` / `template_paths` to those
 **materialized** names (for example `owned.hbs`), **not** the stub name (`owned.hbs.link`).
 Fleet and the builder resolve templates by the names declared in the manifest; the `.link`

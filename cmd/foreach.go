@@ -34,6 +34,7 @@ func getAllowedSubCommands() []string {
 		"format",
 		"install",
 		"lint",
+		"requires",
 		"test",
 		"uninstall",
 		"update",
