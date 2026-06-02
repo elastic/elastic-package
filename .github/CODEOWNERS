@@ -1,3 +1,5 @@
+* @elastic/ecosystem
+
 /go.mod @elastic/ecosystem
 /.buildkite/ @elastic/ecosystem
 /.github/ @elastic/ecosystem
@@ -13,4 +15,4 @@ internal/registry/gpgkey/fetch/ @elastic/ecosystem
 internal/registry/gpgkey_test.go @elastic/ecosystem
 
 # LLM based functionality owned by integration-experience
-internal/llmagent/ @elastic/integration-experience
+internal/llmagent/ @elastic/integration-experience @elastic/ecosystem
