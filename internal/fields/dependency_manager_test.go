@@ -83,6 +83,27 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 			valid:   true,
 		},
 		{
+			title: "constant_keyword to keyword  override",
+			defs: []common.MapStr{
+				{
+					"name":     "data_stream.namespace",
+					"type":     "keyword",
+					"external": "test",
+					"value":    "nginx.access",
+				},
+			},
+			result: []common.MapStr{
+				{
+					"name":        "data_stream.namespace",
+					"type":        "keyword",
+					"description": "Data stream namespace.",
+					"value":       "nginx.access",
+				},
+			},
+			changed: true,
+			valid:   true,
+		},
+		{
 			title: "external dimension",
 			defs: []common.MapStr{
 				{
@@ -505,7 +526,7 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 	}
 
 	indexFalse := false
-	schema := map[string][]FieldDefinition{"test": []FieldDefinition{
+	schema := map[string][]FieldDefinition{"test": {
 		{
 			Name:        "container.id",
 			Description: "Container identifier.",
@@ -519,6 +540,11 @@ func TestDependencyManagerInjectExternalFields(t *testing.T) {
 		{
 			Name:        "data_stream.dataset",
 			Description: "Data stream dataset.",
+			Type:        "constant_keyword",
+		},
+		{
+			Name:        "data_stream.namespace",
+			Description: "Data stream namespace.",
 			Type:        "constant_keyword",
 		},
 		{

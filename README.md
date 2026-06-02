@@ -873,6 +873,10 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE`: Path to the private key file to sign packages.
     - `ELASTIC_PACKAGE_SIGNER_PASSPHRASE`: Passphrase to use the private key file.
 
+- Related to verifying packages downloaded from the Elastic Package Registry (EPR):
+    - `ELASTIC_PACKAGE_VERIFIER_DISABLE`: Set to `true` to skip signature verification. Default: `false`.
+    - `ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING`: Path to an armored OpenPGP keyring file used to verify signatures. When set, it replaces the embedded Elastic key.
+
 - Related to tests:
     - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
     - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images

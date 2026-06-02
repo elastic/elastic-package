@@ -38,6 +38,9 @@ is_composable_bootstrap_pkg() {
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
+# The local registry serves locally-built unsigned packages; skip signature verification.
+export ELASTIC_PACKAGE_VERIFIER_DISABLE=true
+
 cleanup() {
   local r=$?
   if [ "${r}" -ne 0 ]; then

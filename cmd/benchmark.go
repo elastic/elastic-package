@@ -267,6 +267,16 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchNameFlagName)
 	}
 
+	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+	}
+
+	metricsInterval, err := cmd.Flags().GetDuration(cobraext.BenchMetricsIntervalFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.BenchMetricsIntervalFlagName)
+	}
+
 	dataReindex, err := cmd.Flags().GetBool(cobraext.BenchReindexToMetricstoreFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
@@ -348,6 +358,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	withOpts := []rally.OptionFunc{
 		rally.WithVariant(variant),
 		rally.WithBenchmarkName(benchName),
+		rally.WithDeferCleanup(deferCleanup),
+		rally.WithMetricsInterval(metricsInterval),
 		rally.WithDataReindexing(dataReindex),
 		rally.WithPackageRoot(packageRoot),
 		rally.WithESAPI(esClient.API),

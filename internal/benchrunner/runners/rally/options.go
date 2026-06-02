@@ -86,6 +86,18 @@ func WithESMetricsAPI(api *elasticsearch.API) OptionFunc {
 	}
 }
 
+func WithDeferCleanup(d time.Duration) OptionFunc {
+	return func(opts *Options) {
+		opts.DeferCleanup = d
+	}
+}
+
+func WithMetricsInterval(d time.Duration) OptionFunc {
+	return func(opts *Options) {
+		opts.MetricsInterval = d
+	}
+}
+
 func WithVariant(name string) OptionFunc {
 	return func(opts *Options) {
 		opts.Variant = name

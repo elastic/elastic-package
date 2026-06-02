@@ -1,0 +1,86 @@
+---
+name: Rotate Elastic GPG key
+pipelineid: 'rotate-elastic-gpg-key'
+
+actions:
+  default:
+    title: '[updatecli] Rotate embedded Elastic GPG key to {{ source "newFingerprint" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+      description: |
+        This PR was opened automatically by updatecli. It refreshes the Elastic
+        public GPG key embedded in the binary from the upstream copy at
+        https://artifacts.elastic.co/GPG-KEY-elasticsearch.
+
+        New fingerprint: `{{ source "newFingerprint" }}`
+
+        **Compare the new fingerprint with the one in
+        `internal/registry/gpgkey_test.go` on `main`:**
+
+        - **If they match**: this is a self-signature refresh of the same
+          primary key (e.g. updated cryptographic parameters from the self-signature,
+          refreshed subkey bindings, etc.). The primary key material
+          is unchanged. Merging is low-risk; check the diff is plausible
+          (binary armored OpenPGP key block).
+        - **If they differ**: this is a key rotation. **Verify out-of-band that
+          Elastic actually rotated their signing key** — the links and
+          fingerprints in this PR all come from the same download URL, so they
+          cannot confirm authenticity on their own. Suggested independent
+          checks:
+          - Look for the new fingerprint in Elastic's official install docs
+            (Debian/RPM install pages under https://www.elastic.co/docs/),
+            which hardcode the expected fingerprint in human-written text.
+          - Look for a public announcement from Elastic (release notes,
+            security advisory, blog post).
+          - Cross-check against a previously-trusted copy of the key (e.g.
+            from a long-standing OS package repository on a machine you trust).
+
+        If you cannot independently confirm a rotation, do **not** merge.
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  newFingerprint:
+    name: Get fingerprint of upstream Elastic GPG key
+    kind: shell
+    spec:
+      # The tool prints "new_fingerprint=<HEX>" to stdout; extract the hex value.
+      command: >-
+        go run ./internal/registry/gpgkey/fetch |
+        awk -F= '/^new_fingerprint=/{print $2}'
+
+targets:
+  update-embedded-key:
+    name: '[updatecli] Update embedded Elastic GPG key'
+    kind: shell
+    scmid: default
+    disablesourceinput: true
+    spec:
+      # Overwrites elastic-gpg-key.asc and updates the fingerprint constant in
+      # gpgkey_test.go. Updatecli detects changes via the checksum of those
+      # files, so disablesourceinput is set to avoid appending the source value
+      # as an unused trailing argument.
+      command: go run ./internal/registry/gpgkey/fetch
+      changedif:
+        kind: file/checksum
+        spec:
+          files:
+            - internal/registry/elastic-gpg-key.asc
+            - internal/registry/gpgkey_test.go
+      environments:
+        - name: HOME
+        - name: PATH
