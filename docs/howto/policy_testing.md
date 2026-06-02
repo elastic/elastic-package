@@ -59,7 +59,7 @@ policy:
 
 The `skip` key skips all policy tests with a mandatory reason and optional issue link.
 
-The `requires` key is used for **composable integration packages** that declare
+The `requires` key is used for **integration packages with `requires`** that declare
 `requires.input` in their `manifest.yml`. It tells the policy test runner which local source
 path (or registry version) to use for each required input package when bundling the
 integration before running the tests. Without this, the runner fetches dependencies from the
@@ -69,8 +69,8 @@ configured package registry.
 - Use `package` + `version` to pin a specific registry version.
 - `source` and `package`/`version` are mutually exclusive in the same entry.
 
-For full details on composable packages and source overrides, see
-[HOWTO: Enable dependency management](./dependency_management.md#testing-composable-packages-with-source-overrides).
+For full details on integrations with requires and source overrides, see
+[HOWTO: Enable dependency management](./dependency_management.md#testing-integrations-with-requires-using-source-overrides).
 
 ### Defining the configuration of the policy
 

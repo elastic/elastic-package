@@ -271,6 +271,13 @@ const (
 	StatusFormatFlagName        = "format"
 	StatusFormatFlagDescription = "output format (\"%s\")"
 
+	RequiresDryRunFlagName            = "dry-run"
+	RequiresDryRunFlagDescription     = "report dependency bumps without writing manifest.yml"
+	RequiresFormatFlagName            = "format"
+	RequiresFormatFlagDescription     = "output format (\"%s\")"
+	RequiresPrereleaseFlagName        = "prerelease"
+	RequiresPrereleaseFlagDescription = "include pre-release versions when searching the registry (by default only stable versions are considered)"
+
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "enable test coverage reports"
 
