@@ -983,7 +983,7 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 			continue
 		}
 		var b strings.Builder
-		b.WriteString("--- FAIL: ")
+		b.WriteString("FAIL: ")
 		if r.Package != "" {
 			b.WriteString(r.Package)
 		}

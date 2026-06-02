@@ -32,6 +32,7 @@ func setupLintCommand() *cobraext.Command {
 			err := cobraext.ComposeCommandActions(cmd, args,
 				lintCommandAction,
 				validateSourceCommandAction,
+				validateTLSHelperIndentAction,
 			)
 			if err != nil {
 				return err
@@ -74,6 +75,17 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 			}
 		}
 		return fmt.Errorf("checking readme files are up-to-date failed: %w", err)
+	}
+	return nil
+}
+
+func validateTLSHelperIndentAction(cmd *cobra.Command, args []string) error {
+	packageRoot, err := packages.MustFindPackageRoot()
+	if err != nil {
+		return fmt.Errorf("package root not found: %w", err)
+	}
+	if err := validation.ValidateTLSHelperIndent(packageRoot); err != nil {
+		return fmt.Errorf("linting TLS helpers failed: %w", err)
 	}
 	return nil
 }

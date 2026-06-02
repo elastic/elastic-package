@@ -391,7 +391,7 @@ This command combines query capabilities with command execution, allowing you to
 The command uses the same query flags as the 'find' command to select packages, then executes the specified subcommand for each matched package.
 
 Allowed subcommands:
-build, check, changelog, clean, format, install, lint, test, uninstall, update
+build, check, changelog, clean, format, install, lint, requires, test, uninstall, update
 
 ### `elastic-package format`
 
@@ -505,6 +505,26 @@ It is formatted as a Markdown Github comment to use as part of the CI results.
 _Context: package_
 
 Generate a benchmark report comparing local results against ones from another benchmark run.
+
+### `elastic-package requires`
+
+_Context: package_
+
+Manage requires dependencies for integration packages (requires.input and requires.content in manifest.yml).
+
+Use "requires update" to bump requires.input and requires.content versions from the package registry,
+respecting the integration package Kibana version constraint.
+
+### `elastic-package requires update`
+
+_Context: package_
+
+Update requires.input and requires.content pins to the latest registry versions compatible with this package's Kibana constraint.
+
+By default manifest.yml is updated. Use --dry-run to report available bumps without writing the manifest.
+Version pins must be exact semver versions (constraints such as ^0.3.0 are not accepted).
+
+When a newer dependency exists but requires a higher Kibana version than this package allows, a warning is printed suggesting to bump conditions.kibana.version on the integration package.
 
 ### `elastic-package service`
 
