@@ -102,20 +102,20 @@ func writeRequiresFixture(t *testing.T, manifestContent, changelogContent string
 
 func TestApplyRequiresUpdate(t *testing.T) {
 	tests := []struct {
-		name               string
-		manifestContent    string
-		changelogContent   string
-		proposals          []requiresupdates.UpdateProposal
-		changelogEnabled   bool
-		changelogType      string
-		wantNewVersion     string
-		wantManifestVer    string
-		wantInputPin       string
-		wantContentPin     string
-		wantDescription    string
-		wantEntryTypes     []string
-		wantChangeCount    int
-		wantError          string
+		name             string
+		manifestContent  string
+		changelogContent string
+		proposals        []requiresupdates.UpdateProposal
+		changelogEnabled bool
+		changelogType    string
+		wantNewVersion   string
+		wantManifestVer  string
+		wantInputPin     string
+		wantContentPin   string
+		wantDescription  string
+		wantEntryTypes   []string
+		wantChangeCount  int
+		wantError        string
 		// wantFilesUnchanged is valid only for errors that fire before any file
 		// write (e.g. the version-mismatch guard). Do not set for errors that
 		// occur after PatchYAML has already written changelog.yml.

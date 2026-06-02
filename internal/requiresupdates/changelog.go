@@ -25,7 +25,7 @@ const ChangelogPlaceholderLink = "https://github.com/elastic/integrations/pull/R
 type BumpTier int
 
 const (
-	TierNone  BumpTier = iota
+	TierNone BumpTier = iota
 	TierPatch
 	TierMinor
 	TierMajor
@@ -96,9 +96,10 @@ func (t BumpTier) NextMode() string {
 		return "minor"
 	case TierPatch:
 		return "patch"
-	default:
+	case TierNone:
 		return ""
 	}
+	return ""
 }
 
 // NextVersion reads the changelog top version from packageRoot and returns it

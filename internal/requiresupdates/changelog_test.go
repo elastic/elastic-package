@@ -69,9 +69,9 @@ func TestAggregateTier(t *testing.T) {
 		{
 			name: "mixed tiers returns max",
 			proposals: []UpdateProposal{
-				{Current: "1.2.0", Proposed: "1.2.1"},  // patch
-				{Current: "1.0.0", Proposed: "2.0.0"},  // major
-				{Current: "1.2.0", Proposed: "1.3.0"},  // minor
+				{Current: "1.2.0", Proposed: "1.2.1"}, // patch
+				{Current: "1.0.0", Proposed: "2.0.0"}, // major
+				{Current: "1.2.0", Proposed: "1.3.0"}, // minor
 			},
 			want: TierMajor,
 		},
@@ -171,51 +171,51 @@ requires:
       version: "0.2.0"
 `
 	tests := []struct {
-		name            string
-		manifest        string
-		changelogYML    string
-		proposals       []UpdateProposal
-		changelogType   string
-		wantNewVersion  string
-		wantEntryType   string
-		wantError       string
-		checkUnchanged  bool
+		name           string
+		manifest       string
+		changelogYML   string
+		proposals      []UpdateProposal
+		changelogType  string
+		wantNewVersion string
+		wantEntryType  string
+		wantError      string
+		checkUnchanged bool
 	}{
 		{
-			name:          "patch bump infers enhancement and bumps patch version",
-			manifest:      baseManifest,
-			changelogYML:  baseChangelogFixture,
-			proposals:     []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
+			name:           "patch bump infers enhancement and bumps patch version",
+			manifest:       baseManifest,
+			changelogYML:   baseChangelogFixture,
+			proposals:      []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
 			wantNewVersion: "1.2.1",
-			wantEntryType: "enhancement",
+			wantEntryType:  "enhancement",
 		},
 		{
-			name:          "minor bump infers enhancement and bumps minor version",
-			manifest:      baseManifest,
-			changelogYML:  baseChangelogFixture,
-			proposals:     []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"}},
+			name:           "minor bump infers enhancement and bumps minor version",
+			manifest:       baseManifest,
+			changelogYML:   baseChangelogFixture,
+			proposals:      []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"}},
 			wantNewVersion: "1.3.0",
-			wantEntryType: "enhancement",
+			wantEntryType:  "enhancement",
 		},
 		{
-			name:          "major bump infers breaking-change and bumps major version",
-			manifest:      baseManifest,
-			changelogYML:  baseChangelogFixture,
-			proposals:     []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "1.0.0"}},
+			name:           "major bump infers breaking-change and bumps major version",
+			manifest:       baseManifest,
+			changelogYML:   baseChangelogFixture,
+			proposals:      []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "1.0.0"}},
 			wantNewVersion: "2.0.0",
-			wantEntryType: "breaking-change",
+			wantEntryType:  "breaking-change",
 		},
 		{
-			name:          "changelog-type override applies to all entries",
-			manifest:      baseManifest,
-			changelogYML:  baseChangelogFixture,
-			proposals:     []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"}},
-			changelogType: "bugfix",
+			name:           "changelog-type override applies to all entries",
+			manifest:       baseManifest,
+			changelogYML:   baseChangelogFixture,
+			proposals:      []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"}},
+			changelogType:  "bugfix",
 			wantNewVersion: "1.3.0",
-			wantEntryType: "bugfix",
+			wantEntryType:  "bugfix",
 		},
 		{
-			name:    "divergent manifest vs changelog top returns error without writing",
+			name: "divergent manifest vs changelog top returns error without writing",
 			manifest: `name: test_pkg
 version: "1.2.0"
 type: integration
