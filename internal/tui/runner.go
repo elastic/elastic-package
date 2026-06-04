@@ -5,6 +5,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -235,6 +236,51 @@ func (m *questionnaireModel) formatAnswer(answer interface{}) string {
 		return fmt.Sprintf("%v", v)
 	}
 }
+
+// ShowContent displays content in a scrollable viewer and waits for user to close it.
+func ShowContent(title, content string) error {
+	component := NewTextComponent(TextComponentOptions{
+		Mode:    ViewMode,
+		Title:   title,
+		Content: content,
+	})
+	model := newTextComponentModel(component)
+
+	program := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+
+	_, err := program.Run()
+	return err
+}
+
+// AskTextArea runs a text area dialog for multi-line input.
+func AskTextArea(message string) (string, error) {
+	component := NewTextComponent(TextComponentOptions{
+		Mode:    EditMode,
+		Message: message,
+		Focused: true,
+	})
+	model := newTextComponentModel(component)
+	program := tea.NewProgram(model)
+
+	finalModel, err := program.Run()
+	if err != nil {
+		return "", err
+	}
+
+	result := finalModel.(*textComponentModel).component
+	if result.cancelled {
+		return "", ErrCancelled
+	}
+
+	if result.submitted {
+		return strings.TrimSpace(result.textarea.Value()), nil
+	}
+
+	return "", ErrCancelled
+}
+
+// ErrCancelled is returned when the user cancels a dialog.
+var ErrCancelled = errors.New("cancelled by user")
 
 // Ask runs multiple questions and stores answers in the provided struct
 func Ask(questions []*Question, answers interface{}) error {
