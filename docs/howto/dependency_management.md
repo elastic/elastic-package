@@ -142,6 +142,12 @@ see [HOWTO: Use a local or custom package registry](./local_package_registry.md)
 By default the command writes updated versions to `manifest.yml`. Use `--dry-run` to preview
 bumps without modifying the file.
 
+Use `--format table` (default) for a human-readable summary or `--format json` for
+machine-readable output suitable for CI automation.
+
+By default only stable registry versions are considered when resolving bumps. Pass
+`--prerelease` to include pre-release versions.
+
 ```bash
 # Update requires pins for the package in the current directory
 elastic-package requires update
@@ -151,6 +157,9 @@ elastic-package requires update --dry-run
 
 # Machine-readable output for automation (includes package name and owner.github for CI grouping)
 elastic-package requires update --dry-run --format json
+
+# Include pre-release registry versions when resolving bumps
+elastic-package requires update --prerelease --dry-run
 ```
 
 `requires.content` pins are always written as exact semver versions (for example `"0.4.0"`).
@@ -170,6 +179,62 @@ To refresh many integration packages in a repository (for example from a schedul
 
 ```bash
 elastic-package foreach --type integration requires update
+```
+
+#### Generating changelog entries (`--changelog`)
+
+Pass `--changelog` to write changelog entries in addition to rewriting the `manifest.yml` pins.
+With this flag the command:
+
+- adds **one changelog entry per bumped dependency** to `changelog.yml`, and
+- **bumps the package's own version** in both `changelog.yml` and `manifest.yml`.
+
+Neither a human nor automation has to hand-edit the changelog afterward.
+
+**Version bump tier.** The package version is bumped by the largest semver tier across all
+applied bumps: any major bump → major; else any minor → minor; else patch. The new version is
+derived from the current changelog top version, using the same mechanism as
+`elastic-package changelog add --next <tier>`.
+
+**Entry type — inferred vs override.** By default each entry's `type` is inferred from the
+dependency's bump tier:
+
+- major bump → `breaking-change`
+- minor or patch bump → `enhancement`
+
+Use `--changelog-type <type>` to override the type for all generated entries. The same values
+accepted by `elastic-package changelog add --type` are valid. `--changelog-type` requires
+`--changelog`; using it without `--changelog` is an error.
+
+**Entry shape.** Each generated entry contains:
+
+- `description`: `` Bump `<package>` <input|content> dependency from <current> to <proposed>. ``
+- `type`: inferred or overridden as described above
+- `link`: a placeholder URL (`https://github.com/elastic/integrations/pull/REPLACE_ME`)
+
+`package-spec` requires a `link` field on every changelog entry, so the placeholder keeps the
+file valid. Replace `REPLACE_ME` with the real PR number once the PR is opened.
+
+**Dry-run.** `--changelog --dry-run` writes nothing and prints the would-be new version and the
+per-dependency entry types.
+
+**JSON output.** `--format json` includes `new_version` in the response when `--changelog`
+bumped the package version.
+
+**Guards.** The command refuses to proceed when the changelog top version and `manifest.yml`
+version disagree, or when the changelog top version is a pre-release. Proposals that are
+warning-only (a newer revision exists but is incompatible with the Kibana constraint) produce
+no changelog entry.
+
+```bash
+# Bump pins AND write changelog entries + a package version bump
+elastic-package requires update --changelog
+
+# Force a specific changelog entry type for all generated entries
+elastic-package requires update --changelog --changelog-type bugfix
+
+# Preview the version bump and entries without writing anything
+elastic-package requires update --changelog --dry-run
 ```
 
 ### Testing integrations with requires using source overrides

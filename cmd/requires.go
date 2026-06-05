@@ -37,6 +37,14 @@ respecting the integration package Kibana version constraint.`
 By default manifest.yml is updated. Use --dry-run to report available bumps without writing the manifest.
 Version pins must be exact semver versions (constraints such as ^0.3.0 are not accepted).
 
+Use --format table (default) or json to control output. JSON includes package, codeowner, and proposals for CI automation; table prints a human-readable summary.
+Use --prerelease to include pre-release versions when searching the registry; by default only stable versions are considered.
+
+Use --changelog to add a changelog entry per bumped dependency and bump the package version in manifest.yml and changelog.yml.
+The package version is bumped by the largest semver tier across all applied bumps (major over minor over patch).
+Use --changelog-type to override the entry type for all generated entries (bugfix, enhancement or breaking-change); by default major bumps map to breaking-change and minor or patch bumps map to enhancement.
+--changelog-type requires --changelog.
+
 When a newer dependency exists but requires a higher Kibana version than this package allows, a warning is printed suggesting to bump conditions.kibana.version on the integration package.`
 )
 
@@ -51,6 +59,8 @@ func setupRequiresCommand() *cobraext.Command {
 	updateCmd.Flags().Bool(cobraext.RequiresDryRunFlagName, false, cobraext.RequiresDryRunFlagDescription)
 	updateCmd.Flags().String(cobraext.RequiresFormatFlagName, requiresFormatTable, fmt.Sprintf(cobraext.RequiresFormatFlagDescription, strings.Join(requiresFormatChoices, "|")))
 	updateCmd.Flags().Bool(cobraext.RequiresPrereleaseFlagName, false, cobraext.RequiresPrereleaseFlagDescription)
+	updateCmd.Flags().Bool(cobraext.RequiresChangelogFlagName, false, cobraext.RequiresChangelogFlagDescription)
+	updateCmd.Flags().String(cobraext.RequiresChangelogTypeFlagName, "", fmt.Sprintf(cobraext.RequiresChangelogTypeFlagDescription, strings.Join(updateRequiresChangelogTypeChoices, ", ")))
 
 	cmd := &cobra.Command{
 		Use:   "requires",
@@ -70,6 +80,10 @@ const (
 
 var requiresFormatChoices = []string{requiresFormatTable, requiresFormatJSON}
 
+// updateRequiresChangelogTypeChoices is the subset of addChangelogTypeChoices that is valid for use with --changelog-type.
+// "deprecation" is intentionally excluded as it is not a valid type for automated dependency-bump changelog entries.
+var updateRequiresChangelogTypeChoices = addChangelogTypeChoices[:3]
+
 func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	dryRun, err := cmd.Flags().GetBool(cobraext.RequiresDryRunFlagName)
 	if err != nil {
@@ -85,6 +99,20 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	prerelease, err := cmd.Flags().GetBool(cobraext.RequiresPrereleaseFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.RequiresPrereleaseFlagName)
+	}
+	changelogEnabled, err := cmd.Flags().GetBool(cobraext.RequiresChangelogFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.RequiresChangelogFlagName)
+	}
+	changelogType, err := cmd.Flags().GetString(cobraext.RequiresChangelogTypeFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.RequiresChangelogTypeFlagName)
+	}
+	if changelogType != "" && !changelogEnabled {
+		return fmt.Errorf("--%s requires --%s", cobraext.RequiresChangelogTypeFlagName, cobraext.RequiresChangelogFlagName)
+	}
+	if changelogType != "" && !slices.Contains(updateRequiresChangelogTypeChoices, changelogType) {
+		return fmt.Errorf("unsupported changelog type %q, supported types: %s", changelogType, strings.Join(updateRequiresChangelogTypeChoices, ", "))
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
@@ -123,19 +151,11 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return p.Proposed != ""
 	})
 	if !dryRun && hasBumps {
-		manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
-		manifestBytes, err := os.ReadFile(manifestPath)
-		if err != nil {
-			return fmt.Errorf("reading manifest file failed: %w", err)
-		}
-		manifestBytes, err = requiresupdates.Apply(manifestBytes, result.Proposals)
+		newVersion, err := applyRequiresUpdate(packageRoot, result.Proposals, changelogEnabled, changelogType)
 		if err != nil {
 			return err
 		}
-		logger.Debugf("writing updated manifest: %s", manifestPath)
-		if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
-			return fmt.Errorf("writing manifest file failed: %w", err)
-		}
+		result.NewVersion = newVersion
 		applied = true
 	}
 
@@ -155,13 +175,74 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 
 	if dryRun && hasBumps {
 		cmd.Println("Dry run: manifest.yml was not modified")
+		if changelogEnabled {
+			tier := requiresupdates.AggregateTier(result.Proposals)
+			next, err := requiresupdates.NextVersion(tier, packageRoot)
+			if err != nil {
+				return err
+			}
+			cmd.Printf("Dry run: would bump package version to %s and add changelog entries:\n", next)
+			for _, p := range result.Proposals {
+				if p.Proposed == "" {
+					continue
+				}
+				t := changelogType
+				if t == "" {
+					t = requiresupdates.DefaultChangelogType(p.Tier())
+				}
+				cmd.Printf("  - [%s] %s: %s -> %s\n", t, p.Package, p.Current, p.Proposed)
+			}
+		}
 	} else if applied {
 		cmd.Println("Updated manifest.yml")
+		if changelogEnabled {
+			cmd.Println("Updated changelog.yml")
+		}
 	} else if len(result.Proposals) == 0 && result.SkipReason == "" {
 		cmd.Println("No dependencies to update")
 	}
 
 	return nil
+}
+
+// applyRequiresUpdate orchestrates the manifest write: updates requires pins
+// via requiresupdates.Apply, then (when changelogEnabled) patches changelog.yml
+// via requiresupdates.ApplyChangelog and bumps the package version via
+// requiresupdates.ApplyManifestVersion.
+// Returns the new package version when --changelog bumped it ("" otherwise).
+// Caller guarantees there is at least one bump (Proposed != "") in proposals.
+//
+// When --changelog is set, changelog.yml is written before manifest.yml; if
+// ApplyManifestVersion or the manifest write fails afterward, changelog.yml may
+// be ahead of manifest.yml — the same two-step risk as `elastic-package changelog add`.
+func applyRequiresUpdate(packageRoot string, proposals []requiresupdates.UpdateProposal, changelogEnabled bool, changelogType string) (newVersion string, err error) {
+	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+	manifestBytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", fmt.Errorf("reading manifest file failed: %w", err)
+	}
+
+	manifestBytes, err = requiresupdates.Apply(manifestBytes, proposals)
+	if err != nil {
+		return "", err
+	}
+
+	if changelogEnabled {
+		newVersion, err = requiresupdates.ApplyChangelog(packageRoot, manifestBytes, proposals, changelogType)
+		if err != nil {
+			return "", err
+		}
+		manifestBytes, err = requiresupdates.ApplyManifestVersion(manifestBytes, newVersion)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	logger.Debugf("writing updated manifest: %s", manifestPath)
+	if err := os.WriteFile(manifestPath, manifestBytes, 0o644); err != nil {
+		return "", fmt.Errorf("writing manifest file failed: %w", err)
+	}
+	return newVersion, nil
 }
 
 func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, format string) error {
