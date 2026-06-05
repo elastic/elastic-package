@@ -205,11 +205,16 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// applyRequiresUpdate orchestrates the two-step write: first updates requires
-// pins via requiresupdates.Apply, then (when changelogEnabled) bumps the package
-// version and patches changelog.yml via requiresupdates.ApplyChangelog.
+// applyRequiresUpdate orchestrates the manifest write: updates requires pins
+// via requiresupdates.Apply, then (when changelogEnabled) patches changelog.yml
+// via requiresupdates.ApplyChangelog and bumps the package version via
+// requiresupdates.ApplyManifestVersion.
 // Returns the new package version when --changelog bumped it ("" otherwise).
 // Caller guarantees there is at least one bump (Proposed != "") in proposals.
+//
+// When --changelog is set, changelog.yml is written before manifest.yml; if
+// ApplyManifestVersion or the manifest write fails afterward, changelog.yml may
+// be ahead of manifest.yml — the same two-step risk as `elastic-package changelog add`.
 func applyRequiresUpdate(packageRoot string, proposals []requiresupdates.UpdateProposal, changelogEnabled bool, changelogType string) (newVersion string, err error) {
 	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
 	manifestBytes, err := os.ReadFile(manifestPath)
@@ -223,7 +228,11 @@ func applyRequiresUpdate(packageRoot string, proposals []requiresupdates.UpdateP
 	}
 
 	if changelogEnabled {
-		manifestBytes, newVersion, err = requiresupdates.ApplyChangelog(packageRoot, manifestBytes, proposals, changelogType)
+		newVersion, err = requiresupdates.ApplyChangelog(packageRoot, manifestBytes, proposals, changelogType)
+		if err != nil {
+			return "", err
+		}
+		manifestBytes, err = requiresupdates.ApplyManifestVersion(manifestBytes, newVersion)
 		if err != nil {
 			return "", err
 		}

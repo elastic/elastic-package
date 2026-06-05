@@ -11,6 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
@@ -117,6 +118,15 @@ func Apply(manifestBytes []byte, proposals []UpdateProposal) ([]byte, error) {
 		}
 	}
 	return manifestBytes, nil
+}
+
+// ApplyManifestVersion sets the package version field in manifestBytes.
+func ApplyManifestVersion(manifestBytes []byte, version string) ([]byte, error) {
+	updated, err := changelog.SetManifestVersion(manifestBytes, version)
+	if err != nil {
+		return nil, fmt.Errorf("setting manifest version failed: %w", err)
+	}
+	return updated, nil
 }
 
 func resolveSection(opts Options, integrationKibana string, kind DependencyKind, deps []packages.PackageDependency) ([]UpdateProposal, error) {

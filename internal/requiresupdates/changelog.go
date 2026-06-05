@@ -157,45 +157,40 @@ func BuildChangelogRevision(version *semver.Version, proposals []UpdateProposal,
 	return changelog.Revision{Version: version.String(), Changes: changes}
 }
 
-// ApplyChangelog bumps the package version in manifestBytes and patches
-// changelog.yml on disk. It is called after Apply has already updated the
-// requires pins in manifestBytes. Returns the updated manifest bytes and the
-// new version string.
+// ApplyChangelog patches changelog.yml on disk. It is called after Apply has
+// already updated the requires pins in manifestBytes. Returns the new package
+// version string; use ApplyManifestVersion to bump manifestBytes.
 //
 // Atomicity: PatchYAML is validated before any file is written; changelog.yml
-// is written first so a failure before the manifest write leaves only the
-// changelog updated — the same partial-write risk as a single-file edit.
-func ApplyChangelog(packageRoot string, manifestBytes []byte, proposals []UpdateProposal, changelogType string) ([]byte, string, error) {
-	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
-	if err != nil {
-		return nil, "", fmt.Errorf("reading changelog failed: %w", err)
-	}
+// is written before the caller writes manifest.yml — the same two-step partial-
+// write risk as `elastic-package changelog add`.
+func ApplyChangelog(packageRoot string, manifestBytes []byte, proposals []UpdateProposal, changelogType string) (string, error) {
 	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
 	changelogBytes, err := os.ReadFile(changelogPath)
 	if err != nil {
-		return nil, "", fmt.Errorf("reading changelog file failed: %w", err)
+		return "", fmt.Errorf("reading changelog file failed: %w", err)
+	}
+	revisions, err := changelog.ReadChangelogBytes(changelogBytes)
+	if err != nil {
+		return "", fmt.Errorf("reading changelog failed: %w", err)
 	}
 
 	if err := assertManifestVersionMatchesChangelogTop(manifestBytes, revisions); err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	tier := AggregateTier(proposals)
 	next, err := changelog.NextVersionFromRevisions(revisions, tier.NextMode())
 	if err != nil {
-		return nil, "", err
-	}
-	manifestBytes, err = changelog.SetManifestVersion(manifestBytes, next.String())
-	if err != nil {
-		return nil, "", err
+		return "", fmt.Errorf("computing next version failed: %w", err)
 	}
 	revision := BuildChangelogRevision(next, proposals, changelogType)
 	changelogBytes, err = changelog.PatchYAML(changelogBytes, revision)
 	if err != nil {
-		return nil, "", err
+		return "", fmt.Errorf("patching changelog failed: %w", err)
 	}
 	if err := os.WriteFile(changelogPath, changelogBytes, 0o644); err != nil {
-		return nil, "", fmt.Errorf("writing changelog file failed: %w", err)
+		return "", fmt.Errorf("writing changelog file failed: %w", err)
 	}
-	return manifestBytes, next.String(), nil
+	return next.String(), nil
 }

@@ -141,7 +141,7 @@ func TestBumpTierNextMode(t *testing.T) {
 	}
 }
 
-// --- disk-level tests for ApplyChangelog and NextVersion ---
+// --- disk-level tests for ApplyChangelog ---
 
 const baseChangelogFixture = `- version: "1.2.0"
   changes:
@@ -156,6 +156,32 @@ func writeChangelogFixture(t *testing.T, manifestContent, changelogContent strin
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), []byte(manifestContent), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "changelog.yml"), []byte(changelogContent), 0o644))
 	return dir
+}
+
+func TestNextVersion(t *testing.T) {
+	baseManifest := `name: test_pkg
+version: "1.2.0"
+type: integration
+`
+	dir := writeChangelogFixture(t, baseManifest, baseChangelogFixture)
+
+	tests := []struct {
+		name string
+		tier BumpTier
+		want string
+	}{
+		{name: "patch", tier: TierPatch, want: "1.2.1"},
+		{name: "minor", tier: TierMinor, want: "1.3.0"},
+		{name: "major", tier: TierMajor, want: "2.0.0"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NextVersion(tc.tier, dir)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got.String())
+		})
+	}
 }
 
 func TestApplyChangelog(t *testing.T) {
@@ -255,7 +281,7 @@ requires:
 				require.NoError(t, err)
 			}
 
-			updatedManifest, newVersion, err := ApplyChangelog(dir, manifestBytes, tc.proposals, tc.changelogType)
+			newVersion, err := ApplyChangelog(dir, manifestBytes, tc.proposals, tc.changelogType)
 
 			if tc.wantError != "" {
 				require.Error(t, err)
@@ -270,8 +296,9 @@ requires:
 			require.NoError(t, err)
 			require.Equal(t, tc.wantNewVersion, newVersion)
 
-			// Write the returned manifest bytes to disk so we can read them back.
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), updatedManifest, 0o644))
+			manifestBytes, err = ApplyManifestVersion(manifestBytes, newVersion)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), manifestBytes, 0o644))
 			pkg, err := packages.ReadPackageManifestFromPackageRoot(dir)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantNewVersion, pkg.Version)
@@ -313,7 +340,7 @@ requires:
 	manifestBytes, err = Apply(manifestBytes, proposals)
 	require.NoError(t, err)
 
-	_, newVersion, err := ApplyChangelog(dir, manifestBytes, proposals, "")
+	newVersion, err := ApplyChangelog(dir, manifestBytes, proposals, "")
 	require.NoError(t, err)
 	// Content dep current is a constraint so tier=minor; aggregate across patch+minor is minor.
 	require.Equal(t, "1.3.0", newVersion)
