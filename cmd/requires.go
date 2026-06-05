@@ -195,6 +195,9 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	} else if applied {
 		cmd.Println("Updated manifest.yml")
+		if changelogEnabled {
+			cmd.Println("Updated changelog.yml")
+		}
 	} else if len(result.Proposals) == 0 && result.SkipReason == "" {
 		cmd.Println("No dependencies to update")
 	}
