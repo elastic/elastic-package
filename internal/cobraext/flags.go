@@ -104,7 +104,7 @@ const (
 	ChangelogAddDescriptionFlagDescription = "description for the changelog entry"
 
 	ChangelogAddTypeFlagName        = "type"
-	ChangelogAddTypeFlagDescription = "type of change (bugfix, enhancement or breaking-change) for the changelog entry"
+	ChangelogAddTypeFlagDescription = "type of change (%s) for the changelog entry"
 
 	ChangelogAddLinkFlagName        = "link"
 	ChangelogAddLinkFlagDescription = "link to the pull request or issue with more information about the changelog entry"
@@ -281,7 +281,7 @@ const (
 	RequiresChangelogFlagName            = "changelog"
 	RequiresChangelogFlagDescription     = "add a changelog entry per bumped dependency and bump the package version"
 	RequiresChangelogTypeFlagName        = "changelog-type"
-	RequiresChangelogTypeFlagDescription = "override the changelog entry type for all generated entries (bugfix, enhancement or breaking-change); by default the type is inferred from each dependency's semver bump"
+	RequiresChangelogTypeFlagDescription = "override the changelog entry type for all generated entries (%s); by default the type is inferred from each dependency's semver bump"
 
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "enable test coverage reports"

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -30,6 +31,12 @@ last entry in the current version
 Alternatively, you can start a new version indicating the specific version, or if it should
 be the next major, minor or patch version.`
 
+// addChangelogTypeChoices mirrors the changelog entry type enum defined in the package-spec
+// (spec/integration/changelog.spec.yml). The canonical validation happens when the
+// package is built and checked against the spec; this list enables early flag
+// validation.
+var addChangelogTypeChoices = []string{"bugfix", "enhancement", "breaking-change", "deprecation"}
+
 func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd := &cobra.Command{
 		Use:   "add",
@@ -42,7 +49,7 @@ func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddVersionFlagName, "", cobraext.ChangelogAddVersionFlagDescription)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddDescriptionFlagName, "", cobraext.ChangelogAddDescriptionFlagDescription)
 	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddDescriptionFlagName)
-	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", cobraext.ChangelogAddTypeFlagDescription)
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", fmt.Sprintf(cobraext.ChangelogAddTypeFlagDescription, strings.Join(addChangelogTypeChoices, ", ")))
 	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddTypeFlagName)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddLinkFlagName, "", cobraext.ChangelogAddLinkFlagDescription)
 	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddLinkFlagName)

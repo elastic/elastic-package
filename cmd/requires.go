@@ -60,7 +60,7 @@ func setupRequiresCommand() *cobraext.Command {
 	updateCmd.Flags().String(cobraext.RequiresFormatFlagName, requiresFormatTable, fmt.Sprintf(cobraext.RequiresFormatFlagDescription, strings.Join(requiresFormatChoices, "|")))
 	updateCmd.Flags().Bool(cobraext.RequiresPrereleaseFlagName, false, cobraext.RequiresPrereleaseFlagDescription)
 	updateCmd.Flags().Bool(cobraext.RequiresChangelogFlagName, false, cobraext.RequiresChangelogFlagDescription)
-	updateCmd.Flags().String(cobraext.RequiresChangelogTypeFlagName, "", cobraext.RequiresChangelogTypeFlagDescription)
+	updateCmd.Flags().String(cobraext.RequiresChangelogTypeFlagName, "", fmt.Sprintf(cobraext.RequiresChangelogTypeFlagDescription, strings.Join(updateRequiresChangelogTypeChoices, ", ")))
 
 	cmd := &cobra.Command{
 		Use:   "requires",
@@ -80,12 +80,9 @@ const (
 
 var requiresFormatChoices = []string{requiresFormatTable, requiresFormatJSON}
 
-// changelogTypeChoices mirrors the changelog entry type enum defined in the package-spec
-// (spec/integration/changelog.spec.yml). The canonical validation happens when the
-// package is built and checked against the spec; this list enables early flag
-// validation. "deprecation" is intentionally excluded as it is not a valid type
-// for automated dependency-bump changelog entries.
-var changelogTypeChoices = []string{"bugfix", "enhancement", "breaking-change"}
+// updateRequiresChangelogTypeChoices is the subset of addChangelogTypeChoices that is valid for use with --changelog-type.
+// "deprecation" is intentionally excluded as it is not a valid type for automated dependency-bump changelog entries.
+var updateRequiresChangelogTypeChoices = addChangelogTypeChoices[:3]
 
 func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	dryRun, err := cmd.Flags().GetBool(cobraext.RequiresDryRunFlagName)
@@ -114,8 +111,8 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	if changelogType != "" && !changelogEnabled {
 		return fmt.Errorf("--%s requires --%s", cobraext.RequiresChangelogTypeFlagName, cobraext.RequiresChangelogFlagName)
 	}
-	if changelogType != "" && !slices.Contains(changelogTypeChoices, changelogType) {
-		return fmt.Errorf("unsupported changelog type %q, supported types: %s", changelogType, strings.Join(changelogTypeChoices, ", "))
+	if changelogType != "" && !slices.Contains(updateRequiresChangelogTypeChoices, changelogType) {
+		return fmt.Errorf("unsupported changelog type %q, supported types: %s", changelogType, strings.Join(updateRequiresChangelogTypeChoices, ", "))
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
