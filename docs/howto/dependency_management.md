@@ -142,6 +142,12 @@ see [HOWTO: Use a local or custom package registry](./local_package_registry.md)
 By default the command writes updated versions to `manifest.yml`. Use `--dry-run` to preview
 bumps without modifying the file.
 
+Use `--format table` (default) for a human-readable summary or `--format json` for
+machine-readable output suitable for CI automation.
+
+By default only stable registry versions are considered when resolving bumps. Pass
+`--prerelease` to include pre-release versions.
+
 ```bash
 # Update requires pins for the package in the current directory
 elastic-package requires update
@@ -151,6 +157,9 @@ elastic-package requires update --dry-run
 
 # Machine-readable output for automation (includes package name and owner.github for CI grouping)
 elastic-package requires update --dry-run --format json
+
+# Include pre-release registry versions when resolving bumps
+elastic-package requires update --prerelease --dry-run
 ```
 
 `requires.content` pins are always written as exact semver versions (for example `"0.4.0"`).
