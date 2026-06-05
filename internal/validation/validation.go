@@ -11,60 +11,92 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/package-spec/v3/code/go/pkg/specerrors"
 	"github.com/elastic/package-spec/v3/code/go/pkg/validator"
 )
 
-func ValidateFromPath(rootPath string) error {
-	return validator.ValidateFromPath(rootPath)
+// ValidateSourceFromPath validates a package source tree — checked out from version
+// control, not yet built. Source-only artifacts (_dev/, .link files, external: ecs
+// references) are permitted. Validation errors are filtered against the package's
+// validation.yml config; the first return value is the remaining errors after filtering,
+// the second is the errors that were filtered out.
+func ValidateSourceFromPath(packageRoot string) (error, error) {
+	return validateFromPath(validator.ModeSource, packageRoot)
 }
 
-func ValidateFromZip(packagePath string) error {
-	return validator.ValidateFromZip(packagePath)
+// ValidateBuiltFromPath validates a built (unzipped) package directory. Source-only
+// artifacts (_dev/, .link files, external: ecs references) are rejected. Validation
+// errors are filtered against the package's validation.yml config; the first return
+// value is the remaining errors after filtering, the second is the errors that were
+// filtered out.
+func ValidateBuiltFromPath(packageRoot string) (error, error) {
+	return validateFromPath(validator.ModeBuild, packageRoot)
 }
 
-func ValidateAndFilterFromPath(packageRoot string) (error, error) {
-	allErrors := validator.ValidateFromPath(packageRoot)
+func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
+	v, err := validator.NewFromPath(mode, packageRoot)
+	if err != nil {
+		return err, nil
+	}
+	allErrors := v.Validate()
 	if allErrors == nil {
 		return nil, nil
 	}
-
 	fsys := os.DirFS(packageRoot)
 	result, err := filterErrors(allErrors, fsys)
 	if err != nil {
-		return err, nil
+		logger.Debugf("failed to filter validation errors: %v", err)
+		return allErrors, nil
 	}
 	return result.Processed, result.Removed
 }
 
-func ValidateAndFilterFromZip(zipPackagePath string) (error, error) {
-	allErrors := validator.ValidateFromZip(zipPackagePath)
+// ValidateBuiltFromZip validates a built package zip archive. Zip files are always
+// treated as built artifacts; source-only artifacts are rejected. Validation errors
+// are filtered against the package's validation.yml config; the first return value
+// is the remaining errors after filtering, the second is the errors that were
+// filtered out.
+func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
+	v, err := validator.NewFromZip(zipPackagePath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip for validation (%s): %w", zipPackagePath, err), nil
+	}
+	// v.Validate() closes the zip reader it owns.
+	allErrors := v.Validate()
 	if allErrors == nil {
 		return nil, nil
 	}
-
+	// Open a separate, independent zip reader for filterErrors.
 	fsys, err := zip.OpenReader(zipPackagePath)
 	if err != nil {
-		return fmt.Errorf("failed to open zip file (%s): %w", zipPackagePath, err), nil
+		return allErrors, nil
 	}
 	defer fsys.Close()
-
+	// fsFromPackageZip navigates into the single package subdirectory so that
+	// filterErrors can locate validation.yml at the package root, not the zip root.
 	fsZip, err := fsFromPackageZip(fsys)
 	if err != nil {
-		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", zipPackagePath, err), nil
+		return allErrors, nil
 	}
-
 	result, err := filterErrors(allErrors, fsZip)
 	if err != nil {
-		return err, nil
+		logger.Debugf("failed to filter validation errors: %v", err)
+		return allErrors, nil
 	}
 	return result.Processed, result.Removed
 }
 
 func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
-	dirs, err := fs.ReadDir(fsys, ".")
+	entries, err := fs.ReadDir(fsys, ".")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read root directory in zip file fs: %w", err)
+	}
+	var dirs []fs.DirEntry
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, e)
+		}
 	}
 	if len(dirs) != 1 {
 		return nil, fmt.Errorf("a single directory is expected in zip file, %d found", len(dirs))
@@ -77,6 +109,7 @@ func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 	return subDir, nil
 }
 
+// TODO: follow-up issue — move this logic into specerrors as an exported function so consumers don't reimplement it.
 func filterErrors(allErrors error, fsys fs.FS) (specerrors.FilterResult, error) {
 	var errs specerrors.ValidationErrors
 	if !errors.As(allErrors, &errs) {

@@ -39,3 +39,4 @@ new_package
 package-dump
 
 .cursor/
+.scratch/
