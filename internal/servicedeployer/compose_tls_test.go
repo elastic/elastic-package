@@ -47,7 +47,7 @@ func TestGenerateServiceTLS(t *testing.T) {
 	}
 
 	// Verify CustomProperties contains the CA PEM.
-	caPEM, ok := svcInfo.CustomProperties[tlsCAPEMProperty]
+	caPEM, ok := svcInfo.CustomProperties[TLSCAPEMProperty]
 	if !ok {
 		t.Fatal("CustomProperties missing TLS_CA_PEM")
 	}
@@ -125,7 +125,7 @@ func TestLoadServiceTLSCA(t *testing.T) {
 		t.Fatalf("loadServiceTLSCA() = %v", err)
 	}
 
-	got, ok := svcInfo.CustomProperties[tlsCAPEMProperty]
+	got, ok := svcInfo.CustomProperties[TLSCAPEMProperty]
 	if !ok {
 		t.Fatal("CustomProperties missing TLS_CA_PEM")
 	}

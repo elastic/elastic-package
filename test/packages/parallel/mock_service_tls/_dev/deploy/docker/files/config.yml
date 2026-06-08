@@ -1,0 +1,13 @@
+rules:
+  - path: /api/events
+    methods: ["GET"]
+    request_headers:
+      Authorization:
+        - "Basic dGVzdDp0ZXN0"
+    responses:
+      - status_code: 200
+        headers:
+          Content-Type:
+            - "application/json"
+        body: |-
+          {"message": "hello from TLS mock", "status": "ok"}

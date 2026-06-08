@@ -18,7 +18,8 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-const tlsCAPEMProperty = "TLS_CA_PEM"
+// TLSCAPEMProperty is the CustomProperties key for the CA certificate PEM.
+const TLSCAPEMProperty = "TLS_CA_PEM"
 
 // generateServiceTLS creates a CA and per-service TLS certificates for
 // every compose service that declares a hostname. Cert files are written
@@ -81,7 +82,7 @@ func loadServiceTLSCA(tlsDir string, svcInfo *ServiceInfo) error {
 	if svcInfo.CustomProperties == nil {
 		svcInfo.CustomProperties = make(map[string]interface{})
 	}
-	svcInfo.CustomProperties[tlsCAPEMProperty] = strings.TrimRight(string(data), "\n")
+	svcInfo.CustomProperties[TLSCAPEMProperty] = strings.TrimRight(string(data), "\n")
 	return nil
 }
 
@@ -93,7 +94,7 @@ func storeCAPEM(ca *certs.Issuer, svcInfo *ServiceInfo) error {
 	if svcInfo.CustomProperties == nil {
 		svcInfo.CustomProperties = make(map[string]interface{})
 	}
-	svcInfo.CustomProperties[tlsCAPEMProperty] = strings.TrimRight(buf.String(), "\n")
+	svcInfo.CustomProperties[TLSCAPEMProperty] = strings.TrimRight(buf.String(), "\n")
 	return nil
 }
 

@@ -150,6 +150,7 @@ func TestValidateTLSHelperIndent_realFixtures(t *testing.T) {
 		"../../test/packages/parallel/auth0_logsdb",
 		"../../test/packages/parallel/ti_anomali_logsdb",
 		"../../test/packages/parallel/ti_anomali",
+		"../../test/packages/parallel/mock_service_tls",
 	}
 	for _, pkg := range fixtures {
 		name := filepath.Base(pkg)

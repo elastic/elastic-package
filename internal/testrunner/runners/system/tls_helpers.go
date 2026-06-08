@@ -110,7 +110,7 @@ func tlsCAHelper(svcInfo servicedeployer.ServiceInfo) map[string]interface{} {
 			if svcInfo.CustomProperties == nil {
 				return ""
 			}
-			pem, ok := svcInfo.CustomProperties["TLS_CA_PEM"]
+			pem, ok := svcInfo.CustomProperties[servicedeployer.TLSCAPEMProperty]
 			if !ok {
 				return ""
 			}
