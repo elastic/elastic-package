@@ -105,10 +105,10 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 		return err
 	}
 
-	if err := r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths, buildRoot); err != nil {
-		return fmt.Errorf("failed to bundle policy template input package templates: %w", err)
-	}
-
+	// Templates are bundled at the stream level only: copying them into the
+	// integration's agent/input would compile them into compiled_input, where the
+	// input package's data_stream block overwrites the namespace set by Fleet.
+	// In compiled_stream that block is safely deep-merged instead.
 	if err := r.bundleDataStreamTemplates(inputPkgPaths, buildRoot); err != nil {
 		return fmt.Errorf("failed to bundle data stream input package templates: %w", err)
 	}
