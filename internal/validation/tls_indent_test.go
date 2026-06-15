@@ -88,6 +88,31 @@ data_stream:
 			wantErr: true,
 			errMsg:  "indent=8 but tag starts at column 4",
 		},
+		{
+			name: "tls_ca_correct_indent",
+			content: `    certificate_authorities:
+      - |
+        {{{tls_ca indent=8}}}`,
+			wantErr: false,
+		},
+		{
+			name: "tls_ca_wrong_indent",
+			content: `    certificate_authorities:
+      - |
+        {{{tls_ca indent=4}}}`,
+			wantErr: true,
+			errMsg:  "indent=4 but tag starts at column 8",
+		},
+		{
+			name:    "tls_ca_no_indent",
+			content: `{{{tls_ca}}}`,
+			wantErr: false,
+		},
+		{
+			name:    "tls_ca_indent_zero_at_column_zero",
+			content: `{{{tls_ca indent=0}}}`,
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -125,6 +150,7 @@ func TestValidateTLSHelperIndent_realFixtures(t *testing.T) {
 		"../../test/packages/parallel/auth0_logsdb",
 		"../../test/packages/parallel/ti_anomali_logsdb",
 		"../../test/packages/parallel/ti_anomali",
+		"../../test/packages/parallel/mock_service_tls",
 	}
 	for _, pkg := range fixtures {
 		name := filepath.Base(pkg)

@@ -108,6 +108,23 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		}
 	}
 
+	// Generate TLS certificates for mock services that declare a hostname
+	// in their compose file. Certs must exist before compose up so they
+	// can be volume-mounted.
+	if svcInfo.OutputDir != "" {
+		tlsDir := filepath.Join(svcInfo.OutputDir, "tls")
+		service.env = append(service.env, fmt.Sprintf("%s=%s", tlsDirEnv, tlsDir))
+		if !d.runTearDown && !d.runTestsOnly {
+			if err := generateServiceTLS(d.ymlPaths, tlsDir, &svcInfo); err != nil {
+				return nil, fmt.Errorf("generating service TLS: %w", err)
+			}
+		} else {
+			if err := loadServiceTLSCA(tlsDir, &svcInfo); err != nil {
+				return nil, fmt.Errorf("loading service TLS CA: %w", err)
+			}
+		}
+	}
+
 	// Boot up service
 	if d.variant.active() {
 		logger.Infof("Using service variant: %s", d.variant.String())

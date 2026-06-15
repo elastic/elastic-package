@@ -1,0 +1,14 @@
+input: httpjson
+service: mock-api
+data_stream:
+  vars:
+    data_stream.dataset: mock_service_tls.generic
+    username: test
+    password: test
+    request_interval: 5s
+    request_url: https://{{Hostname}}:{{Port}}/api/events
+    request_ssl: |-
+      certificate_authorities:
+        - |
+          {{{tls_ca indent=10}}}
+      verification_mode: certificate

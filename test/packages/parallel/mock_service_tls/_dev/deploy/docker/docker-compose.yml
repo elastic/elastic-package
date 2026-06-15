@@ -1,0 +1,18 @@
+version: '2.3'
+services:
+  mock-api:
+    image: docker.elastic.co/observability/stream:v0.15.0
+    hostname: mock-api.example.com
+    ports:
+      - 8443
+    volumes:
+      - ./files:/files:ro
+      - ${TLS_DIR}:/tls:ro
+    environment:
+      PORT: '8443'
+    command:
+      - http-server
+      - --addr=:8443
+      - --tls-cert=/tls/mock-api.crt
+      - --tls-key=/tls/mock-api.key
+      - --config=/files/config.yml

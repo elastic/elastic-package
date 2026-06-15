@@ -183,6 +183,7 @@ func applyServiceInfo(data []byte, serviceInfo servicedeployer.ServiceInfo) ([]b
 	}
 	tmpl.RegisterHelpers(serviceInfo.Aliases())
 	tmpl.RegisterHelpers(tlsHelpers())
+	tmpl.RegisterHelpers(tlsCAHelper(serviceInfo))
 
 	result, err := tmpl.Exec(serviceInfo)
 	if err != nil {
