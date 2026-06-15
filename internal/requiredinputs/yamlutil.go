@@ -140,6 +140,13 @@ func strVal(s string) ast.Node {
 	return n
 }
 
+// boolFalseNode returns a YAML bool-literal node whose value is false.
+func boolFalseNode() ast.Node {
+	pos := &token.Position{Column: 1, Line: 1}
+	tk := token.New("false", "false", pos)
+	return ast.Bool(tk)
+}
+
 // parseDocumentRootMapping parses YAML bytes via yamledit and returns the
 // document root as a *ast.MappingNode. Reuses internal/yamledit for parsing.
 func parseDocumentRootMapping(data []byte) (*ast.MappingNode, error) {
