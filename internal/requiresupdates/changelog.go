@@ -96,9 +96,10 @@ func (t BumpTier) NextMode() string {
 		return "minor"
 	case TierPatch:
 		return "patch"
-	default:
+	case TierNone:
 		return ""
 	}
+	return ""
 }
 
 // nextVersion reads the changelog top version from packageRoot and returns it

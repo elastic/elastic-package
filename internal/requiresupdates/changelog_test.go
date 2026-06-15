@@ -228,7 +228,7 @@ requires:
 			wantEntryTypes:  []string{"enhancement", "enhancement"},
 		},
 		{
-			name:    "divergent manifest vs changelog top returns error",
+			name:     "divergent manifest vs changelog top returns error",
 			manifest: baseManifest,
 			changelogYML: `- version: "1.3.0"
   changes:
@@ -445,7 +445,7 @@ requires:
     - package: sql_input
       version: "0.2.0"
 `,
-			changelogYML:   "- version: \"0.1.0\"\n  changes:\n    - description: Initial release.\n      type: enhancement\n      link: https://github.com/elastic/integrations/pull/1\n",
+			changelogYML:    "- version: \"0.1.0\"\n  changes:\n    - description: Initial release.\n      type: enhancement\n      link: https://github.com/elastic/integrations/pull/1\n",
 			proposals:       []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
 			wantNewVersion:  "0.1.1",
 			wantEntryType:   "enhancement",
