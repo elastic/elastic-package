@@ -158,6 +158,151 @@ func writeChangelogFixture(t *testing.T, manifestContent, changelogContent strin
 	return dir
 }
 
+func TestPlanChangelog(t *testing.T) {
+	baseManifest := `name: test_pkg
+version: "1.2.0"
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+`
+	tests := []struct {
+		name            string
+		manifest        string
+		changelogYML    string
+		proposals       []UpdateProposal
+		changelogType   string
+		wantNextVersion string
+		wantEntryTypes  []string
+		wantError       string
+	}{
+		{
+			name:            "patch bump infers enhancement",
+			manifest:        baseManifest,
+			changelogYML:    baseChangelogFixture,
+			proposals:       []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
+			wantNextVersion: "1.2.1",
+			wantEntryTypes:  []string{"enhancement"},
+		},
+		{
+			name:            "minor bump infers enhancement",
+			manifest:        baseManifest,
+			changelogYML:    baseChangelogFixture,
+			proposals:       []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"}},
+			wantNextVersion: "1.3.0",
+			wantEntryTypes:  []string{"enhancement"},
+		},
+		{
+			name:            "major bump infers breaking-change",
+			manifest:        baseManifest,
+			changelogYML:    baseChangelogFixture,
+			proposals:       []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "1.0.0"}},
+			wantNextVersion: "2.0.0",
+			wantEntryTypes:  []string{"breaking-change"},
+		},
+		{
+			name:         "changelog-type override applied to all entries",
+			manifest:     baseManifest,
+			changelogYML: baseChangelogFixture,
+			proposals: []UpdateProposal{
+				{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.3.0"},
+				{Kind: ContentDependency, Package: "dashboards", Current: "^0.1.0", Proposed: "0.5.0"},
+			},
+			changelogType:   "bugfix",
+			wantNextVersion: "1.3.0",
+			wantEntryTypes:  []string{"bugfix", "bugfix"},
+		},
+		{
+			name:         "multi-bump aggregate tier: patch + constraint-minor → minor → 1.3.0",
+			manifest:     baseManifest,
+			changelogYML: baseChangelogFixture,
+			proposals: []UpdateProposal{
+				{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"},
+				{Kind: ContentDependency, Package: "dashboards", Current: "^0.1.0", Proposed: "0.5.0"},
+			},
+			wantNextVersion: "1.3.0",
+			wantEntryTypes:  []string{"enhancement", "enhancement"},
+		},
+		{
+			name:    "divergent manifest vs changelog top returns error",
+			manifest: baseManifest,
+			changelogYML: `- version: "1.3.0"
+  changes:
+    - description: Something.
+      type: enhancement
+      link: https://github.com/elastic/integrations/pull/2
+`,
+			proposals: []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
+			wantError: "does not match changelog top version",
+		},
+		{
+			name: "pre-release top version returns error",
+			manifest: `name: test_pkg
+version: "1.2.0-SNAPSHOT"
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+`,
+			changelogYML: `- version: "1.2.0-SNAPSHOT"
+  changes:
+    - description: Initial release.
+      type: enhancement
+      link: https://github.com/elastic/integrations/pull/1
+`,
+			proposals: []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
+			wantError: "is a pre-release",
+		},
+		{
+			name:         "nil proposals returns error",
+			manifest:     baseManifest,
+			changelogYML: baseChangelogFixture,
+			proposals:    nil,
+			wantError:    "no dependency bumps",
+		},
+		{
+			name:         "all warning-only proposals returns error",
+			manifest:     baseManifest,
+			changelogYML: baseChangelogFixture,
+			proposals: []UpdateProposal{
+				{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "", Warning: "newer version requires higher Kibana"},
+			},
+			wantError: "no dependency bumps",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := writeChangelogFixture(t, tc.manifest, tc.changelogYML)
+			manifestBytes := []byte(tc.manifest)
+
+			plan, err := PlanChangelog(dir, manifestBytes, tc.proposals, tc.changelogType)
+			if tc.wantError != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.wantError)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantNextVersion, plan.NextVersion.String())
+			require.Len(t, plan.Revision.Changes, len(tc.wantEntryTypes))
+			for i, wantType := range tc.wantEntryTypes {
+				require.Equal(t, wantType, plan.Revision.Changes[i].Type)
+			}
+			for _, e := range plan.Revision.Changes {
+				require.Equal(t, ChangelogPlaceholderLink, e.Link)
+			}
+		})
+	}
+}
+
 func TestNextVersion(t *testing.T) {
 	baseManifest := `name: test_pkg
 version: "1.2.0"
@@ -177,7 +322,7 @@ type: integration
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := NextVersion(tc.tier, dir)
+			got, err := nextVersion(tc.tier, dir)
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got.String())
 		})

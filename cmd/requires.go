@@ -80,9 +80,10 @@ const (
 
 var requiresFormatChoices = []string{requiresFormatTable, requiresFormatJSON}
 
-// updateRequiresChangelogTypeChoices is the subset of addChangelogTypeChoices that is valid for use with --changelog-type.
-// "deprecation" is intentionally excluded as it is not a valid type for automated dependency-bump changelog entries.
-var updateRequiresChangelogTypeChoices = addChangelogTypeChoices[:3]
+// updateRequiresChangelogTypeChoices is the subset of changelog entry types valid for --changelog-type.
+// "deprecation" (valid for `changelog add --type`) is intentionally excluded: it is not a meaningful
+// type for an automated dependency-bump entry.
+var updateRequiresChangelogTypeChoices = []string{"bugfix", "enhancement", "breaking-change"}
 
 func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	dryRun, err := cmd.Flags().GetBool(cobraext.RequiresDryRunFlagName)
@@ -176,21 +177,18 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	if dryRun && hasBumps {
 		cmd.Println("Dry run: manifest.yml was not modified")
 		if changelogEnabled {
-			tier := requiresupdates.AggregateTier(result.Proposals)
-			next, err := requiresupdates.NextVersion(tier, packageRoot)
+			manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+			manifestBytes, err := os.ReadFile(manifestPath)
+			if err != nil {
+				return fmt.Errorf("reading manifest file failed: %w", err)
+			}
+			plan, err := requiresupdates.PlanChangelog(packageRoot, manifestBytes, result.Proposals, changelogType)
 			if err != nil {
 				return err
 			}
-			cmd.Printf("Dry run: would bump package version to %s and add changelog entries:\n", next)
-			for _, p := range result.Proposals {
-				if p.Proposed == "" {
-					continue
-				}
-				t := changelogType
-				if t == "" {
-					t = requiresupdates.DefaultChangelogType(p.Tier())
-				}
-				cmd.Printf("  - [%s] %s: %s -> %s\n", t, p.Package, p.Current, p.Proposed)
+			cmd.Printf("Dry run: would bump package version to %s and add changelog entries:\n", plan.NextVersion)
+			for _, e := range plan.Revision.Changes {
+				cmd.Printf("  - [%s] %s\n", e.Type, e.Description)
 			}
 		}
 	} else if applied {

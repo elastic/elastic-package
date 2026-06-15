@@ -96,15 +96,14 @@ func (t BumpTier) NextMode() string {
 		return "minor"
 	case TierPatch:
 		return "patch"
-	case TierNone:
+	default:
 		return ""
 	}
-	return ""
 }
 
-// NextVersion reads the changelog top version from packageRoot and returns it
+// nextVersion reads the changelog top version from packageRoot and returns it
 // incremented by tier. Returns 0.0.0 when the changelog is empty.
-func NextVersion(tier BumpTier, packageRoot string) (*semver.Version, error) {
+func nextVersion(tier BumpTier, packageRoot string) (*semver.Version, error) {
 	return changelog.NextVersion(packageRoot, tier.NextMode())
 }
 
@@ -160,6 +159,50 @@ func BuildChangelogRevision(version *semver.Version, proposals []UpdateProposal,
 	return changelog.Revision{Version: version.String(), Changes: changes}
 }
 
+// ChangelogPlan holds the computed next version and the revision to be written.
+// It is the read-only result of PlanChangelog and is used by both ApplyChangelog
+// and the --dry-run preview so they can never disagree.
+type ChangelogPlan struct {
+	NextVersion *semver.Version
+	Revision    changelog.Revision
+	// rawChangelogBytes holds the bytes read from changelog.yml by PlanChangelog.
+	// ApplyChangelog reuses them for PatchYAML to avoid a second read and the
+	// TOCTOU window that a re-read would introduce.
+	rawChangelogBytes []byte
+}
+
+// PlanChangelog reads changelog.yml from packageRoot, runs the manifest/changelog
+// version guards, computes the next package version from the aggregate bump tier,
+// and builds the changelog revision. It performs no writes.
+// Returns an error if there are no actual bumps (all proposals are warning-only).
+func PlanChangelog(packageRoot string, manifestBytes []byte, proposals []UpdateProposal, changelogType string) (*ChangelogPlan, error) {
+	tier := AggregateTier(proposals)
+	if tier == TierNone {
+		return nil, fmt.Errorf("no dependency bumps to write changelog entries for")
+	}
+
+	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
+	changelogBytes, err := os.ReadFile(changelogPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading changelog file failed: %w", err)
+	}
+	revisions, err := changelog.ReadChangelogBytes(changelogBytes)
+	if err != nil {
+		return nil, fmt.Errorf("reading changelog failed: %w", err)
+	}
+
+	if err := assertManifestVersionMatchesChangelogTop(manifestBytes, revisions); err != nil {
+		return nil, err
+	}
+
+	next, err := changelog.NextVersionFromRevisions(revisions, tier.NextMode())
+	if err != nil {
+		return nil, fmt.Errorf("computing next version failed: %w", err)
+	}
+	revision := BuildChangelogRevision(next, proposals, changelogType)
+	return &ChangelogPlan{NextVersion: next, Revision: revision, rawChangelogBytes: changelogBytes}, nil
+}
+
 // ApplyChangelog patches changelog.yml on disk. It is called after Apply has
 // already updated the requires pins in manifestBytes. Returns the new package
 // version string; use ApplyManifestVersion to bump manifestBytes.
@@ -168,32 +211,18 @@ func BuildChangelogRevision(version *semver.Version, proposals []UpdateProposal,
 // is written before the caller writes manifest.yml — the same two-step partial-
 // write risk as `elastic-package changelog add`.
 func ApplyChangelog(packageRoot string, manifestBytes []byte, proposals []UpdateProposal, changelogType string) (string, error) {
-	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
-	changelogBytes, err := os.ReadFile(changelogPath)
+	plan, err := PlanChangelog(packageRoot, manifestBytes, proposals, changelogType)
 	if err != nil {
-		return "", fmt.Errorf("reading changelog file failed: %w", err)
-	}
-	revisions, err := changelog.ReadChangelogBytes(changelogBytes)
-	if err != nil {
-		return "", fmt.Errorf("reading changelog failed: %w", err)
-	}
-
-	if err := assertManifestVersionMatchesChangelogTop(manifestBytes, revisions); err != nil {
 		return "", err
 	}
 
-	tier := AggregateTier(proposals)
-	next, err := changelog.NextVersionFromRevisions(revisions, tier.NextMode())
-	if err != nil {
-		return "", fmt.Errorf("computing next version failed: %w", err)
-	}
-	revision := BuildChangelogRevision(next, proposals, changelogType)
-	changelogBytes, err = changelog.PatchYAML(changelogBytes, revision)
+	changelogBytes, err := changelog.PatchYAML(plan.rawChangelogBytes, plan.Revision)
 	if err != nil {
 		return "", fmt.Errorf("patching changelog failed: %w", err)
 	}
+	changelogPath := filepath.Join(packageRoot, changelog.PackageChangelogFile)
 	if err := os.WriteFile(changelogPath, changelogBytes, 0o644); err != nil {
 		return "", fmt.Errorf("writing changelog file failed: %w", err)
 	}
-	return next.String(), nil
+	return plan.NextVersion.String(), nil
 }
