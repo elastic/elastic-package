@@ -128,6 +128,9 @@ func assertManifestVersionMatchesChangelogTop(manifestBytes []byte, revisions []
 	if err != nil {
 		return fmt.Errorf("invalid changelog top version %q: %w", revisions[0].Version, err)
 	}
+	if topVer.Prerelease() != "" {
+		return fmt.Errorf("changelog top version %s is a pre-release; --changelog is not supported for pre-release packages", topVer)
+	}
 	if !manifestVer.Equal(topVer) {
 		return fmt.Errorf("manifest version %s does not match changelog top version %s; resolve the divergence before running --changelog", m.Version, revisions[0].Version)
 	}

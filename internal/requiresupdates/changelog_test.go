@@ -197,15 +197,16 @@ requires:
       version: "0.2.0"
 `
 	tests := []struct {
-		name           string
-		manifest       string
-		changelogYML   string
-		proposals      []UpdateProposal
-		changelogType  string
-		wantNewVersion string
-		wantEntryType  string
-		wantError      string
-		checkUnchanged bool
+		name            string
+		manifest        string
+		changelogYML    string
+		proposals       []UpdateProposal
+		changelogType   string
+		wantNewVersion  string
+		wantEntryType   string
+		wantPrevVersion string // version of the preserved original revision; defaults to "1.2.0"
+		wantError       string
+		checkUnchanged  bool
 	}{
 		{
 			name:           "patch bump infers enhancement and bumps patch version",
@@ -263,6 +264,48 @@ requires:
 			wantError:      "does not match changelog top version",
 			checkUnchanged: true,
 		},
+		{
+			name: "pre-release top version returns error without writing",
+			manifest: `name: test_pkg
+version: "1.2.0-SNAPSHOT"
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+`,
+			changelogYML: `- version: "1.2.0-SNAPSHOT"
+  changes:
+    - description: Initial release.
+      type: enhancement
+      link: https://github.com/elastic/integrations/pull/1
+`,
+			proposals:      []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
+			wantError:      "is a pre-release",
+			checkUnchanged: true,
+		},
+		{
+			name: "experimental (0.x.y) package is allowed",
+			manifest: `name: test_pkg
+version: "0.1.0"
+type: integration
+conditions:
+  kibana:
+    version: "^9.4.0"
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+`,
+			changelogYML:   "- version: \"0.1.0\"\n  changes:\n    - description: Initial release.\n      type: enhancement\n      link: https://github.com/elastic/integrations/pull/1\n",
+			proposals:       []UpdateProposal{{Kind: InputDependency, Package: "sql_input", Current: "0.2.0", Proposed: "0.2.1"}},
+			wantNewVersion:  "0.1.1",
+			wantEntryType:   "enhancement",
+			wantPrevVersion: "0.1.0",
+		},
 	}
 
 	for _, tc := range tests {
@@ -309,7 +352,11 @@ requires:
 			require.Len(t, revisions[0].Changes, 1)
 			require.Equal(t, tc.wantEntryType, revisions[0].Changes[0].Type)
 			require.Equal(t, ChangelogPlaceholderLink, revisions[0].Changes[0].Link)
-			require.Equal(t, "1.2.0", revisions[1].Version, "original revision must be preserved")
+			wantPrev := tc.wantPrevVersion
+			if wantPrev == "" {
+				wantPrev = "1.2.0"
+			}
+			require.Equal(t, wantPrev, revisions[1].Version, "original revision must be preserved")
 		})
 	}
 }
