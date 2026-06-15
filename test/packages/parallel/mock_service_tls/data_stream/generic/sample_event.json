@@ -1,0 +1,18 @@
+{
+    "@timestamp": "2026-05-29T00:00:00.000Z",
+    "data_stream": {
+        "dataset": "mock_service_tls.generic",
+        "namespace": "ep",
+        "type": "logs"
+    },
+    "event": {
+        "dataset": "mock_service_tls.generic"
+    },
+    "input": {
+        "type": "httpjson"
+    },
+    "message": "{\"message\":\"hello from TLS mock\",\"status\":\"ok\"}",
+    "tags": [
+        "forwarded"
+    ]
+}

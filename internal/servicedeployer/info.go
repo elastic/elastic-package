@@ -9,6 +9,7 @@ import "fmt"
 const (
 	localCACertEnv      = "LOCAL_CA_CERT"
 	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
+	tlsDirEnv           = "TLS_DIR"
 	testRunIDEnv        = "TEST_RUN_ID"
 	elasticAgentTagsEnv = "ELASTIC_AGENT_TAGS"
 	fleetPolicyEnv      = "FLEET_TOKEN_POLICY_NAME"

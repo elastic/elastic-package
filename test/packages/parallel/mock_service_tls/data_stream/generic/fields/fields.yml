@@ -1,0 +1,9 @@
+- name: mock_service_tls
+  type: group
+  fields:
+    - name: message
+      type: keyword
+      description: Message from the mock API.
+    - name: status
+      type: keyword
+      description: Status from the mock API.

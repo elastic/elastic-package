@@ -1,0 +1,28 @@
+config_version: 2
+data_stream:
+  dataset: {{data_stream.dataset}}
+interval: {{request_interval}}
+
+{{#if username}}
+auth.basic.user: {{username}}
+{{/if}}
+{{#if password}}
+auth.basic.password: {{password}}
+{{/if}}
+
+request.url: {{request_url}}
+request.method: GET
+{{#if request_ssl}}
+request.ssl:
+  {{request_ssl}}
+{{/if}}
+
+{{#if tags}}
+tags:
+{{#each tags as |tag|}}
+  - {{tag}}
+{{/each}}
+{{/if}}
+{{#contains "forwarded" tags}}
+publisher_pipeline.disable_host: true
+{{/contains}}

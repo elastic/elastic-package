@@ -1,0 +1,50 @@
+title: Mock Service TLS events
+type: logs
+streams:
+  - input: httpjson
+    description: Collect data from a TLS-enabled mock API.
+    template_path: httpjson.yml.hbs
+    title: Mock Service TLS events
+    vars:
+      - name: data_stream.dataset
+        type: text
+        title: Dataset name
+        default: mock_service_tls.generic
+        required: true
+        show_user: true
+      - name: request_url
+        type: text
+        title: Request URL
+        show_user: true
+        required: true
+        default: https://server.example.com:8443/api/events
+      - name: request_interval
+        type: text
+        title: Request Interval
+        show_user: true
+        required: true
+        default: 1m
+      - name: username
+        type: text
+        title: Basic Auth Username
+        show_user: true
+        required: false
+      - name: password
+        type: password
+        title: Basic Auth Password
+        show_user: true
+        required: false
+        secret: true
+      - name: request_ssl
+        type: yaml
+        title: Request SSL Configuration
+        multi: false
+        required: false
+        show_user: false
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        show_user: false
+        default:
+          - forwarded

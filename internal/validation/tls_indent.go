@@ -16,6 +16,9 @@ import (
 // tlsHelperPattern matches {{{tls_cert "..." indent=N}}} and {{{tls_key "..." indent=N}}}.
 var tlsHelperPattern = regexp.MustCompile(`\{\{\{tls_(cert|key)\s+"[^"]*"(?:\s+indent=(\d+))?\s*\}\}\}`)
 
+// tlsCAHelperPattern matches {{{tls_ca indent=N}}} (no domain argument).
+var tlsCAHelperPattern = regexp.MustCompile(`\{\{\{tls_(ca)(?:\s+indent=(\d+))?\s*\}\}\}`)
+
 // ValidateTLSHelperIndent checks that tls_cert/tls_key helpers in system test
 // configs have an indent= value matching the column where the tag appears.
 // A mismatch produces broken YAML at test time because PEM continuation
@@ -61,31 +64,33 @@ func checkTLSIndentInFile(path, packageRoot string) ([]string, error) {
 
 	var errs []string
 	for i, line := range strings.Split(string(data), "\n") {
-		matches := tlsHelperPattern.FindStringSubmatchIndex(line)
-		if matches == nil {
-			continue
-		}
-
-		col := leadingSpaces(line)
-		kind := line[matches[2]:matches[3]] // "cert" or "key"
-
-		// Extract indent=N if present.
-		if matches[4] < 0 {
-			// No indent parameter — not an error, but the PEM won't
-			// be indented for YAML. Skip silently.
-			continue
-		}
-		indentStr := line[matches[4]:matches[5]]
-		indent, err := strconv.Atoi(indentStr)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("%s:%d: tls_%s indent=%s is not a valid integer", relPath, i+1, kind, indentStr))
-			continue
-		}
-		if indent != col {
-			errs = append(errs, fmt.Sprintf("%s:%d: tls_%s indent=%d but tag starts at column %d", relPath, i+1, kind, indent, col))
-		}
+		errs = checkTLSHelperMatch(errs, tlsHelperPattern, line, relPath, i)
+		errs = checkTLSHelperMatch(errs, tlsCAHelperPattern, line, relPath, i)
 	}
 	return errs, nil
+}
+
+func checkTLSHelperMatch(errs []string, pattern *regexp.Regexp, line, relPath string, lineIdx int) []string {
+	matches := pattern.FindStringSubmatchIndex(line)
+	if matches == nil {
+		return errs
+	}
+
+	col := leadingSpaces(line)
+	kind := line[matches[2]:matches[3]]
+
+	if matches[4] < 0 {
+		return errs
+	}
+	indentStr := line[matches[4]:matches[5]]
+	indent, err := strconv.Atoi(indentStr)
+	if err != nil {
+		return append(errs, fmt.Sprintf("%s:%d: tls_%s indent=%s is not a valid integer", relPath, lineIdx+1, kind, indentStr))
+	}
+	if indent != col {
+		return append(errs, fmt.Sprintf("%s:%d: tls_%s indent=%d but tag starts at column %d", relPath, lineIdx+1, kind, indent, col))
+	}
+	return errs
 }
 
 func leadingSpaces(s string) int {
