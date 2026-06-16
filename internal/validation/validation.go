@@ -22,7 +22,7 @@ import (
 // validation.yml config; the first return value is the remaining errors after filtering,
 // the second is the errors that were filtered out.
 func ValidateSourceFromPath(packageRoot string) (error, error) {
-	return validateFromPath(validator.ModeSource, packageRoot)
+	return validateFromPath(validator.SourceMode, packageRoot)
 }
 
 // ValidateBuiltFromPath validates a built (unzipped) package directory. Source-only
@@ -31,15 +31,15 @@ func ValidateSourceFromPath(packageRoot string) (error, error) {
 // value is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromPath(packageRoot string) (error, error) {
-	return validateFromPath(validator.ModeBuild, packageRoot)
+	return validateFromPath(validator.BuildMode, packageRoot)
 }
 
 func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
-	v, err := validator.NewFromPath(mode, packageRoot)
+	v, err := validator.New(mode)
 	if err != nil {
-		return err, nil
+		return fmt.Errorf("failed to create validator: %w", err), nil
 	}
-	allErrors := v.Validate()
+	allErrors := v.ValidateFromPath(packageRoot)
 	if allErrors == nil {
 		return nil, nil
 	}
@@ -58,12 +58,12 @@ func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
 // is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
-	v, err := validator.NewFromZip(zipPackagePath)
+	v, err := validator.New(validator.BuildMode)
 	if err != nil {
-		return fmt.Errorf("failed to open zip for validation (%s): %w", zipPackagePath, err), nil
+		return fmt.Errorf("failed to create validator: %w", err), nil
 	}
-	// v.Validate() closes the zip reader it owns.
-	allErrors := v.Validate()
+
+	allErrors := v.ValidateFromZip(zipPackagePath)
 	if allErrors == nil {
 		return nil, nil
 	}
