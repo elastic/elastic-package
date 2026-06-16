@@ -308,6 +308,72 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 	})
 }
 
+// TestMergeStreamLevelVarNodes_ShowUserNormalization documents the show_user
+// handling that is unique to mergeStreamLevelVarNodes:
+//   - Base vars without a DS override are bundled with show_user: false,
+//     regardless of what the input package declared (or omitted).
+//   - Novel DS vars (not present in the input package) are emitted unchanged.
+//
+// Base vars with a DS override are merged via mergeVarNode without any
+// show_user-specific handling, so that path is covered by TestMergeVarNode.
+func TestMergeStreamLevelVarNodes_ShowUserNormalization(t *testing.T) {
+	pathsBase := varNode("paths", "type", "text", "show_user", "true")
+	encodingBase := varNode("encoding", "type", "text", "show_user", "false")
+	// timeoutBase intentionally omits show_user to exercise the "base missing" case.
+	timeoutBase := varNode("timeout", "type", "text")
+
+	baseOrder := []string{"paths", "encoding", "timeout"}
+	baseByName := map[string]*ast.MappingNode{
+		"paths":    pathsBase,
+		"encoding": encodingBase,
+		"timeout":  timeoutBase,
+	}
+
+	t.Run("base only with show_user true is forced false", func(t *testing.T) {
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
+		require.Len(t, seq.Values, 3)
+		paths := seq.Values[0].(*ast.MappingNode)
+		assert.Equal(t, "paths", varNodeName(paths))
+		assert.Equal(t, "false", nodeStringValue(mappingValue(paths, "show_user")))
+	})
+
+	t.Run("base only with show_user false stays false", func(t *testing.T) {
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
+		require.Len(t, seq.Values, 3)
+		encoding := seq.Values[1].(*ast.MappingNode)
+		assert.Equal(t, "encoding", varNodeName(encoding))
+		assert.Equal(t, "false", nodeStringValue(mappingValue(encoding, "show_user")))
+	})
+
+	t.Run("base only missing show_user gets show_user false", func(t *testing.T) {
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
+		require.Len(t, seq.Values, 3)
+		timeout := seq.Values[2].(*ast.MappingNode)
+		assert.Equal(t, "timeout", varNodeName(timeout))
+		assert.Equal(t, "false", nodeStringValue(mappingValue(timeout, "show_user")))
+	})
+
+	t.Run("new DS var is emitted untouched", func(t *testing.T) {
+		dsOverrides := []*ast.MappingNode{varNode("custom_tag", "type", "text", "show_user", "true")}
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
+		require.Len(t, seq.Values, 4)
+		custom := seq.Values[3].(*ast.MappingNode)
+		assert.Equal(t, "custom_tag", varNodeName(custom))
+		assert.Equal(t, "true", nodeStringValue(mappingValue(custom, "show_user")),
+			"novel DS-only vars must be passed through without normalization")
+	})
+
+	t.Run("overriden DS var keeps show_user from base", func(t *testing.T) {
+		dsOverrides := []*ast.MappingNode{varNode("paths", "type", "text", "default", "foo")}
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
+		require.Len(t, seq.Values, 3)
+		paths := seq.Values[0].(*ast.MappingNode)
+		assert.Equal(t, "paths", varNodeName(paths))
+		assert.Equal(t, "true", nodeStringValue(mappingValue(paths, "show_user")),
+			"overriden DS var should inherit show_user from input by default")
+	})
+}
+
 // TestLoadInputPkgVarNodes checks loadInputPkgVarNodes: variable definitions
 // are loaded from the resolved input package manifest so mergeVariables uses
 // the input package as the authoritative base (order and fields) for merging.

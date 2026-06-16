@@ -403,7 +403,7 @@ func mergeStreamLevelVarNodes(
 
 	seqNode := newSeqNode()
 
-	// Non-promoted base vars first (in input pkg order).
+	// Base vars first, in input package order.
 	for _, varName := range baseVarOrder {
 		if promotedNames[varName] {
 			continue
@@ -415,11 +415,15 @@ func mergeStreamLevelVarNodes(
 			merged = mergeVarNode(baseNode, overrideNode)
 		} else {
 			merged = cloneNode(baseNode).(*ast.MappingNode)
+
+			// All variables bundled from the input package are shown as advanced
+			// options by default.
+			upsertKey(merged, "show_user", boolFalseNode())
 		}
 		seqNode.Values = append(seqNode.Values, merged)
 	}
 
-	// Novel DS vars (not present in base) appended in declaration order.
+	// Then novel DS vars, in declaration order.
 	for _, v := range dsOverrides {
 		if _, inBase := baseVarByName[varNodeName(v)]; !inBase {
 			seqNode.Values = append(seqNode.Values, cloneNode(v).(*ast.MappingNode))
