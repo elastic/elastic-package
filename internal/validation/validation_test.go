@@ -5,14 +5,18 @@
 package validation
 
 import (
+	"archive/zip"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
 	builtPackageDir            = "testdata/built_package"
-	builtPackageZip            = "testdata/built_package.zip"
 	sourcePackageDir           = "testdata/source_package"
 	composableSourcePackageDir = "testdata/composable_source_package"
 )
@@ -74,7 +78,65 @@ func TestValidateBuiltFromPath(t *testing.T) {
 }
 
 func TestValidateBuiltFromZip(t *testing.T) {
-	validationErr, filteredErr := ValidateBuiltFromZip(builtPackageZip)
-	assert.NoError(t, validationErr)
-	assert.NoError(t, filteredErr)
+	tests := []struct {
+		name        string
+		dir         string
+		expectError bool
+	}{
+		// built_package has no _dev/ or source-only artifacts; ModeBuild accepts it.
+		{name: "valid built package", dir: builtPackageDir},
+		// source_package has _dev/; ModeBuild rejects it via ValidateNoDevFolder.
+		// Guards the zip path the same way TestValidateBuiltFromPath guards the directory path.
+		{name: "rejects _dev/ directory", dir: sourcePackageDir, expectError: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			zipPath := makeZipFromDir(t, tt.dir)
+			validationErr, filteredErr := ValidateBuiltFromZip(zipPath)
+			if tt.expectError {
+				assert.Error(t, validationErr)
+				return
+			}
+			assert.NoError(t, validationErr)
+			assert.NoError(t, filteredErr)
+		})
+	}
+}
+
+// makeZipFromDir zips dir into a temp file with the package directory as the single
+// top-level entry, matching the layout that fsFromPackageZip expects.
+func makeZipFromDir(t *testing.T, dir string) string {
+	t.Helper()
+	tmp := filepath.Join(t.TempDir(), filepath.Base(dir)+".zip")
+	f, err := os.Create(tmp)
+	require.NoError(t, err)
+	defer f.Close()
+
+	w := zip.NewWriter(f)
+	base := filepath.Base(dir)
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		fw, err := w.Create(base + "/" + filepath.ToSlash(rel))
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		_, err = fw.Write(data)
+		return err
+	})
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	return tmp
 }

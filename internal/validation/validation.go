@@ -70,6 +70,7 @@ func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
 	// Open a separate, independent zip reader for filterErrors.
 	fsys, err := zip.OpenReader(zipPackagePath)
 	if err != nil {
+		logger.Debugf("failed to open zip for filter: %v", err)
 		return allErrors, nil
 	}
 	defer fsys.Close()
@@ -77,6 +78,7 @@ func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
 	// filterErrors can locate validation.yml at the package root, not the zip root.
 	fsZip, err := fsFromPackageZip(fsys)
 	if err != nil {
+		logger.Debugf("failed to extract filesystem from zip for filter: %v", err)
 		return allErrors, nil
 	}
 	result, err := filterErrors(allErrors, fsZip)
