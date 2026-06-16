@@ -322,7 +322,7 @@ type: integration
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := nextVersion(tc.tier, dir)
+			got, err := changelog.NextVersion(dir, tc.tier.NextMode())
 			require.NoError(t, err)
 			require.Equal(t, tc.want, got.String())
 		})

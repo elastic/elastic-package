@@ -102,12 +102,6 @@ func (t BumpTier) NextMode() string {
 	return ""
 }
 
-// nextVersion reads the changelog top version from packageRoot and returns it
-// incremented by tier. Returns 0.0.0 when the changelog is empty.
-func nextVersion(tier BumpTier, packageRoot string) (*semver.Version, error) {
-	return changelog.NextVersion(packageRoot, tier.NextMode())
-}
-
 // assertManifestVersionMatchesChangelogTop errors if the manifest version parsed
 // from manifestBytes differs from the changelog top revision version.
 func assertManifestVersionMatchesChangelogTop(manifestBytes []byte, revisions []changelog.Revision) error {

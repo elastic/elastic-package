@@ -191,7 +191,7 @@ With this flag the command:
 
 Neither a human nor automation has to hand-edit the changelog afterward.
 
-**Version bump tier.** The package version is bumped by the largest semver tier across all
+**Version bump tier.** The package version is bumped by the largest semver tier (major, minor, or patch) across all
 applied bumps: any major bump → major; else any minor → minor; else patch. The new version is
 derived from the current changelog top version, using the same mechanism as
 `elastic-package changelog add --next <tier>`.
