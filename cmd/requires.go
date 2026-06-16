@@ -148,7 +148,6 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	applied := false
 	hasBumps := slices.ContainsFunc(result.Proposals, func(p requiresupdates.UpdateProposal) bool {
 		return p.Proposed != ""
 	})
@@ -158,7 +157,6 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 		result.NewVersion = newVersion
-		applied = true
 	}
 
 	for _, p := range result.Proposals {
@@ -175,29 +173,33 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	if dryRun && hasBumps {
-		cmd.Println("Dry run: manifest.yml was not modified")
-		if changelogEnabled {
-			manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
-			manifestBytes, err := os.ReadFile(manifestPath)
-			if err != nil {
-				return fmt.Errorf("reading manifest file failed: %w", err)
+	if hasBumps {
+		if dryRun {
+			cmd.Println("Dry run: manifest.yml was not modified")
+			if changelogEnabled {
+				manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
+				manifestBytes, err := os.ReadFile(manifestPath)
+				if err != nil {
+					return fmt.Errorf("reading manifest file failed: %w", err)
+				}
+				plan, err := requiresupdates.PlanChangelog(packageRoot, manifestBytes, result.Proposals, changelogType)
+				if err != nil {
+					return err
+				}
+				cmd.Printf("Dry run: would bump package version to %s and add changelog entries:\n", plan.NextVersion)
+				for _, e := range plan.Revision.Changes {
+					cmd.Printf("  - [%s] %s\n", e.Type, e.Description)
+				}
 			}
-			plan, err := requiresupdates.PlanChangelog(packageRoot, manifestBytes, result.Proposals, changelogType)
-			if err != nil {
-				return err
-			}
-			cmd.Printf("Dry run: would bump package version to %s and add changelog entries:\n", plan.NextVersion)
-			for _, e := range plan.Revision.Changes {
-				cmd.Printf("  - [%s] %s\n", e.Type, e.Description)
+		} else {
+			cmd.Println("Updated manifest.yml")
+			if changelogEnabled {
+				cmd.Println("Updated changelog.yml")
 			}
 		}
-	} else if applied {
-		cmd.Println("Updated manifest.yml")
-		if changelogEnabled {
-			cmd.Println("Updated changelog.yml")
-		}
-	} else if len(result.Proposals) == 0 && result.SkipReason == "" {
+	} else if result.SkipReason != "" {
+		cmd.Println(result.SkipReason)
+	} else if len(result.Proposals) == 0 {
 		cmd.Println("No dependencies to update")
 	}
 
