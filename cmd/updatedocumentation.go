@@ -26,7 +26,7 @@ const updateDocumentationLongDescription = `Use this command to update package d
 
 The AI agent analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
 
-For packages with multiple documentation files, use the --doc-file flag to specify the file to update (defaults to README.md).
+For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -71,7 +71,7 @@ func discoverDocumentationTemplates(packageRoot string) ([]string, error) {
 }
 
 // selectDocumentationFile determines which documentation file to update
-func selectDocumentationFile(cmd *cobra.Command, packageRoot string) (string, error) {
+func selectDocumentationFile(cmd *cobra.Command, packageRoot string, nonInteractive bool) (string, error) {
 	docFile, err := cmd.Flags().GetString("doc-file")
 	if err != nil {
 		return "", fmt.Errorf("failed to get doc-file flag: %w", err)
@@ -96,11 +96,25 @@ func selectDocumentationFile(cmd *cobra.Command, packageRoot string) (string, er
 		return mdFiles[0], nil
 	}
 
-	cmd.Println(tui.Warning(fmt.Sprintf(
-		"Multiple documentation files found (%s). Using README.md by default. Use --doc-file to specify a different file.",
-		strings.Join(mdFiles, ", "),
-	)))
-	return "README.md", nil
+	// Non-interactive mode: warn when multiple files exist and default to README.md
+	if nonInteractive {
+		cmd.Println(tui.Warning(fmt.Sprintf(
+			"Multiple documentation files found (%s). Using README.md by default. Use --doc-file to specify a different file.",
+			strings.Join(mdFiles, ", "),
+		)))
+		return "README.md", nil
+	}
+
+	// Interactive mode with multiple files: prompt user to select
+	selectPrompt := tui.NewSelect("Which documentation file would you like to update?", mdFiles, "README.md")
+
+	var selectedFile string
+	err = tui.AskOne(selectPrompt, &selectedFile)
+	if err != nil {
+		return "", fmt.Errorf("file selection failed: %w", err)
+	}
+
+	return selectedFile, nil
 }
 
 // printNoProviderInstructions displays instructions when no LLM provider is configured
@@ -133,6 +147,11 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	if err != nil {
+		return fmt.Errorf("failed to get non-interactive flag: %w", err)
+	}
+
 	if cfg.APIKey == "" {
 		printNoProviderInstructions(cmd)
 		return nil
@@ -144,9 +163,12 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 		cmd.Printf("Using LLM model \"%s\"\n", cfg.ModelID)
 	}
 
-	targetDocFile, err := selectDocumentationFile(cmd, packageRoot)
+	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive)
 	if err != nil {
 		return fmt.Errorf("failed to select documentation file: %w", err)
+	}
+	if !nonInteractive && targetDocFile != "README.md" {
+		cmd.Printf("Selected documentation file: %s\n", targetDocFile)
 	}
 
 	repositoryRoot, err := files.FindRepositoryRootFrom(packageRoot)
@@ -173,7 +195,7 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 	}
 
 	cmd.Println("Updating documentation using AI agent...")
-	if err := docAgent.UpdateDocumentation(cmd.Context(), true); err != nil {
+	if err := docAgent.UpdateDocumentation(cmd.Context(), nonInteractive); err != nil {
 		return fmt.Errorf("documentation update failed: %w", err)
 	}
 	return nil

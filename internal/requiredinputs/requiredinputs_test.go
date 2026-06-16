@@ -57,8 +57,10 @@ policy_templates:
 	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	_, err = os.ReadFile(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
-	require.NoError(t, err)
+	// Input package templates are never bundled at the policy-template input level,
+	// so no input package template is copied into the integration's agent/input dir.
+	_, err = os.Stat(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
+	require.True(t, os.IsNotExist(err), "input package template must not be bundled at the input level")
 
 	updatedManifestBytes, err := os.ReadFile(path.Join(buildPackageRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -68,11 +70,11 @@ policy_templates:
 	require.Equal(t, "sql", updatedManifest.Requires.Input[0].Package)
 	require.Equal(t, "0.1.0", updatedManifest.Requires.Input[0].Version)
 
+	// The package reference is still resolved to the concrete input type, but no
+	// input-level template_paths are added.
 	require.Equal(t, "sql", updatedManifest.PolicyTemplates[0].Inputs[0].Type)
 	require.Empty(t, updatedManifest.PolicyTemplates[0].Inputs[0].Package)
-	require.Len(t, updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths, 1)
-	require.Equal(t, "sql-input.yml.hbs", updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths[0])
-
+	require.Empty(t, updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths)
 }
 
 func TestBundle_NoManifest(t *testing.T) {
@@ -144,9 +146,11 @@ policy_templates:
 }
 
 // TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath checks that after
-// IncludeLinkedFiles has materialized a policy-template input template (regular file
-// at the path named in manifest, not a *.link stub), bundling still prepends input-package
-// templates and keeps the integration-owned template_path entry last in template_paths.
+// IncludeLinkedFiles has materialized an integration-owned policy-template input template
+// (regular file at the path named in manifest, not a *.link stub), bundling preserves that
+// integration-owned template_path untouched. Input package templates are NOT prepended at
+// the input level (they are bundled only at the stream level), so the integration-owned
+// template reference remains as-is.
 func TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_linked_template_path")
 
@@ -164,13 +168,20 @@ func TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath(t *testin
 	require.NoError(t, err)
 	require.Equal(t, ownedContent, got)
 
+	// Input package templates must not be bundled into the integration's agent/input dir.
+	_, err = os.Stat(filepath.Join(buildPackageRoot, "agent", "input", "ci_input_pkg-input.yml.hbs"))
+	require.True(t, os.IsNotExist(err), "input package template must not be bundled at the input level")
+
 	updatedManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
 	require.NoError(t, err)
 	updatedManifest, err := packages.ReadPackageManifestBytes(updatedManifestBytes)
 	require.NoError(t, err)
 
-	paths := updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths
-	require.Equal(t, []string{"ci_input_pkg-input.yml.hbs", "ci_input_pkg-extra.yml.hbs", "owned.hbs"}, paths)
+	// The integration-owned input-level template reference is preserved untouched and
+	// input package templates are not prepended.
+	input := updatedManifest.PolicyTemplates[0].Inputs[0]
+	require.Equal(t, "owned.hbs", input.TemplatePath)
+	require.Empty(t, input.TemplatePaths)
 }
 
 // TestBundle_WithSourceOverrides verifies that when a source override is configured the
@@ -210,6 +221,8 @@ policy_templates:
 	require.NoError(t, err)
 	assert.False(t, eprCalled, "EPR client should not be called when a source override is provided")
 
-	_, err = os.ReadFile(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
-	require.NoError(t, err, "bundled template from local source override should exist")
+	// Input package templates are bundled only at the stream level, never at the
+	// input level, so no input package template is copied into agent/input.
+	_, err = os.Stat(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
+	require.True(t, os.IsNotExist(err), "input package template must not be bundled at the input level")
 }

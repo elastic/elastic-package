@@ -740,7 +740,7 @@ Use this command to update package documentation using an AI agent or to get man
 
 The AI agent analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
 
-For packages with multiple documentation files, use the --doc-file flag to specify the file to update (defaults to README.md).
+For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 

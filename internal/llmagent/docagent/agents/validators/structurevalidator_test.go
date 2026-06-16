@@ -136,8 +136,6 @@ func TestValidDocumentPasses(t *testing.T) {
 	// A properly structured document should pass
 	content := `# Hashicorp Vault Integration for Elastic
 
-> **Note**: This AI-assisted guide was validated by our engineers. You may need to adjust the steps to match your environment.
-
 ## Overview
 
 Overview content.

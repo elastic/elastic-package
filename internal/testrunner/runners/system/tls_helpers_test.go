@@ -134,6 +134,77 @@ func TestTLSHelpersApplyServiceInfo(t *testing.T) {
 	}
 }
 
+func TestTLSCAHelperWithPEM(t *testing.T) {
+	caPEM := "-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----"
+	svcInfo := servicedeployer.ServiceInfo{
+		CustomProperties: map[string]interface{}{
+			"TLS_CA_PEM": caPEM,
+		},
+	}
+
+	tmpl, err := raymond.Parse(`ca: |
+  {{{tls_ca indent=2}}}`)
+	if err != nil {
+		t.Fatalf("raymond.Parse() = %v", err)
+	}
+	tmpl.RegisterHelpers(tlsCAHelper(svcInfo))
+	result, err := tmpl.Exec(nil)
+	if err != nil {
+		t.Fatalf("tmpl.Exec() = %v", err)
+	}
+	if !strings.Contains(result, "BEGIN CERTIFICATE") {
+		t.Errorf("tls_ca did not emit PEM; got %q", result)
+	}
+	lines := strings.Split(result, "\n")
+	for i, line := range lines {
+		if i == 0 {
+			continue
+		}
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(line, "  ") {
+			t.Errorf("line %d = %q; want 2-space prefix", i, line)
+		}
+	}
+}
+
+func TestTLSCAHelperEmpty(t *testing.T) {
+	svcInfo := servicedeployer.ServiceInfo{}
+
+	tmpl, err := raymond.Parse(`ca: {{{tls_ca}}}`)
+	if err != nil {
+		t.Fatalf("raymond.Parse() = %v", err)
+	}
+	tmpl.RegisterHelpers(tlsCAHelper(svcInfo))
+	result, err := tmpl.Exec(nil)
+	if err != nil {
+		t.Fatalf("tmpl.Exec() = %v", err)
+	}
+	if result != "ca: " {
+		t.Errorf("tls_ca without CustomProperties should be empty; got %q", result)
+	}
+}
+
+func TestTLSCAHelperApplyServiceInfo(t *testing.T) {
+	svcInfo := servicedeployer.ServiceInfo{
+		CustomProperties: map[string]interface{}{
+			"TLS_CA_PEM": "-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----",
+		},
+	}
+	input := []byte(`    certificate_authorities:
+      - |
+        {{{tls_ca indent=8}}}`)
+
+	result, err := applyServiceInfo(input, svcInfo)
+	if err != nil {
+		t.Fatalf("applyServiceInfo() = %v", err)
+	}
+	if !strings.Contains(string(result), "BEGIN CERTIFICATE") {
+		t.Error("applyServiceInfo did not expand tls_ca")
+	}
+}
+
 func execTLSTemplate(t *testing.T, text string) string {
 	t.Helper()
 	helpers := tlsHelpers()
