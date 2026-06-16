@@ -484,7 +484,7 @@ requires:
 			require.NoError(t, err)
 			require.Equal(t, tc.wantNewVersion, newVersion)
 
-			manifestBytes, err = ApplyManifestVersion(manifestBytes, newVersion)
+			manifestBytes, err = changelog.SetManifestVersion(manifestBytes, newVersion)
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), manifestBytes, 0o644))
 			pkg, err := packages.ReadPackageManifestFromPackageRoot(dir)

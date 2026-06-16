@@ -21,6 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/requiresupdates"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -230,7 +231,7 @@ func applyRequiresUpdate(packageRoot string, proposals []requiresupdates.UpdateP
 		if err != nil {
 			return "", err
 		}
-		manifestBytes, err = requiresupdates.ApplyManifestVersion(manifestBytes, newVersion)
+		manifestBytes, err = changelog.SetManifestVersion(manifestBytes, newVersion)
 		if err != nil {
 			return "", err
 		}
