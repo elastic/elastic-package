@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/Masterminds/semver/v3"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -32,6 +31,12 @@ last entry in the current version
 Alternatively, you can start a new version indicating the specific version, or if it should
 be the next major, minor or patch version.`
 
+// addChangelogTypeChoices mirrors the changelog entry type enum defined in the package-spec
+// (spec/integration/changelog.spec.yml). The canonical validation happens when the
+// package is built and checked against the spec; this list enables early flag
+// validation.
+var addChangelogTypeChoices = []string{"bugfix", "enhancement", "breaking-change", "deprecation"}
+
 func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd := &cobra.Command{
 		Use:   "add",
@@ -44,7 +49,7 @@ func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddVersionFlagName, "", cobraext.ChangelogAddVersionFlagDescription)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddDescriptionFlagName, "", cobraext.ChangelogAddDescriptionFlagDescription)
 	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddDescriptionFlagName)
-	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", cobraext.ChangelogAddTypeFlagDescription)
+	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", fmt.Sprintf(cobraext.ChangelogAddTypeFlagDescription, strings.Join(addChangelogTypeChoices, ", ")))
 	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddTypeFlagName)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddLinkFlagName, "", cobraext.ChangelogAddLinkFlagDescription)
 	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddLinkFlagName)
@@ -73,9 +78,9 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 			cobraext.ChangelogAddNextFlagName)
 	}
 	if version == "" {
-		v, err := changelogCmdVersion(nextMode, packageRoot)
+		v, err := changelog.NextVersion(packageRoot, nextMode)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid value for %q: %w", cobraext.ChangelogAddNextFlagName, err)
 		}
 		version = v.String()
 	}
@@ -106,40 +111,6 @@ func changelogAddCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func changelogCmdVersion(nextMode, packageRoot string) (*semver.Version, error) {
-	revisions, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read current changelog: %w", err)
-	}
-	if len(revisions) == 0 {
-		return semver.MustParse("0.0.0"), nil
-	}
-
-	version, err := semver.NewVersion(revisions[0].Version)
-	if err != nil {
-		return nil, fmt.Errorf("invalid version in changelog %q: %w", revisions[0].Version, err)
-	}
-
-	switch nextMode {
-	case "":
-		break
-	case "major":
-		v := version.IncMajor()
-		version = &v
-	case "minor":
-		v := version.IncMinor()
-		version = &v
-	case "patch":
-		v := version.IncPatch()
-		version = &v
-	default:
-		return nil, fmt.Errorf("invalid value for %q: %s",
-			cobraext.ChangelogAddNextFlagName, nextMode)
-	}
-
-	return version, nil
 }
 
 // patchChangelogFile looks for the proper place to add the new revision in the changelog,

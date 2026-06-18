@@ -524,6 +524,14 @@ Update requires.input and requires.content pins to the latest registry versions 
 By default manifest.yml is updated. Use --dry-run to report available bumps without writing the manifest.
 Version pins must be exact semver versions (constraints such as ^0.3.0 are not accepted).
 
+Use --format table (default) or json to control output. JSON includes package, codeowner, and proposals for CI automation; table prints a human-readable summary.
+Use --prerelease to include pre-release versions when searching the registry; by default only stable versions are considered.
+
+Use --changelog to add a changelog entry per bumped dependency and bump the package version in manifest.yml and changelog.yml.
+The package version is bumped by the largest semver tier across all applied bumps (major over minor over patch).
+Use --changelog-type to override the entry type for all generated entries (bugfix, enhancement or breaking-change); by default major bumps map to breaking-change and minor or patch bumps map to enhancement.
+--changelog-type requires --changelog.
+
 When a newer dependency exists but requires a higher Kibana version than this package allows, a warning is printed suggesting to bump conditions.kibana.version on the integration package.
 
 ### `elastic-package service`
