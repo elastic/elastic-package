@@ -197,10 +197,6 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 				cmd.Println("Updated changelog.yml")
 			}
 		}
-	} else if result.SkipReason != "" {
-		cmd.Println(result.SkipReason)
-	} else if len(result.Proposals) == 0 {
-		cmd.Println("No dependencies to update")
 	}
 
 	return nil
@@ -272,6 +268,7 @@ func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, form
 			return nil
 		}
 		if len(result.Proposals) == 0 {
+			fmt.Fprintln(w, "No dependencies to update") //nolint:errcheck
 			return nil
 		}
 		bold.Fprintln(w, "Requires updates:") //nolint:errcheck
