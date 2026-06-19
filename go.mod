@@ -45,7 +45,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.46.0
-	google.golang.org/adk v1.3.0
+	google.golang.org/adk v1.4.0
 	google.golang.org/genai v1.61.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
