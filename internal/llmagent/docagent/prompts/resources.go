@@ -22,3 +22,9 @@ var CriticRejectionCriteria string
 
 //go:embed full_formatting_rules.txt
 var FullFormattingRules string
+
+//go:embed modification_analysis_prompt.txt
+var ModificationAnalysisPrompt string
+
+//go:embed modification_prompt.txt
+var ModificationPrompt string
