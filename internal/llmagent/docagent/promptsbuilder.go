@@ -172,7 +172,7 @@ func (d *DocumentationAgent) buildModificationAnalysisPromptArgs(ctx PromptConte
 		ctx.Manifest.Type,        // package type
 		ctx.Manifest.Version,     // package version
 		ctx.Manifest.Description, // package description
-		ctx.SectionTitle,         // section list (stored temporarily in SectionTitle field)
+		ctx.SectionList,          // available section list
 		ctx.Changes,              // modification request
 	}
 }

@@ -99,6 +99,7 @@ type PromptContext struct {
 	SectionLevel    int
 	TemplateSection string
 	ExampleSection  string
+	SectionList     string // formatted list of all available sections (for scope analysis)
 	PackageContext  *validators.PackageContext // For section-specific instructions
 }
 
@@ -290,7 +291,7 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 
 	// In interactive mode, allow review
 	if !nonInteractive {
-		return d.runInteractiveSectionReview(ctx, sections)
+		return d.runInteractiveSectionReview(ctx)
 	}
 
 	return nil
@@ -344,7 +345,9 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	}
 
 	// Backup original README content before making any changes
-	d.backupOriginalReadme()
+	if err := d.backupOriginalReadme(); err != nil {
+		return fmt.Errorf("failed to backup original readme: %w", err)
+	}
 
 	fmt.Println("📝 Analyzing modification request...")
 
@@ -359,12 +362,8 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 		return fmt.Errorf("no sections found in existing documentation")
 	}
 
-	// Get template sections for reference (structure)
-	templateContent := archetype.GetPackageDocsReadmeTemplate()
-	templateSections := parsing.ParseSections(templateContent)
-
-	// Analyze modification scope
-	scope, err := d.analyzeModificationScope(ctx, instructions, templateSections)
+	// Analyze modification scope against the actual document sections
+	scope, err := d.analyzeModificationScope(ctx, instructions, existingSections)
 	if err != nil {
 		logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
 		scope = defaultModificationScope("Scope analysis failed, defaulting to global")
@@ -402,7 +401,7 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 
 	// In interactive mode, allow review
 	if !nonInteractive {
-		return d.runInteractiveSectionReview(ctx, finalSections)
+		return d.runInteractiveSectionReview(ctx)
 	}
 
 	return nil
@@ -585,7 +584,7 @@ func (d *DocumentationAgent) applyModificationScope(ctx context.Context, existin
 }
 
 // runInteractiveSectionReview allows user to review and request changes in interactive mode
-func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context, sections []Section) error {
+func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context) error {
 	for {
 		// Display the generated documentation
 		if err := d.displayReadme(); err != nil {
@@ -622,11 +621,8 @@ func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context, se
 		}
 		sectionsFromFile := parsing.ParseSections(existingContent)
 
-		// Analyze modification scope
-		templateContent := archetype.GetPackageDocsReadmeTemplate()
-		templateSections := parsing.ParseSections(templateContent)
-
-		scope, err := d.analyzeModificationScope(ctx, actionResult.Changes, templateSections)
+		// Analyze modification scope against the current document sections
+		scope, err := d.analyzeModificationScope(ctx, actionResult.Changes, sectionsFromFile)
 		if err != nil {
 			logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
 			scope = defaultModificationScope("")
@@ -648,51 +644,65 @@ func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context, se
 	}
 }
 
-// modifyAllSections regenerates all sections with modification context
+// modifyAllSections regenerates all sections with modification context, running in parallel
 func (d *DocumentationAgent) modifyAllSections(ctx context.Context, existingSections []Section, modificationPrompt string) ([]Section, error) {
-	var modifiedSections []Section
+	fmt.Printf("📝 Modifying all %d sections concurrently...\n", len(existingSections))
+
+	resultsChan := make(chan sectionResult, len(existingSections))
+	var wg sync.WaitGroup
 
 	for i, section := range existingSections {
-		fmt.Printf("📝 Modifying section %d/%d: %s\n", i+1, len(existingSections), section.Title)
-
-		// Build modification prompt for this section
-		promptCtx := PromptContext{
-			Manifest:        d.manifest,
-			TargetDocFile:   d.targetDocFile,
-			Changes:         modificationPrompt,
-			SectionTitle:    section.Title,
-			SectionLevel:    section.Level,
-			TemplateSection: section.Content,
-		}
-
-		prompt := d.buildPrompt(PromptTypeModification, promptCtx)
-
-		// Generate modified section
-		modifiedSection, err := d.generateModifiedSection(ctx, section, prompt)
-		if err != nil {
-			logger.Debugf("Failed to modify section %s: %v", section.Title, err)
-			// On error, keep the original section
-			modifiedSections = append(modifiedSections, section)
-			continue
-		}
-
-		modifiedSections = append(modifiedSections, modifiedSection)
+		wg.Add(1)
+		go func(idx int, sec Section) {
+			defer wg.Done()
+			promptCtx := PromptContext{
+				Manifest:        d.manifest,
+				TargetDocFile:   d.targetDocFile,
+				Changes:         modificationPrompt,
+				SectionTitle:    sec.Title,
+				SectionLevel:    sec.Level,
+				TemplateSection: sec.Content,
+			}
+			prompt := d.buildPrompt(PromptTypeModification, promptCtx)
+			modifiedSection, err := d.generateModifiedSection(ctx, sec, prompt)
+			if err != nil {
+				logger.Debugf("Failed to modify section %s: %v", sec.Title, err)
+				resultsChan <- sectionResult{index: idx, section: sec, err: err}
+				return
+			}
+			resultsChan <- sectionResult{index: idx, section: modifiedSection}
+		}(i, section)
 	}
 
-	return modifiedSections, nil
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	results := make([]Section, len(existingSections))
+	for r := range resultsChan {
+		if r.err != nil {
+			results[r.index] = existingSections[r.index]
+		} else {
+			results[r.index] = r.section
+		}
+	}
+
+	fmt.Printf("✓ Modified all %d sections\n", len(results))
+	return results, nil
 }
 
-// modifySpecificSections regenerates only affected sections
-// For hierarchical sections, if a subsection is affected, the entire parent section is regenerated
+// modifySpecificSections regenerates only affected sections, running in parallel.
+// For hierarchical sections, if a subsection is affected, the entire parent section is regenerated.
 func (d *DocumentationAgent) modifySpecificSections(ctx context.Context, existingSections []Section, affectedSectionTitles []string, modificationPrompt string) ([]Section, error) {
-	var finalSections []Section
-	modifiedCount := 0
-
-	for _, section := range existingSections {
-		// Check if this section or any of its subsections are affected
+	// Pre-compute which top-level sections need modification so the denominator is accurate.
+	type sectionWork struct {
+		index   int
+		section Section
+	}
+	var toModify []sectionWork
+	for i, section := range existingSections {
 		isAffected := isSectionAffected(section.Title, affectedSectionTitles)
-
-		// Check subsections - if any subsection is affected, modify the parent
 		if !isAffected {
 			for _, subsection := range section.Subsections {
 				if isSectionAffected(subsection.Title, affectedSectionTitles) {
@@ -702,52 +712,66 @@ func (d *DocumentationAgent) modifySpecificSections(ctx context.Context, existin
 				}
 			}
 		}
-
 		if isAffected {
-			modifiedCount++
-			fmt.Printf("📝 Modifying section %d/%d: %s", modifiedCount, len(affectedSectionTitles), section.Title)
-			if section.HasSubsections() {
-				fmt.Printf(" (with %d subsections)", len(section.Subsections))
-			}
-			fmt.Println()
+			toModify = append(toModify, sectionWork{index: i, section: section})
+		}
+	}
 
-			// Build modification prompt for this section (use FullContent for hierarchical context)
+	fmt.Printf("📝 Modifying %d of %d sections concurrently...\n", len(toModify), len(existingSections))
+
+	if len(toModify) == 0 {
+		fmt.Println("✓ No matching sections found; document unchanged.")
+		return existingSections, nil
+	}
+
+	resultsChan := make(chan sectionResult, len(toModify))
+	var wg sync.WaitGroup
+
+	for _, work := range toModify {
+		wg.Add(1)
+		go func(idx int, sec Section) {
+			defer wg.Done()
 			promptCtx := PromptContext{
 				Manifest:        d.manifest,
 				TargetDocFile:   d.targetDocFile,
 				Changes:         modificationPrompt,
-				SectionTitle:    section.Title,
-				SectionLevel:    section.Level,
-				TemplateSection: section.GetAllContent(), // Include subsections in context
+				SectionTitle:    sec.Title,
+				SectionLevel:    sec.Level,
+				TemplateSection: sec.GetAllContent(), // include subsections in context
 			}
-
 			prompt := d.buildPrompt(PromptTypeModification, promptCtx)
-
-			// Generate modified section (includes subsections)
-			modifiedSection, err := d.generateModifiedSection(ctx, section, prompt)
+			modifiedSection, err := d.generateModifiedSection(ctx, sec, prompt)
 			if err != nil {
-				logger.Debugf("Failed to modify section %s: %v", section.Title, err)
-				// On error, keep the original section
-				finalSections = append(finalSections, section)
-				continue
+				logger.Debugf("Failed to modify section %s: %v", sec.Title, err)
+				resultsChan <- sectionResult{index: idx, section: sec, err: err}
+				return
 			}
-
-			// Parse the generated content to extract hierarchical structure
+			// Parse to restore hierarchical structure
 			parsedModified := parsing.ParseSections(modifiedSection.Content)
 			if len(parsedModified) > 0 {
-				modifiedSection = parsedModified[0] // Take the full hierarchical section
+				modifiedSection = parsedModified[0]
 			}
+			resultsChan <- sectionResult{index: idx, section: modifiedSection}
+		}(work.index, work.section)
+	}
 
-			finalSections = append(finalSections, modifiedSection)
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	finalSections := make([]Section, len(existingSections))
+	copy(finalSections, existingSections)
+	for r := range resultsChan {
+		if r.err != nil {
+			finalSections[r.index] = existingSections[r.index]
 		} else {
-			// Preserve entire section unchanged (including subsections)
-			finalSections = append(finalSections, section)
+			finalSections[r.index] = r.section
 		}
 	}
 
-	preservedCount := len(existingSections) - modifiedCount
-	fmt.Printf("✓ Modified: %d sections, Preserved: %d sections\n", modifiedCount, preservedCount)
-
+	preservedCount := len(existingSections) - len(toModify)
+	fmt.Printf("✓ Modified: %d sections, Preserved: %d sections\n", len(toModify), preservedCount)
 	return finalSections, nil
 }
 
@@ -797,7 +821,7 @@ func (d *DocumentationAgent) generateModifiedSection(ctx context.Context, origin
 	return modifiedSection, nil
 }
 
-// sectionResult holds the result of generating a single section
+// sectionResult holds the result of processing a single section (generation or modification)
 type sectionResult struct {
 	index   int
 	section Section

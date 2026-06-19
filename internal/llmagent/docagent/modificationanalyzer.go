@@ -57,15 +57,6 @@ type scopeAnalysisResponse struct {
 
 // analyzeModificationScope determines which sections a modification request affects
 func (d *DocumentationAgent) analyzeModificationScope(ctx context.Context, modificationPrompt string, availableSections []Section) (*ModificationScope, error) {
-	// Build list of section titles (including subsections)
-	sectionTitles := make([]string, 0)
-	for _, section := range availableSections {
-		sectionTitles = append(sectionTitles, section.Title)
-		for _, subsection := range section.Subsections {
-			sectionTitles = append(sectionTitles, subsection.Title)
-		}
-	}
-
 	// Build the analysis prompt with hierarchical structure
 	prompt := d.buildScopeAnalysisPromptHierarchical(modificationPrompt, availableSections)
 
@@ -74,24 +65,14 @@ func (d *DocumentationAgent) analyzeModificationScope(ctx context.Context, modif
 	result, err := d.executor.ExecuteTask(ctx, prompt)
 	if err != nil {
 		logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
-		return &ModificationScope{
-			Type:             ScopeGlobal,
-			AffectedSections: sectionTitles,
-			Confidence:       0.5,
-			Reasoning:        "Analysis failed, defaulting to global scope",
-		}, nil
+		return defaultModificationScope("Analysis failed, defaulting to global scope"), nil
 	}
 
 	// Parse the response
-	scope, err := d.parseScopeAnalysisResponse(result.FinalContent, sectionTitles)
+	scope, err := d.parseScopeAnalysisResponse(result.FinalContent)
 	if err != nil {
 		logger.Debugf("Failed to parse scope analysis, defaulting to global: %v", err)
-		return &ModificationScope{
-			Type:             ScopeGlobal,
-			AffectedSections: sectionTitles,
-			Confidence:       0.5,
-			Reasoning:        "Failed to parse analysis, defaulting to global scope",
-		}, nil
+		return defaultModificationScope("Failed to parse analysis, defaulting to global scope"), nil
 	}
 
 	logger.Debugf("Scope analysis complete: type=%s, sections=%v, confidence=%.2f", scope.Type, scope.AffectedSections, scope.Confidence)
@@ -121,14 +102,13 @@ func (d *DocumentationAgent) buildScopeAnalysisPromptHierarchical(modificationPr
 		Changes:       modificationPrompt,
 	}
 
-	// Store section list in a temporary field for the prompt
-	promptCtx.SectionTitle = sectionsBuilder.String()
+	promptCtx.SectionList = sectionsBuilder.String()
 
 	return d.buildPrompt(PromptTypeModificationAnalysis, promptCtx)
 }
 
 // parseScopeAnalysisResponse parses the LLM's scope analysis response
-func (d *DocumentationAgent) parseScopeAnalysisResponse(content string, availableSections []string) (*ModificationScope, error) {
+func (d *DocumentationAgent) parseScopeAnalysisResponse(content string) (*ModificationScope, error) {
 	// Try to find JSON in the response
 	jsonStart := strings.Index(content, "{")
 	jsonEnd := strings.LastIndex(content, "}")
@@ -161,13 +141,11 @@ func (d *DocumentationAgent) parseScopeAnalysisResponse(content string, availabl
 	// If specific scope but no sections listed, treat as global
 	if scopeType == ScopeSpecific && len(response.Sections) == 0 {
 		scopeType = ScopeGlobal
-		response.Sections = availableSections
 	}
 
-	// If ambiguous or low confidence, default to global
-	if scopeType == ScopeAmbiguous || response.Confidence < 0.6 {
-		scopeType = ScopeGlobal
-		response.Sections = availableSections
+	// If specific scope with low confidence, treat as ambiguous so the user sees a warning
+	if scopeType == ScopeSpecific && response.Confidence < 0.6 {
+		scopeType = ScopeAmbiguous
 	}
 
 	return &ModificationScope{
@@ -190,8 +168,10 @@ func isSectionAffected(sectionTitle string, affectedTitles []string) bool {
 			return true
 		}
 
-		// Fuzzy match: check if one contains the other
-		if strings.Contains(titleLower, affectedLower) || strings.Contains(affectedLower, titleLower) {
+		// Fuzzy match: check if the affected title from the LLM contains the actual section title
+		// (handles cases where the LLM returns a longer name like "Data Streams Configuration" for section "Configuration")
+		// We do NOT check the reverse direction to avoid matching short terms like "Data" against "Data streams".
+		if strings.Contains(affectedLower, titleLower) {
 			return true
 		}
 	}

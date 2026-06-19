@@ -173,10 +173,10 @@ func (d *DocumentationAgent) handleRequestChanges() ActionResult {
 		return ActionResult{Err: fmt.Errorf("prompt failed: %w", err)}
 	}
 
-	// Check if no changes were provided
+	// Check if no changes were provided — loop back to menu instead of exiting
 	if strings.TrimSpace(changes) == "" {
-		fmt.Println("⚠️  No changes specified.")
-		return ActionResult{ShouldContinue: false}
+		fmt.Println("⚠️  No changes specified. Please enter your requested changes.")
+		return ActionResult{ShouldContinue: true}
 	}
 	promptCtx := d.createPromptContext(d.manifest, changes)
 	newPrompt := d.buildPrompt(PromptTypeRevision, promptCtx)
