@@ -11,9 +11,10 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/package-spec/v3/code/go/pkg/specerrors"
 	"github.com/elastic/package-spec/v3/code/go/pkg/validator"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // ValidateSourceFromPath validates a package source tree — checked out from version
