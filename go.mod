@@ -19,7 +19,7 @@ require (
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.9.1
-	github.com/elastic/package-spec/v3 v3.6.3
+	github.com/elastic/package-spec/v3 v3.6.4
 	github.com/fatih/color v1.19.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
@@ -45,12 +45,12 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.46.0
-	google.golang.org/adk v1.3.0
-	google.golang.org/genai v1.60.0
+	google.golang.org/adk v1.4.0
+	google.golang.org/genai v1.61.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.13.0
-	helm.sh/helm/v3 v3.21.0
+	helm.sh/helm/v3 v3.21.1
 	k8s.io/apimachinery v0.36.2
 	k8s.io/cli-runtime v0.36.2
 	k8s.io/client-go v0.36.2

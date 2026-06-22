@@ -47,6 +47,9 @@ type Result struct {
 	CodeOwner  string           `json:"codeowner,omitempty"`
 	Proposals  []UpdateProposal `json:"proposals,omitempty"`
 	SkipReason string           `json:"skip_reason,omitempty"` // set when the package is not applicable (not an error)
+	// NewVersion is the package version after a --changelog run bumped it.
+	// Empty unless the command layer set it.
+	NewVersion string `json:"new_version,omitempty"`
 }
 
 func resultFromManifest(manifest *packages.PackageManifest) Result {

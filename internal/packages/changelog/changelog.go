@@ -6,6 +6,7 @@ package changelog
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/elastic/go-ucfg"
@@ -37,15 +38,28 @@ func ReadChangelogFromPackageRoot(packageRoot string) ([]Revision, error) {
 
 // ReadChangelog reads and parses the given package changelog file.
 func ReadChangelog(path string) ([]Revision, error) {
-	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
+	changelogBytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading file failed (path: %s): %w", path, err)
+	}
+	revisions, err := ReadChangelogBytes(changelogBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unpacking package changelog failed (path: %s): %w", path, err)
+	}
+	return revisions, nil
+}
+
+// ReadChangelogBytes parses changelog revisions from raw YAML bytes.
+func ReadChangelogBytes(changelogBytes []byte) ([]Revision, error) {
+	cfg, err := yaml.NewConfig(changelogBytes, ucfg.PathSep("."))
+	if err != nil {
+		return nil, fmt.Errorf("parsing changelog YAML failed: %w", err)
 	}
 
 	var c []Revision
 	err = cfg.Unpack(&c)
 	if err != nil {
-		return nil, fmt.Errorf("unpacking package changelog failed (path: %s): %w", path, err)
+		return nil, fmt.Errorf("unpacking package changelog failed: %w", err)
 	}
 	return c, nil
 }
