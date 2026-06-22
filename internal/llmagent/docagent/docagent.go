@@ -99,7 +99,7 @@ type PromptContext struct {
 	SectionLevel    int
 	TemplateSection string
 	ExampleSection  string
-	SectionList     string // formatted list of all available sections (for scope analysis)
+	SectionList     string                     // formatted list of all available sections (for scope analysis)
 	PackageContext  *validators.PackageContext // For section-specific instructions
 }
 
@@ -115,7 +115,7 @@ type SectionGenerationContext struct {
 
 // AgentConfig holds configuration for creating a DocumentationAgent
 type AgentConfig struct {
-	Provider       string         // LLM provider (e.g. gemini); default gemini
+	Provider       string // LLM provider (e.g. gemini); default gemini
 	APIKey         string
 	ModelID        string
 	PackageRoot    string
@@ -363,11 +363,7 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	}
 
 	// Analyze modification scope against the actual document sections
-	scope, err := d.analyzeModificationScope(ctx, instructions, existingSections)
-	if err != nil {
-		logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
-		scope = defaultModificationScope("Scope analysis failed, defaulting to global")
-	}
+	scope := d.analyzeModificationScope(ctx, instructions, existingSections)
 
 	// Report scope to user
 	fmt.Printf("✓ Scope: %s", scope.Type)
@@ -622,11 +618,7 @@ func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context) er
 		sectionsFromFile := parsing.ParseSections(existingContent)
 
 		// Analyze modification scope against the current document sections
-		scope, err := d.analyzeModificationScope(ctx, actionResult.Changes, sectionsFromFile)
-		if err != nil {
-			logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
-			scope = defaultModificationScope("")
-		}
+		scope := d.analyzeModificationScope(ctx, actionResult.Changes, sectionsFromFile)
 
 		// Apply modifications
 		modifiedSections, err := d.applyModificationScope(ctx, sectionsFromFile, scope, actionResult.Changes)
@@ -827,7 +819,6 @@ type sectionResult struct {
 	section Section
 	err     error
 }
-
 
 // loadTemplateExampleExistingSections loads template, example, and existing doc sections and returns top-level template sections.
 func (d *DocumentationAgent) loadTemplateExampleExistingSections() (topLevelSections, exampleSections, existingSections []Section, err error) {

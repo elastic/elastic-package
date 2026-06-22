@@ -44,7 +44,6 @@ const (
 	modePromptModify  = "Modify (targeted changes)"
 )
 
-
 // discoverDocumentationTemplates finds all .md files in _dev/build/docs/
 func discoverDocumentationTemplates(packageRoot string) ([]string, error) {
 	docsDir := filepath.Join(packageRoot, "_dev", "build", "docs")
@@ -206,7 +205,6 @@ func runDocumentationUpdate(cmd *cobra.Command, docAgent *docagent.Documentation
 	return nil
 }
 
-
 func updateDocumentationCommandAction(cmd *cobra.Command, _ []string) error {
 	p, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
@@ -278,4 +276,3 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 
 	return runDocumentationUpdate(cmd, docAgent, useModifyMode, flags.nonInteractive, flags.modifyPrompt)
 }
-

@@ -56,7 +56,7 @@ type scopeAnalysisResponse struct {
 }
 
 // analyzeModificationScope determines which sections a modification request affects
-func (d *DocumentationAgent) analyzeModificationScope(ctx context.Context, modificationPrompt string, availableSections []Section) (*ModificationScope, error) {
+func (d *DocumentationAgent) analyzeModificationScope(ctx context.Context, modificationPrompt string, availableSections []Section) *ModificationScope {
 	// Build the analysis prompt with hierarchical structure
 	prompt := d.buildScopeAnalysisPromptHierarchical(modificationPrompt, availableSections)
 
@@ -65,18 +65,18 @@ func (d *DocumentationAgent) analyzeModificationScope(ctx context.Context, modif
 	result, err := d.executor.ExecuteTask(ctx, prompt)
 	if err != nil {
 		logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
-		return defaultModificationScope("Analysis failed, defaulting to global scope"), nil
+		return defaultModificationScope("Analysis failed, defaulting to global scope")
 	}
 
 	// Parse the response
 	scope, err := d.parseScopeAnalysisResponse(result.FinalContent)
 	if err != nil {
 		logger.Debugf("Failed to parse scope analysis, defaulting to global: %v", err)
-		return defaultModificationScope("Failed to parse analysis, defaulting to global scope"), nil
+		return defaultModificationScope("Failed to parse analysis, defaulting to global scope")
 	}
 
 	logger.Debugf("Scope analysis complete: type=%s, sections=%v, confidence=%.2f", scope.Type, scope.AffectedSections, scope.Confidence)
-	return scope, nil
+	return scope
 }
 
 // buildScopeAnalysisPromptHierarchical creates the prompt for scope analysis with hierarchical structure
@@ -86,12 +86,12 @@ func (d *DocumentationAgent) buildScopeAnalysisPromptHierarchical(modificationPr
 	counter := 1
 
 	for _, section := range sections {
-		sectionsBuilder.WriteString(fmt.Sprintf("%d. %s\n", counter, section.Title))
+		fmt.Fprintf(&sectionsBuilder, "%d. %s\n", counter, section.Title)
 		counter++
 
 		// List subsections with indentation
 		for _, subsection := range section.Subsections {
-			sectionsBuilder.WriteString(fmt.Sprintf("   %d. %s (subsection of %s)\n", counter, subsection.Title, section.Title))
+			fmt.Fprintf(&sectionsBuilder, "   %d. %s (subsection of %s)\n", counter, subsection.Title, section.Title)
 			counter++
 		}
 	}
