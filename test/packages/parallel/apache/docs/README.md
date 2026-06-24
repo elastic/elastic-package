@@ -697,11 +697,11 @@ These inputs can be used with this integration:
 
 ## Setup
 
-For more details about the Http Json input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-httpjson).
+For more details about the HTTP JSON input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-httpjson).
 
-### Collecting logs from Http Json
+### Collecting logs from HTTP JSON
 
-To collect logs via http json, select **Collect logs via API** and configure the following parameter:
+To collect logs via HTTP JSON, select **Collect logs via API** and configure the following parameter:
 
 - API url: The API URL without the path.
 </details>
