@@ -760,4 +760,3 @@ func TestMergeVariables_TwoPolicyTemplatesScopedPromotion(t *testing.T) {
 	assert.Equal(t, "encoding", betaStreamVars[1].Name)
 	assert.Equal(t, "timeout", betaStreamVars[2].Name)
 }
-
