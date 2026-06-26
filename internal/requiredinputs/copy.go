@@ -5,6 +5,7 @@
 package requiredinputs
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -53,6 +54,7 @@ func collectAndCopyPolicyTemplateFiles(inputPkgPath, pkgName, destDir string, bu
 			if err != nil {
 				return nil, fmt.Errorf("failed to read template %q from agent/input (declared in manifest): %w", name, err)
 			}
+			content = rewriteDataStreamDatasetVar(content)
 			destName := pkgName + "-" + name
 			if err := buildRoot.MkdirAll(destDir, 0755); err != nil {
 				return nil, fmt.Errorf("failed to create directory %q: %w", destDir, err)
@@ -66,4 +68,21 @@ func collectAndCopyPolicyTemplateFiles(inputPkgPath, pkgName, destDir string, bu
 		}
 	}
 	return copiedNames, nil
+}
+
+// rewriteDataStreamDatasetVar replaces {{data_stream.dataset}} with
+// {{_meta.stream.data_stream.dataset}} in Handlebars template content.
+//
+// For standalone input packages Fleet auto-injects data_stream.dataset as a
+// stream var. For composable (integration-type) packages Fleet does not inject
+// it, so {{data_stream.dataset}} would render as empty. Fleet always injects
+// _meta.stream.data_stream.dataset from package metadata for all package types,
+// and that value is correct for composable packages. Rewriting to the _meta path
+// eliminates the need for a user-visible stream var entirely.
+func rewriteDataStreamDatasetVar(content []byte) []byte {
+	return bytes.ReplaceAll(
+		content,
+		[]byte("{{data_stream.dataset}}"),
+		[]byte("{{_meta.stream.data_stream.dataset}}"),
+	)
 }

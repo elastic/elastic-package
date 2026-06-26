@@ -167,8 +167,8 @@ func TestCollectAndCopyPolicyTemplateFiles_CustomDestDir(t *testing.T) {
 	assert.Error(t, err, "file must not be written to agent/input when a custom destDir is given")
 }
 
-// TestCollectAndCopyPolicyTemplateFiles_FileContentPreserved verifies that the byte content
-// of the template is copied verbatim without modification.
+// TestCollectAndCopyPolicyTemplateFiles_FileContentPreserved verifies that template content
+// without {{data_stream.dataset}} is copied without modification.
 func TestCollectAndCopyPolicyTemplateFiles_FileContentPreserved(t *testing.T) {
 	inputPkgDir := t.TempDir()
 	originalContent := []byte("{{#each processors}}\n- {{this}}\n{{/each}}")
@@ -194,4 +194,73 @@ policy_templates:
 	copied, err := buildRoot.ReadFile(filepath.Join("agent", "input", "sql-input.yml.hbs"))
 	require.NoError(t, err)
 	assert.Equal(t, originalContent, copied)
+}
+
+// TestRewriteDataStreamDatasetVar verifies that rewriteDataStreamDatasetVar
+// replaces every {{data_stream.dataset}} with {{_meta.stream.data_stream.dataset}}
+// and leaves all other content untouched.
+func TestRewriteDataStreamDatasetVar(t *testing.T) {
+	t.Run("no occurrence — content unchanged", func(t *testing.T) {
+		in := []byte("type: logfile\npaths: [/var/log/*.log]")
+		out := rewriteDataStreamDatasetVar(in)
+		assert.Equal(t, in, out)
+	})
+
+	t.Run("single occurrence — rewritten", func(t *testing.T) {
+		in := []byte("dataset: {{data_stream.dataset}}")
+		out := rewriteDataStreamDatasetVar(in)
+		assert.Equal(t, []byte("dataset: {{_meta.stream.data_stream.dataset}}"), out)
+	})
+
+	t.Run("multiple occurrences — all rewritten", func(t *testing.T) {
+		in := []byte("a: {{data_stream.dataset}}\nb: {{data_stream.dataset}}")
+		out := rewriteDataStreamDatasetVar(in)
+		assert.Equal(t, []byte("a: {{_meta.stream.data_stream.dataset}}\nb: {{_meta.stream.data_stream.dataset}}"), out)
+	})
+
+	t.Run("surrounding content preserved", func(t *testing.T) {
+		in := []byte("prefix {{data_stream.dataset}} suffix\nother: value")
+		out := rewriteDataStreamDatasetVar(in)
+		assert.Equal(t, []byte("prefix {{_meta.stream.data_stream.dataset}} suffix\nother: value"), out)
+	})
+
+	t.Run("partial match not replaced", func(t *testing.T) {
+		// data_stream.type and data_stream.namespace must not be affected.
+		in := []byte("type: {{data_stream.type}}\nns: {{data_stream.namespace}}")
+		out := rewriteDataStreamDatasetVar(in)
+		assert.Equal(t, in, out)
+	})
+}
+
+// TestCollectAndCopyPolicyTemplateFiles_DatasetVarRewritten verifies that when an
+// input package template contains {{data_stream.dataset}}, the bundled copy has
+// it rewritten to {{_meta.stream.data_stream.dataset}}.
+func TestCollectAndCopyPolicyTemplateFiles_DatasetVarRewritten(t *testing.T) {
+	inputPkgDir := t.TempDir()
+	originalContent := []byte("dataset: {{data_stream.dataset}}\ntype: {{data_stream.type}}")
+	manifest := []byte(`name: mypkg
+version: 0.1.0
+type: input
+policy_templates:
+  - input: logfile
+    template_path: input.yml.hbs
+`)
+	err := os.WriteFile(filepath.Join(inputPkgDir, "manifest.yml"), manifest, 0644)
+	require.NoError(t, err)
+	err = os.MkdirAll(filepath.Join(inputPkgDir, "agent", "input"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(inputPkgDir, "agent", "input", "input.yml.hbs"), originalContent, 0644)
+	require.NoError(t, err)
+
+	buildRoot := buildRootFor(t)
+
+	_, err = collectAndCopyPolicyTemplateFiles(inputPkgDir, "mypkg", "agent/input", buildRoot)
+	require.NoError(t, err)
+
+	copied, err := buildRoot.ReadFile(filepath.Join("agent", "input", "mypkg-input.yml.hbs"))
+	require.NoError(t, err)
+
+	// {{data_stream.dataset}} must be rewritten; other patterns untouched.
+	expected := []byte("dataset: {{_meta.stream.data_stream.dataset}}\ntype: {{data_stream.type}}")
+	assert.Equal(t, expected, copied)
 }
