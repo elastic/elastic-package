@@ -35,6 +35,45 @@ policy_templates:
 	return inputPkgDir
 }
 
+// createFakeInputWithDatasetVar creates an input package that declares
+// data_stream.dataset alongside a regular user-facing var (paths). Used to
+// verify that the bundler excludes data_stream.dataset from composable
+// integration stream vars while preserving the other vars.
+func createFakeInputWithDatasetVar(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	pkgDir := filepath.Join(dir, "input_with_dataset_var")
+	require.NoError(t, os.Mkdir(pkgDir, 0755))
+	manifest := []byte(`name: input_with_dataset_var
+version: 0.1.0
+type: input
+policy_templates:
+  - name: test_logs
+    type: logs
+    title: Test Logs
+    description: Input package that exposes data_stream.dataset.
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: data_stream.dataset
+        type: text
+        title: Dataset name
+        required: true
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/*.log
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, "manifest.yml"), manifest, 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(pkgDir, "agent", "input"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, "agent", "input", "input.yml.hbs"), []byte("paths: {{paths}}\ndataset: {{data_stream.dataset}}\n"), 0644))
+	return pkgDir
+}
+
 func createFakeInputWithMultiplePolicyTemplates(t *testing.T) string {
 	t.Helper()
 	fakeDownloadedPkgDir := t.TempDir()

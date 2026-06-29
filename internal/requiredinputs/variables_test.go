@@ -693,6 +693,41 @@ func TestMergeVariables_NoOverride(t *testing.T) {
 	assert.True(t, streamVars[0].Required)
 }
 
+// TestMergeVariables_DatasetVarExcluded verifies that data_stream.dataset is
+// excluded from the bundled stream-level vars even when the imported input
+// package declares it. Integrations fix the dataset by data stream name; the
+// var must not appear in the bundled manifest so Fleet does not reject the
+// policy with "variable not found".
+// Other vars from the input package (e.g. paths) must still be bundled.
+func TestMergeVariables_DatasetVarExcluded(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_excluded")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	varNames := make([]string, len(streamVars))
+	for i, v := range streamVars {
+		varNames[i] = v.Name
+	}
+	assert.NotContains(t, varNames, "data_stream.dataset",
+		"data_stream.dataset must be excluded from bundled stream vars for integrations")
+	assert.Contains(t, varNames, "paths",
+		"other input package vars (paths) must still be bundled")
+}
+
 // TestMergeVariables_DuplicateError checks that an invalid data stream manifest
 // listing the same var name twice fails during mergeVariables, surfacing a
 // clear duplicate-variable error instead of silent corruption.

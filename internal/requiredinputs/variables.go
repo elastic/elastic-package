@@ -261,6 +261,13 @@ func mergeStreamsInDSManifest(
 
 		promotedNames := promotedVarNamesForStream(stream.Package, dsName, promotedVarOverridesByScope)
 
+		// Exclude data_stream.dataset from the input package import: integrations fix
+		// the dataset by data stream name and must not expose it as a user-configurable var.
+		const datasetVarName = "data_stream.dataset"
+		if _, hasDataset := baseVarByName[datasetVarName]; hasDataset {
+			promotedNames[datasetVarName] = true
+		}
+
 		streamNode, err := getStreamMappingNode(dsRoot, streamIdx)
 		if err != nil {
 			return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
