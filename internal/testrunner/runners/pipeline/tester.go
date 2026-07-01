@@ -206,11 +206,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	if len(expectedDatasets) == 0 {
-		expectedDataset := dsManifest.Dataset
-		if expectedDataset == "" {
-			expectedDataset = pkgManifest.Name + "." + r.testFolder.DataStream
-		}
-		expectedDatasets = []string{expectedDataset}
+		expectedDatasets = defaultExpectedDatasets(pkgManifest.Name, r.testFolder.DataStream, dsManifest)
 	}
 
 	results := make([]testrunner.TestResult, 0)
@@ -222,6 +218,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithSchemaURLs(r.schemaURLs),
+		fields.WithOTelValidation(isOTelCollectorInput(dsManifest)),
 	}
 	result, err := r.runTestCase(ctx, r.testCaseFile, dataStreamRoot, dsManifest.Type, entryPipeline, validatorOptions)
 	if err != nil {
@@ -580,4 +577,29 @@ func checkErrorMessage(event json.RawMessage) error {
 	default:
 		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
+}
+
+// defaultExpectedDatasets returns the expected dataset values when no reroute
+// processors override them. For otelcol inputs, both the base dataset and the
+// agent-appended .otel variant are expected.
+func defaultExpectedDatasets(pkgName, dataStream string, dsManifest *packages.DataStreamManifest) []string {
+	ds := dsManifest.Dataset
+	if ds == "" {
+		ds = pkgName + "." + dataStream
+	}
+	datasets := []string{ds}
+	if isOTelCollectorInput(dsManifest) {
+		datasets = append(datasets, ds+".otel")
+	}
+	return datasets
+}
+
+// isOTelCollectorInput returns true if the data stream manifest declares an otelcol input.
+func isOTelCollectorInput(dsManifest *packages.DataStreamManifest) bool {
+	for _, s := range dsManifest.Streams {
+		if s.Input == "otelcol" {
+			return true
+		}
+	}
+	return false
 }
