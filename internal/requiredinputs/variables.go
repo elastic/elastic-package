@@ -259,14 +259,17 @@ func mergeStreamsInDSManifest(
 			continue
 		}
 
-		promotedNames := promotedVarNamesForStream(stream.Package, dsName, promotedVarOverridesByScope)
-
-		// Exclude data_stream.dataset from the input package import: integrations fix
-		// the dataset by data stream name and must not expose it as a user-configurable var.
-		const datasetVarName = "data_stream.dataset"
-		if _, hasDataset := baseVarByName[datasetVarName]; hasDataset {
-			promotedNames[datasetVarName] = true
+		// Drop data_stream.dataset from the input package's vars: integrations fix
+		// the dataset by data stream name, so the input package's declaration must
+		// not be bundled. If the composable data stream declares its own
+		// data_stream.dataset var, it is preserved by the "novel DS vars" pass in
+		// mergeStreamLevelVarNodes since it's no longer considered a base var.
+		baseVarOrder, baseVarByName = excludeVarByName(baseVarOrder, baseVarByName, "data_stream.dataset")
+		if len(baseVarOrder) == 0 {
+			continue
 		}
+
+		promotedNames := promotedVarNamesForStream(stream.Package, dsName, promotedVarOverridesByScope)
 
 		streamNode, err := getStreamMappingNode(dsRoot, streamIdx)
 		if err != nil {
@@ -309,6 +312,26 @@ func promotedVarNamesForStream(
 		}
 	}
 	return promotedNames
+}
+
+// excludeVarByName returns baseVarOrder and baseVarByName with varName removed,
+// leaving both untouched if varName is absent.
+func excludeVarByName(baseVarOrder []string, baseVarByName map[string]*ast.MappingNode, varName string) ([]string, map[string]*ast.MappingNode) {
+	if _, ok := baseVarByName[varName]; !ok {
+		return baseVarOrder, baseVarByName
+	}
+
+	filteredOrder := make([]string, 0, len(baseVarOrder)-1)
+	for _, name := range baseVarOrder {
+		if name != varName {
+			filteredOrder = append(filteredOrder, name)
+		}
+	}
+
+	filteredByName := maps.Clone(baseVarByName)
+	delete(filteredByName, varName)
+
+	return filteredOrder, filteredByName
 }
 
 // loadInputPkgVarNodes opens the input package at pkgPath, reads all vars from

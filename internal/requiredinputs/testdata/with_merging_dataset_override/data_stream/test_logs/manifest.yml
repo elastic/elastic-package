@@ -1,0 +1,13 @@
+title: Test Logs
+type: logs
+dataset: with_merging_dataset_override.custom_logs
+streams:
+  - package: input_with_dataset_var
+    title: Test Logs
+    description: Collect test logs using the input package with dataset var.
+    vars:
+      - name: data_stream.dataset
+        type: text
+        title: Dataset name
+        default: test_logs
+        show_user: false

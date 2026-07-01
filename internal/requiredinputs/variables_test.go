@@ -728,6 +728,88 @@ func TestMergeVariables_DatasetVarExcluded(t *testing.T) {
 		"other input package vars (paths) must still be bundled")
 }
 
+// TestMergeVariables_DatasetFieldOnly verifies that when the composable data
+// stream manifest fixes the dataset via the root "dataset" field (rather than
+// a var) and declares no data_stream.dataset override, the bundler still
+// excludes the input package's data_stream.dataset var and leaves the root
+// "dataset" field untouched. Fleet falls back to injecting that fixed value
+// into the rendered template when no var is present.
+func TestMergeVariables_DatasetFieldOnly(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_field_only")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, "with_merging_dataset_field_only.custom_logs", dsManifest.Dataset,
+		"the root dataset field must survive the bundle untouched")
+
+	streamVars := dsManifest.Streams[0].Vars
+	varNames := make([]string, len(streamVars))
+	for i, v := range streamVars {
+		varNames[i] = v.Name
+	}
+	assert.NotContains(t, varNames, "data_stream.dataset",
+		"data_stream.dataset must be excluded from bundled stream vars for integrations")
+	assert.Contains(t, varNames, "paths",
+		"other input package vars (paths) must still be bundled")
+}
+
+// TestMergeVariables_DatasetVarOverridden verifies that when the composable
+// integration's own data stream manifest sets both the root "dataset" field
+// and declares its own data_stream.dataset var, the var declaration is
+// preserved in the bundled manifest even though the imported input package
+// also declares the same var name. The integration's var value is
+// authoritative over both the input package's declaration and the root
+// "dataset" field.
+func TestMergeVariables_DatasetVarOverridden(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_override")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, "with_merging_dataset_override.custom_logs", dsManifest.Dataset,
+		"the root dataset field must survive the bundle untouched")
+
+	streamVars := dsManifest.Streams[0].Vars
+	varByName := make(map[string]packages.Variable, len(streamVars))
+	for _, v := range streamVars {
+		varByName[v.Name] = v
+	}
+
+	datasetVar, ok := varByName["data_stream.dataset"]
+	require.True(t, ok, "data_stream.dataset declared by the integration itself must be kept")
+	require.NotNil(t, datasetVar.Default)
+	assert.Equal(t, "test_logs", datasetVar.Default.Value())
+	assert.False(t, datasetVar.ShowUser)
+
+	assert.Contains(t, varByName, "paths",
+		"other input package vars (paths) must still be bundled")
+}
+
 // TestMergeVariables_DuplicateError checks that an invalid data stream manifest
 // listing the same var name twice fails during mergeVariables, surfacing a
 // clear duplicate-variable error instead of silent corruption.
