@@ -483,6 +483,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
+	cmd.Flags().Bool(cobraext.LogsDBColumnarFlagName, false, cobraext.LogsDBColumnarFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -610,6 +611,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 	}
 
+	logsDBColumnar, err := cmd.Flags().GetBool(cobraext.LogsDBColumnarFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.LogsDBColumnarFlagName)
+	}
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -683,6 +689,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		RepositoryRoot:         repositoryRoot,
 		OverrideAgentVersion:   agentVersion,
 		RequiredInputsResolver: requiredInputsResolver,
+		LogsDBColumnar:         logsDBColumnar,
 	})
 
 	logger.Debugf("Running suite...")

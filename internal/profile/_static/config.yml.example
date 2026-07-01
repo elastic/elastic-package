@@ -4,6 +4,9 @@
 #
 # Flag to enable the logs index mode in logs data stream.
 # stack.logsdb_enabled: true
+#
+# Flag to enable the logsdb_columnar index mode in logs data streams.
+# stack.logsdb_columnar_enabled: true
 
 ## Elastic Cloud
 # Host URL

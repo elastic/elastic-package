@@ -2,6 +2,7 @@
 {{- $password := fact "password" -}}
 {{- $apm_enabled := fact "apm_enabled" -}}
 {{- $version := fact "kibana_version" -}}
+{{- $logsdb_columnar_enabled := fact "logsdb_columnar_enabled" -}}
 
 {{- $fleet_healthcheck_success_checks := 3 -}}
 {{- $fleet_healthcheck_waiting_time := 1 -}}
@@ -17,7 +18,7 @@ services:
       start_period: 300s
       interval: 5s
     environment:
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g {{ if not (semverLessThan $version "8.15.0-SNAPSHOT") -}}-Des.failure_store_feature_flag_enabled=true{{- end -}}"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g {{ if not (semverLessThan $version "8.15.0-SNAPSHOT") -}}-Des.failure_store_feature_flag_enabled=true {{- end -}}{{ if (and (eq $logsdb_columnar_enabled "true") (not (semverLessThan $version "9.5.0-SNAPSHOT"))) -}}-Des.columnar_index_mode_feature_flag_enabled=true{{- end -}}"
       - "ELASTIC_PASSWORD={{ $password }}"
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
