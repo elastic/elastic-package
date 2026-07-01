@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -148,7 +149,7 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 		logger.Debugf("Agent %s (Host: %s): Policy ID %s LogLevel: %s Status: %s",
 			agent.ID, agent.LocalMetadata.Host.Name, agent.PolicyID, agent.LocalMetadata.Elastic.Agent.LogLevel, agent.Status)
 
-		if agent.PolicyID == p.ID && agent.PolicyRevision >= p.Revision {
+		if assignedPolicyIDMatches(agent.PolicyID, p.ID) && agent.PolicyRevision >= p.Revision {
 			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
 			break
 		}
@@ -165,6 +166,10 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 
 	}
 	return nil
+}
+
+func assignedPolicyIDMatches(agentPolicyID, policyID string) bool {
+	return agentPolicyID == policyID || strings.HasPrefix(agentPolicyID, policyID+"#")
 }
 
 func (c *Client) getAgent(ctx context.Context, agentID string) (*Agent, error) {
