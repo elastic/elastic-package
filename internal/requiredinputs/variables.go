@@ -37,6 +37,15 @@ type promotedVarScopeKey struct {
 // Data-stream-level vars: all remaining (non-promoted) base vars are placed at
 // the data-stream level, merged with any stream-level overrides the composable
 // package declares.
+//
+// data_stream.dataset is a special case: since integrations fix the dataset by
+// data stream name, the input package's own declaration of it is dropped from
+// the automatic data-stream-level bundling (see mergeStreamsInDSManifest). A
+// composable package may still declare data_stream.dataset itself, at either
+// scope: promoted to input level (policy_templates[].inputs[].vars) and/or
+// directly on the data stream. Both are honored like any other var; Fleet's
+// normal variable-scope precedence (stream overrides input overrides package)
+// decides which value applies when both are present.
 func (r *RequiredInputsResolver) mergeVariables(
 	manifest *packages.PackageManifest,
 	inputPkgPaths map[string]string,
@@ -264,10 +273,7 @@ func mergeStreamsInDSManifest(
 		// not be bundled. If the composable data stream declares its own
 		// data_stream.dataset var, it is preserved by the "novel DS vars" pass in
 		// mergeStreamLevelVarNodes since it's no longer considered a base var.
-		baseVarOrder, baseVarByName = excludeVarByName(baseVarOrder, baseVarByName, "data_stream.dataset")
-		if len(baseVarOrder) == 0 {
-			continue
-		}
+		baseVarOrder = excludeVarByName(baseVarOrder, baseVarByName, "data_stream.dataset")
 
 		promotedNames := promotedVarNamesForStream(stream.Package, dsName, promotedVarOverridesByScope)
 
@@ -314,24 +320,23 @@ func promotedVarNamesForStream(
 	return promotedNames
 }
 
-// excludeVarByName returns baseVarOrder and baseVarByName with varName removed,
-// leaving both untouched if varName is absent.
-func excludeVarByName(baseVarOrder []string, baseVarByName map[string]*ast.MappingNode, varName string) ([]string, map[string]*ast.MappingNode) {
+// excludeVarByName removes varName from baseVarOrder and baseVarByName in
+// place, returning the (possibly shortened) order slice. Both callee-owned
+// values come fresh from loadInputPkgVarNodes for a single stream, so mutating
+// them here is safe. A no-op if varName is absent.
+func excludeVarByName(baseVarOrder []string, baseVarByName map[string]*ast.MappingNode, varName string) []string {
 	if _, ok := baseVarByName[varName]; !ok {
-		return baseVarOrder, baseVarByName
+		return baseVarOrder
 	}
+	delete(baseVarByName, varName)
 
-	filteredOrder := make([]string, 0, len(baseVarOrder)-1)
+	filtered := baseVarOrder[:0]
 	for _, name := range baseVarOrder {
 		if name != varName {
-			filteredOrder = append(filteredOrder, name)
+			filtered = append(filtered, name)
 		}
 	}
-
-	filteredByName := maps.Clone(baseVarByName)
-	delete(filteredByName, varName)
-
-	return filteredOrder, filteredByName
+	return filtered
 }
 
 // loadInputPkgVarNodes opens the input package at pkgPath, reads all vars from

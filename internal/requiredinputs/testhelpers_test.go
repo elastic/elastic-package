@@ -74,6 +74,37 @@ policy_templates:
 	return pkgDir
 }
 
+// createFakeInputWithOnlyDatasetVar creates an input package whose only var is
+// data_stream.dataset. Used to verify that excluding data_stream.dataset from
+// the base vars (leaving zero base vars) still falls through to merge the
+// composable data stream's own var overrides, instead of short-circuiting.
+func createFakeInputWithOnlyDatasetVar(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	pkgDir := filepath.Join(dir, "input_only_dataset_var")
+	require.NoError(t, os.Mkdir(pkgDir, 0755))
+	manifest := []byte(`name: input_only_dataset_var
+version: 0.1.0
+type: input
+policy_templates:
+  - name: test_logs
+    type: logs
+    title: Test Logs
+    description: Input package whose only var is data_stream.dataset.
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: data_stream.dataset
+        type: text
+        title: Dataset name
+        required: true
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, "manifest.yml"), manifest, 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(pkgDir, "agent", "input"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, "agent", "input", "input.yml.hbs"), []byte("dataset: {{data_stream.dataset}}\n"), 0644))
+	return pkgDir
+}
+
 func createFakeInputWithMultiplePolicyTemplates(t *testing.T) string {
 	t.Helper()
 	fakeDownloadedPkgDir := t.TempDir()

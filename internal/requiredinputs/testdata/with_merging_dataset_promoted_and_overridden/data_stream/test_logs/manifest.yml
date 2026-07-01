@@ -1,0 +1,12 @@
+title: Test Logs
+type: logs
+streams:
+  - package: input_with_dataset_var
+    title: Test Logs
+    description: Collect test logs using the input package with dataset var.
+    vars:
+      - name: data_stream.dataset
+        type: text
+        title: Dataset name
+        default: stream_level_dataset
+        show_user: false

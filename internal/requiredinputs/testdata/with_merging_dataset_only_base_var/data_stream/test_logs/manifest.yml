@@ -1,0 +1,16 @@
+title: Test Logs
+type: logs
+streams:
+  - package: input_only_dataset_var
+    title: Test Logs
+    description: Collect test logs using the input package whose only var is data_stream.dataset.
+    vars:
+      - name: data_stream.dataset
+        type: text
+        title: Dataset name
+        default: test_logs
+        show_user: false
+      - name: custom_tag
+        type: text
+        title: Custom Tag
+        show_user: true
