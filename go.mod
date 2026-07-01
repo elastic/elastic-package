@@ -44,7 +44,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	go.yaml.in/yaml/v2 v2.4.4
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/tools v0.46.0
+	golang.org/x/tools v0.47.0
 	google.golang.org/adk v1.4.0
 	google.golang.org/genai v1.62.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
@@ -181,7 +181,7 @@ require (
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260610154732-fb80ec83bdd9 // indirect
+	golang.org/x/telemetry v0.0.0-20260625142307-59b4966ccb57 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
