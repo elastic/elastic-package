@@ -1,0 +1,6 @@
+title: Test Logs
+type: logs
+streams:
+  - package: input_with_dataset_var
+    title: Test Logs
+    description: Collect test logs using the input package with dataset var.

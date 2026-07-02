@@ -1,0 +1,40 @@
+format_version: 3.6.0
+name: with_merging_dataset_promoted_to_input
+title: Variable Merging - Dataset Var Promoted To Input Level
+description: >-
+  Composable package that promotes data_stream.dataset to the input level by
+  declaring an override for it under policy_templates[].inputs[].vars. The
+  bundler must honor this promotion like any other var: it is not special-cased
+  away from input-level promotion, only from the automatic stream-level bundling
+  of the input package's own declaration.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.4.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: input_with_dataset_var
+      version: "0.1.0"
+policy_templates:
+  - name: test_logs
+    title: Test Logs
+    description: Collect logs via input package that declares data_stream.dataset
+    data_streams:
+      - test_logs
+    inputs:
+      - package: input_with_dataset_var
+        title: Collect test logs
+        description: Use the input package with dataset var
+        vars:
+          - name: data_stream.dataset
+            type: text
+            title: Dataset name
+            default: input_level_dataset
+owner:
+  github: elastic/integrations
+  type: elastic

@@ -1,0 +1,35 @@
+format_version: 3.6.0
+name: with_merging_dataset_only_base_var
+title: Variable Merging - Input Package With Only Dataset Var
+description: >-
+  Composable package whose imported input package's only var is
+  data_stream.dataset. Once that var is excluded, zero base vars remain; the
+  bundler must still merge in the composable data stream's own var overrides
+  (including its own data_stream.dataset and any novel vars) rather than
+  leaving the data stream manifest untouched.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.4.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: input_only_dataset_var
+      version: "0.1.0"
+policy_templates:
+  - name: test_logs
+    title: Test Logs
+    description: Collect logs via input package whose only var is data_stream.dataset
+    data_streams:
+      - test_logs
+    inputs:
+      - package: input_only_dataset_var
+        title: Collect test logs
+        description: Use the input package whose only var is data_stream.dataset
+owner:
+  github: elastic/integrations
+  type: elastic
