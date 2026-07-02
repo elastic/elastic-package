@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -317,6 +318,78 @@ service:
 		assert.Contains(t, string(out), "- apikeyauth/componentid-0")
 		assert.Contains(t, string(out), "authenticator: apikeyauth/componentid-0")
 		assert.Contains(t, string(out), "traces/componentid-0")
+	})
+
+	t.Run("does not mix up references when there are two distinct apikeyauth extensions", func(t *testing.T) {
+		policy := `
+extensions:
+  apikeyauth/otelcol-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-otelcol-elasticapm_input_otel-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:
+    api_key: key-for-a
+  apikeyauth/otelcol-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb-otelcol-elasticapm_input_otel-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:
+    api_key: key-for-b
+receivers:
+  elasticapmintakereceiver/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:
+    endpoint: localhost:8200
+    auth:
+      authenticator: apikeyauth/otelcol-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-otelcol-elasticapm_input_otel-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+  elasticapmintakereceiver/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:
+    endpoint: localhost:8201
+    auth:
+      authenticator: apikeyauth/otelcol-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb-otelcol-elasticapm_input_otel-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+service:
+  extensions:
+    - apikeyauth/otelcol-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-otelcol-elasticapm_input_otel-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+    - apikeyauth/otelcol-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb-otelcol-elasticapm_input_otel-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		require.NoError(t, err)
+		t.Log(string(out))
+
+		var root map[string]any
+		require.NoError(t, yaml.Unmarshal(out, &root))
+
+		extensions, ok := root["extensions"].(map[string]any)
+		require.True(t, ok, "extensions should be a map")
+
+		// Identify each extension's canonical id by its distinguishing api_key,
+		// since buildSectionMapping's sort order is value-based and not fixed here.
+		var idForA, idForB string
+		for key, val := range extensions {
+			body, ok := val.(map[string]any)
+			require.True(t, ok)
+			switch body["api_key"] {
+			case "key-for-a":
+				idForA = key
+			case "key-for-b":
+				idForB = key
+			}
+		}
+		require.NotEmpty(t, idForA, "extension for receiver A should have been found")
+		require.NotEmpty(t, idForB, "extension for receiver B should have been found")
+		assert.NotEqual(t, idForA, idForB, "the two extensions must normalize to distinct component ids")
+
+		receivers, ok := root["receivers"].(map[string]any)
+		require.True(t, ok, "receivers should be a map")
+
+		var authForA, authForB string
+		for _, val := range receivers {
+			body, ok := val.(map[string]any)
+			require.True(t, ok)
+			auth, ok := body["auth"].(map[string]any)
+			require.True(t, ok)
+			authenticator, _ := auth["authenticator"].(string)
+			switch body["endpoint"] {
+			case "localhost:8200":
+				authForA = authenticator
+			case "localhost:8201":
+				authForB = authenticator
+			}
+		}
+		require.NotEmpty(t, authForA, "receiver A's authenticator should have been found")
+		require.NotEmpty(t, authForB, "receiver B's authenticator should have been found")
+
+		assert.Equal(t, idForA, authForA, "receiver A's authenticator must reference extension A's canonical id, not extension B's")
+		assert.Equal(t, idForB, authForB, "receiver B's authenticator must reference extension B's canonical id, not extension A's")
 	})
 }
 
