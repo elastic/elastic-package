@@ -428,6 +428,11 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinition bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 
+	if path == "" && !couldBeParametersDefinition {
+		preview = normalizeDottedMappingProperties(preview)
+		actual = normalizeDottedMappingProperties(actual)
+	}
+
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
 	if err != nil {
 		return multierror.Error{err}
@@ -605,6 +610,101 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 	}
 	return errs.Unique()
+}
+
+func normalizeDottedMappingProperties(properties map[string]any) map[string]any {
+	normalized := make(map[string]any, len(properties))
+	for key, value := range properties {
+		value = normalizeMappingValue(value)
+		if strings.Contains(key, ".") {
+			insertDottedMappingProperty(normalized, strings.Split(key, "."), value)
+			continue
+		}
+		normalized[key] = mergeMappingValues(normalized[key], value)
+	}
+	return normalized
+}
+
+func normalizeMappingValue(value any) any {
+	mapping, ok := value.(map[string]any)
+	if !ok {
+		return value
+	}
+
+	normalized := make(map[string]any, len(mapping))
+	for k, v := range mapping {
+		normalized[k] = v
+	}
+	if props, ok := mapping["properties"].(map[string]any); ok {
+		normalized["properties"] = normalizeDottedMappingProperties(props)
+	}
+	return normalized
+}
+
+func insertDottedMappingProperty(properties map[string]any, path []string, value any) {
+	if len(path) == 0 {
+		return
+	}
+	if len(path) == 1 {
+		properties[path[0]] = mergeMappingValues(properties[path[0]], value)
+		return
+	}
+
+	parent, ok := properties[path[0]].(map[string]any)
+	if !ok {
+		parent = map[string]any{
+			"properties": map[string]any{},
+		}
+		properties[path[0]] = parent
+	}
+
+	childProperties, ok := parent["properties"].(map[string]any)
+	if !ok {
+		childProperties = map[string]any{}
+		parent["properties"] = childProperties
+	}
+
+	insertDottedMappingProperty(childProperties, path[1:], value)
+}
+
+func mergeMappingValues(existing, incoming any) any {
+	if existing == nil {
+		return incoming
+	}
+
+	existingMapping, existingOK := existing.(map[string]any)
+	incomingMapping, incomingOK := incoming.(map[string]any)
+	if !existingOK || !incomingOK {
+		return incoming
+	}
+
+	merged := make(map[string]any, len(existingMapping)+len(incomingMapping))
+	for key, value := range existingMapping {
+		merged[key] = value
+	}
+	for key, value := range incomingMapping {
+		if key == "properties" {
+			existingProperties, existingHasProperties := merged[key].(map[string]any)
+			incomingProperties, incomingHasProperties := value.(map[string]any)
+			if existingHasProperties && incomingHasProperties {
+				merged[key] = mergeMappingProperties(existingProperties, incomingProperties)
+				continue
+			}
+		}
+		merged[key] = value
+	}
+	return merged
+}
+
+func mergeMappingProperties(existing, incoming map[string]any) map[string]any {
+	merged := make(map[string]any, len(existing)+len(incoming))
+	for key, value := range existing {
+		merged[key] = value
+	}
+	for key, value := range incoming {
+		merged[key] = mergeMappingValues(merged[key], value)
+	}
+	return merged
 }
 
 // matchingWithDynamicTemplates validates a given definition (currentPath) with a set of dynamic templates.

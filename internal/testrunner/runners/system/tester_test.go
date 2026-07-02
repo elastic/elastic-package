@@ -7,6 +7,8 @@ package system
 import (
 	"fmt"
 	"maps"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -442,6 +445,37 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSyntheticSourceModeEnabledLogsDBColumnar(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		if req.Method == http.MethodGet && req.URL.Path == "/" {
+			_, _ = w.Write([]byte(`{"version":{"number":"9.5.0-SNAPSHOT"}}`))
+			return
+		}
+		if req.Method != http.MethodPost || req.URL.Path != "/_index_template/_simulate_index/logs-example.default-12345simulated" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{
+			"template": {
+				"settings": {
+					"index": {
+						"mode": "logsdb_columnar"
+					}
+				}
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL))
+	require.NoError(t, err)
+
+	enabled, err := isSyntheticSourceModeEnabled(t.Context(), client.API, "logs-example.default-12345")
+	require.NoError(t, err)
+	assert.True(t, enabled)
+}
+
 func TestSearchDataStreams(t *testing.T) {
 	const pattern = "*-foo.bar-default"
 

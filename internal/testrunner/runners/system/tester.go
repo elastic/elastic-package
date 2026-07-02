@@ -808,6 +808,7 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 	syntheticsIndexModes := []string{
 		"logs", // Replaced in 8.15.0 with "logsdb", see https://github.com/elastic/elasticsearch/pull/111054
 		"logsdb",
+		"logsdb_columnar",
 		"time_series",
 	}
 	if slices.Contains(syntheticsIndexModes, results.Template.Settings.Index.Mode) {

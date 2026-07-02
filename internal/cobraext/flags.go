@@ -200,6 +200,9 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	LogsDBColumnarFlagName        = "logsdb-columnar"
+	LogsDBColumnarFlagDescription = "enable LogsDB Columnar mode for system tests"
+
 	PackagesFlagName        = "packages"
 	PackagesFlagDescription = "whether to return packages names or complete paths for the linked files found"
 
