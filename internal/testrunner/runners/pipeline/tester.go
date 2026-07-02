@@ -596,10 +596,7 @@ func defaultExpectedDatasets(pkgName, dataStream string, dsManifest *packages.Da
 
 // isOTelCollectorInput returns true if the data stream manifest declares an otelcol input.
 func isOTelCollectorInput(dsManifest *packages.DataStreamManifest) bool {
-	for _, s := range dsManifest.Streams {
-		if s.Input == "otelcol" {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(dsManifest.Streams, func(s packages.Stream) bool {
+		return s.Input == "otelcol"
+	})
 }
