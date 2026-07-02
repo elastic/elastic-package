@@ -355,7 +355,13 @@ func applyNormalization(node any, idMapping map[string]string) {
 			}
 			return
 		}
-		for _, v := range n {
+		for k, v := range n {
+			if s, ok := v.(string); ok {
+				if newRef, ok := idMapping[s]; ok {
+					n[k] = newRef
+					continue
+				}
+			}
 			applyNormalization(v, idMapping)
 		}
 	case []any:

@@ -251,6 +251,73 @@ exporters:
 		assert.NoError(t, err)
 		assert.Equal(t, string(outA), string(outB), "equivalent policies with different key order should normalize to same YAML")
 	})
+
+	// Reproduces https://github.com/elastic/elastic-package/issues/3630:
+	// Fleet (since https://github.com/elastic/kibana/pull/270771) suffixes extension keys
+	// for cross-stream uniqueness, and references those extensions from service.extensions[]
+	// and from auth.authenticator inside receiver bodies.
+	t.Run("normalizes suffixed extension id referenced from service.extensions", func(t *testing.T) {
+		policy := `
+extensions:
+  apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f:
+    api_key: abc
+service:
+  extensions:
+    - apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "apikeyauth/componentid-0")
+		assert.Contains(t, string(out), "- apikeyauth/componentid-0")
+	})
+
+	t.Run("normalizes suffixed extension id referenced from auth.authenticator", func(t *testing.T) {
+		policy := `
+extensions:
+  apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f:
+    api_key: abc
+receivers:
+  elasticapmintakereceiver/2ad3f316-95ec-4749-955d-bb680ccb3a6f:
+    endpoint: localhost:8200
+    auth:
+      authenticator: apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "apikeyauth/componentid-0")
+		assert.Contains(t, string(out), "elasticapmintakereceiver/componentid-0")
+		assert.Contains(t, string(out), "authenticator: apikeyauth/componentid-0")
+	})
+
+	t.Run("normalizes suffixed extension id referenced from both service.extensions and auth.authenticator", func(t *testing.T) {
+		policy := `
+extensions:
+  apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f:
+    api_key: abc
+receivers:
+  elasticapmintakereceiver/2ad3f316-95ec-4749-955d-bb680ccb3a6f:
+    endpoint: localhost:8200
+    auth:
+      authenticator: apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
+service:
+  extensions:
+    - apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
+  pipelines:
+    traces/custom:
+      receivers:
+        - elasticapmintakereceiver/2ad3f316-95ec-4749-955d-bb680ccb3a6f
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "apikeyauth/componentid-0")
+		assert.Contains(t, string(out), "elasticapmintakereceiver/componentid-0")
+		assert.Contains(t, string(out), "- apikeyauth/componentid-0")
+		assert.Contains(t, string(out), "authenticator: apikeyauth/componentid-0")
+		assert.Contains(t, string(out), "traces/componentid-0")
+	})
 }
 
 func TestComparePolicies(t *testing.T) {
