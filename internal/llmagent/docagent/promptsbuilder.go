@@ -23,6 +23,12 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 	case PromptTypeSectionGeneration:
 		promptContent = prompts.Load(prompts.TypeSectionGeneration)
 		formatArgs = d.buildSectionGenerationPromptArgs(ctx).ToFormatArgs()
+	case PromptTypeModificationAnalysis:
+		promptContent = prompts.Load(prompts.TypeModificationAnalysis)
+		formatArgs = d.buildModificationAnalysisPromptArgs(ctx)
+	case PromptTypeModification:
+		promptContent = prompts.Load(prompts.TypeModification)
+		formatArgs = d.buildModificationPromptArgs(ctx)
 	}
 
 	return fmt.Sprintf(promptContent, formatArgs...)
@@ -154,6 +160,45 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		Step4SectionTitle:      ctx.SectionTitle,
 		Step5LevelPrefix:       levelStr,
 		Step5SectionTitle:      ctx.SectionTitle,
+	}
+}
+
+// buildModificationAnalysisPromptArgs prepares arguments for modification analysis prompt
+func (d *DocumentationAgent) buildModificationAnalysisPromptArgs(ctx PromptContext) []interface{} {
+	return []interface{}{
+		ctx.TargetDocFile,        // target file
+		ctx.Manifest.Name,        // package name
+		ctx.Manifest.Title,       // package title
+		ctx.Manifest.Type,        // package type
+		ctx.Manifest.Version,     // package version
+		ctx.Manifest.Description, // package description
+		ctx.SectionList,          // available section list
+		ctx.Changes,              // modification request
+	}
+}
+
+// buildModificationPromptArgs prepares arguments for modification prompt
+func (d *DocumentationAgent) buildModificationPromptArgs(ctx PromptContext) []interface{} {
+	levelStr := "##"
+	if ctx.SectionLevel == 3 {
+		levelStr = "###"
+	}
+
+	return []interface{}{
+		ctx.TargetDocFile,        // target file
+		ctx.SectionTitle,         // section title
+		ctx.SectionLevel,         // section level number
+		ctx.Manifest.Name,        // package name
+		ctx.Manifest.Title,       // package title
+		ctx.Manifest.Type,        // package type
+		ctx.Manifest.Version,     // package version
+		ctx.Manifest.Description, // package description
+		ctx.TemplateSection,      // current section content
+		ctx.Changes,              // modification request
+		levelStr,                 // level prefix for header instruction
+		ctx.SectionTitle,         // section title for header instruction
+		levelStr,                 // level prefix for final reminder
+		ctx.SectionTitle,         // section title for final reminder
 	}
 }
 

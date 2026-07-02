@@ -746,7 +746,12 @@ _Context: package_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
+The AI agent supports two modes:
+1. Rewrite mode (default): Full documentation regeneration
+   - Analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
+2. Modify mode: Targeted documentation changes
+   - The LLM will perform a targeted change to the documentation, based on user-provided instructions.
+   - Use --modify-prompt flag to provide instructions for non-interactive modifications
 
 For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
 
@@ -852,7 +857,7 @@ The following settings are available per profile:
 
 ### AI-powered Documentation Configuration
 
-The `elastic-package update documentation` command can generate or update package documentation using an LLM.
+The `elastic-package update documentation` command can generate or update package documentation using an LLM. It supports full rewrites and targeted modifications.
 
 For full details on configuration, LLM provider setup, and the optional service knowledge base, see [docs/howto/ai_documentation.md](docs/howto/ai_documentation.md).
 
