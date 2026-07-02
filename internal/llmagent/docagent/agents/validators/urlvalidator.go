@@ -82,7 +82,7 @@ func (u *URLValidatorAgent) run(invCtx agent.InvocationContext) iter.Seq2[*sessi
 		content, err := state.Get(StateKeyContent)
 		if err != nil {
 			logger.Debugf("URLValidator: no content found in state")
-			event := session.NewEvent(invCtx.InvocationID())
+			event := session.NewEventWithContext(invCtx, invCtx.InvocationID())
 			event.Content = genai.NewContentFromText("No content to check for URLs", genai.RoleModel)
 			event.Author = urlValidatorAgentName
 			event.Actions.StateDelta = map[string]any{
@@ -107,7 +107,7 @@ func (u *URLValidatorAgent) run(invCtx agent.InvocationContext) iter.Seq2[*sessi
 		result := u.validateURLs(ctx, contentStr)
 
 		// Create event with state update
-		event := session.NewEvent(invCtx.InvocationID())
+		event := session.NewEventWithContext(invCtx, invCtx.InvocationID())
 		event.Content = genai.NewContentFromText("URL validation complete", genai.RoleModel)
 		event.Author = urlValidatorAgentName
 		event.Actions.StateDelta = map[string]any{
