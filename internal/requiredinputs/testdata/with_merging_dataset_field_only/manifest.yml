@@ -1,0 +1,35 @@
+format_version: 3.6.0
+name: with_merging_dataset_field_only
+title: Variable Merging - Dataset Root Field Only
+description: >-
+  Composable package whose data stream manifest fixes the dataset via the root
+  "dataset" field (not a var). The imported input package still declares
+  data_stream.dataset as a var, which must be excluded from the bundled
+  manifest; the root "dataset" field must survive the bundle untouched so
+  Fleet can inject its value into the compiled template.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.4.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: input_with_dataset_var
+      version: "0.1.0"
+policy_templates:
+  - name: test_logs
+    title: Test Logs
+    description: Collect logs via input package that declares data_stream.dataset
+    data_streams:
+      - test_logs
+    inputs:
+      - package: input_with_dataset_var
+        title: Collect test logs
+        description: Use the input package with dataset var
+owner:
+  github: elastic/integrations
+  type: elastic

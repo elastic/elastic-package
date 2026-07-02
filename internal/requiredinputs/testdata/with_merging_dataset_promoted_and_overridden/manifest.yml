@@ -1,0 +1,40 @@
+format_version: 3.6.0
+name: with_merging_dataset_promoted_and_overridden
+title: Variable Merging - Dataset Var Promoted To Input And Overridden At Stream Level
+description: >-
+  Composable package that promotes data_stream.dataset to the input level
+  (policy_templates[].inputs[].vars) and also declares its own
+  data_stream.dataset var at the data stream level. Both are bundled: Fleet
+  applies its normal variable-scope precedence at policy-render time, where a
+  stream-level var wins over an input-level one.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.4.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: input_with_dataset_var
+      version: "0.1.0"
+policy_templates:
+  - name: test_logs
+    title: Test Logs
+    description: Collect logs via input package that declares data_stream.dataset
+    data_streams:
+      - test_logs
+    inputs:
+      - package: input_with_dataset_var
+        title: Collect test logs
+        description: Use the input package with dataset var
+        vars:
+          - name: data_stream.dataset
+            type: text
+            title: Dataset name
+            default: input_level_dataset
+owner:
+  github: elastic/integrations
+  type: elastic
