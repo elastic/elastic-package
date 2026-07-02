@@ -693,6 +693,252 @@ func TestMergeVariables_NoOverride(t *testing.T) {
 	assert.True(t, streamVars[0].Required)
 }
 
+// TestMergeVariables_DatasetVarExcluded verifies that data_stream.dataset is
+// excluded from the bundled stream-level vars even when the imported input
+// package declares it. Integrations fix the dataset by data stream name; the
+// var must not appear in the bundled manifest so Fleet does not reject the
+// policy with "variable not found".
+// Other vars from the input package (e.g. paths) must still be bundled.
+func TestMergeVariables_DatasetVarExcluded(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_excluded")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	varNames := make([]string, len(streamVars))
+	for i, v := range streamVars {
+		varNames[i] = v.Name
+	}
+	assert.NotContains(t, varNames, "data_stream.dataset",
+		"data_stream.dataset must be excluded from bundled stream vars for integrations")
+	assert.Contains(t, varNames, "paths",
+		"other input package vars (paths) must still be bundled")
+}
+
+// TestMergeVariables_DatasetFieldOnly verifies that when the composable data
+// stream manifest fixes the dataset via the root "dataset" field (rather than
+// a var) and declares no data_stream.dataset override, the bundler still
+// excludes the input package's data_stream.dataset var and leaves the root
+// "dataset" field untouched. Fleet falls back to injecting that fixed value
+// into the rendered template when no var is present.
+func TestMergeVariables_DatasetFieldOnly(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_field_only")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, "with_merging_dataset_field_only.custom_logs", dsManifest.Dataset,
+		"the root dataset field must survive the bundle untouched")
+
+	streamVars := dsManifest.Streams[0].Vars
+	varNames := make([]string, len(streamVars))
+	for i, v := range streamVars {
+		varNames[i] = v.Name
+	}
+	assert.NotContains(t, varNames, "data_stream.dataset",
+		"data_stream.dataset must be excluded from bundled stream vars for integrations")
+	assert.Contains(t, varNames, "paths",
+		"other input package vars (paths) must still be bundled")
+}
+
+// TestMergeVariables_DatasetVarOverridden verifies that when the composable
+// integration's own data stream manifest sets both the root "dataset" field
+// and declares its own data_stream.dataset var, the var declaration is
+// preserved in the bundled manifest even though the imported input package
+// also declares the same var name. The integration's var value is
+// authoritative over both the input package's declaration and the root
+// "dataset" field.
+func TestMergeVariables_DatasetVarOverridden(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_override")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, "with_merging_dataset_override.custom_logs", dsManifest.Dataset,
+		"the root dataset field must survive the bundle untouched")
+
+	streamVars := dsManifest.Streams[0].Vars
+	varByName := make(map[string]packages.Variable, len(streamVars))
+	for _, v := range streamVars {
+		varByName[v.Name] = v
+	}
+
+	datasetVar, ok := varByName["data_stream.dataset"]
+	require.True(t, ok, "data_stream.dataset declared by the integration itself must be kept")
+	require.NotNil(t, datasetVar.Default)
+	assert.Equal(t, "test_logs", datasetVar.Default.Value())
+	assert.False(t, datasetVar.ShowUser)
+
+	assert.Contains(t, varByName, "paths",
+		"other input package vars (paths) must still be bundled")
+}
+
+// TestMergeVariables_DatasetOnlyBaseVarStillMerges verifies that when the
+// imported input package's only var is data_stream.dataset, excluding it
+// leaves zero base vars, but the bundler still merges in the composable data
+// stream's own var overrides (its data_stream.dataset override and a novel
+// var) instead of short-circuiting and leaving the manifest untouched.
+func TestMergeVariables_DatasetOnlyBaseVarStillMerges(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_only_base_var")
+	inputPkgPath := createFakeInputWithOnlyDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	varByName := make(map[string]packages.Variable, len(streamVars))
+	for _, v := range streamVars {
+		varByName[v.Name] = v
+	}
+	require.Len(t, varByName, 2)
+
+	datasetVar, ok := varByName["data_stream.dataset"]
+	require.True(t, ok, "data_stream.dataset declared by the integration itself must be kept")
+	require.NotNil(t, datasetVar.Default)
+	assert.Equal(t, "test_logs", datasetVar.Default.Value())
+
+	assert.Contains(t, varByName, "custom_tag",
+		"novel vars declared only by the data stream manifest must still be bundled")
+}
+
+// TestMergeVariables_DatasetPromotedToInput verifies that a composable
+// integration can deliberately promote data_stream.dataset to the input level
+// (policy_templates[].inputs[].vars): this is a distinct scope from the
+// automatic stream-level bundling that excludes the input package's own
+// declaration, so promotion is honored like any other var.
+func TestMergeVariables_DatasetPromotedToInput(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_promoted_to_input")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	inputVars := manifest.PolicyTemplates[0].Inputs[0].Vars
+	require.Len(t, inputVars, 1)
+	assert.Equal(t, "data_stream.dataset", inputVars[0].Name)
+	require.NotNil(t, inputVars[0].Default)
+	assert.Equal(t, "input_level_dataset", inputVars[0].Default.Value())
+
+	// Not declared at the data stream level, so it must not reappear there.
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+	streamVarNames := make([]string, len(dsManifest.Streams[0].Vars))
+	for i, v := range dsManifest.Streams[0].Vars {
+		streamVarNames[i] = v.Name
+	}
+	assert.NotContains(t, streamVarNames, "data_stream.dataset")
+}
+
+// TestMergeVariables_DatasetPromotedAndOverridden verifies that when
+// data_stream.dataset is promoted to the input level AND the composable's own
+// data stream manifest also declares it, both are bundled: the input-level
+// var and the stream-level var are separate scopes, and it is Fleet's normal
+// variable precedence (stream wins over input) that resolves which value
+// applies at policy-render time, not elastic-package's merge.
+func TestMergeVariables_DatasetPromotedAndOverridden(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_dataset_promoted_and_overridden")
+	inputPkgPath := createFakeInputWithDatasetVar(t)
+	fakeEpr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(fakeEpr)
+
+	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	inputVars := manifest.PolicyTemplates[0].Inputs[0].Vars
+	require.Len(t, inputVars, 1)
+	assert.Equal(t, "data_stream.dataset", inputVars[0].Name)
+	require.NotNil(t, inputVars[0].Default)
+	assert.Equal(t, "input_level_dataset", inputVars[0].Default.Value())
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+	streamVars := dsManifest.Streams[0].Vars
+	streamVarByName := make(map[string]packages.Variable, len(streamVars))
+	for _, v := range streamVars {
+		streamVarByName[v.Name] = v
+	}
+
+	datasetVar, ok := streamVarByName["data_stream.dataset"]
+	require.True(t, ok, "the stream-level override must still be bundled alongside the input-level promotion")
+	require.NotNil(t, datasetVar.Default)
+	assert.Equal(t, "stream_level_dataset", datasetVar.Default.Value())
+
+	assert.Contains(t, streamVarByName, "paths",
+		"other input package vars (paths) must still be bundled at the stream level")
+}
+
 // TestMergeVariables_DuplicateError checks that an invalid data stream manifest
 // listing the same var name twice fails during mergeVariables, surfacing a
 // clear duplicate-variable error instead of silent corruption.

@@ -1,0 +1,6 @@
+title: Events
+type: logs
+streams:
+  - package: test_input
+    title: Events logs
+    description: Collect events log data via composable input

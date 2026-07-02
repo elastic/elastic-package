@@ -1,0 +1,26 @@
+format_version: 3.6.0
+name: composable_source_package
+title: Composable Source Package
+description: "Minimal composable source-package fixture; uses package: references that are source-only."
+version: 0.0.1
+type: integration
+source:
+  license: "Apache-2.0"
+conditions:
+  kibana:
+    version: '^8.0.0 || ^9.0.0'
+requires:
+  input:
+    - package: test_input
+      version: "1.0.0"
+policy_templates:
+  - name: events
+    title: Events logs
+    description: Collect events data
+    inputs:
+      - package: test_input
+        title: Collect events logs
+        description: Collecting events log data via composable input
+owner:
+  github: elastic/foobar
+  type: community

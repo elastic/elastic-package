@@ -1,0 +1,23 @@
+title: Events
+type: logs
+elasticsearch:
+  index_template:
+    mappings:
+      dynamic_templates:
+        - _embedded_ecs:
+            match_mapping_type: string
+            mapping:
+              type: keyword
+streams:
+  - input: logfile
+    title: Events logs
+    description: Collect events log data
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/*.log

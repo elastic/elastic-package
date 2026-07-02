@@ -1,0 +1,23 @@
+format_version: 3.6.0
+name: source_package
+title: Source Package
+description: Minimal source-package fixture for ValidateSourceFromPath tests.
+version: 0.0.1
+type: integration
+source:
+  license: "Apache-2.0"
+conditions:
+  kibana:
+    version: '^8.0.0 || ^9.0.0'
+policy_templates:
+  - name: events
+    title: Events logs
+    description: Collect events data
+    inputs:
+      - type: logfile
+        title: Collect events logs
+        description: Collecting events log data
+        multi: false
+owner:
+  github: elastic/foobar
+  type: community
