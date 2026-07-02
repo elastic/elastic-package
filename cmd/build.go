@@ -14,6 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -45,6 +46,7 @@ func setupBuildCommand() *cobraext.Command {
 	cmd.Flags().Bool(cobraext.BuildZipFlagName, true, cobraext.BuildZipFlagDescription)
 	cmd.Flags().Bool(cobraext.SignPackageFlagName, false, cobraext.SignPackageFlagDescription)
 	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildCompileDashboardsAsCodeFlagName, false, cobraext.BuildCompileDashboardsAsCodeFlagDescription)
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
@@ -54,6 +56,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
 	signPackage, _ := cmd.Flags().GetBool(cobraext.SignPackageFlagName)
 	skipValidation, _ := cmd.Flags().GetBool(cobraext.BuildSkipValidationFlagName)
+	compileDashboardsAsCode, _ := cmd.Flags().GetBool(cobraext.BuildCompileDashboardsAsCodeFlagName)
 
 	if signPackage && !createZip {
 		return errors.New("can't sign the unzipped package, please use also the --zip switch")
@@ -102,7 +105,15 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	var kibanaClient *kibana.Client
+	if compileDashboardsAsCode {
+		kibanaClient, err = stack.NewKibanaClientFromProfile(prof)
+		if err != nil {
+			return fmt.Errorf("can't create Kibana client for dashboards-as-code compilation: %w", err)
+		}
+	}
+
+	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRoot:            packageRoot,
 		BuildDir:               buildDir,
 		CreateZip:              createZip,
@@ -112,6 +123,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		UpdateReadmes:          true,
 		SchemaURLs:             appConfig.SchemaURLs(),
 		RequiredInputsResolver: requiredInputsResolver,
+		KibanaClient:           kibanaClient,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
