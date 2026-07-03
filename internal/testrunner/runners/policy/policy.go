@@ -355,22 +355,29 @@ func applyNormalization(node any, idMapping map[string]string) {
 			}
 			return
 		}
-		for _, v := range n {
-			applyNormalization(v, idMapping)
+		for k, v := range n {
+			n[k] = replaceOrRecurse(v, idMapping)
 		}
 	case []any:
 		for i, elem := range n {
-			if s, ok := elem.(string); ok {
-				if newRef, ok := idMapping[s]; ok {
-					n[i] = newRef
-				}
-			} else {
-				applyNormalization(elem, idMapping)
-			}
+			n[i] = replaceOrRecurse(elem, idMapping)
 		}
 	default:
 		// strings, numbers, etc. — no change
 	}
+}
+
+// replaceOrRecurse returns v's canonical replacement if v is a string found in idMapping;
+// otherwise it recurses into v (for maps/slices) and returns v unchanged.
+func replaceOrRecurse(v any, idMapping map[string]string) any {
+	if s, ok := v.(string); ok {
+		if newRef, ok := idMapping[s]; ok {
+			return newRef
+		}
+		return v
+	}
+	applyNormalization(v, idMapping)
+	return v
 }
 
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
