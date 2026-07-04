@@ -1861,9 +1861,10 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 	oldHits := 0
 	foundFields := map[string]any{}
 	var missingFields []string
+	useDocValuesForIgnoredFields := ignoredFieldsUseDocValues()
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
-		hits, err = r.getDocs(ctx, dataStream, ignoredFieldsUseDocValues())
+		hits, err = r.getDocs(ctx, dataStream, useDocValuesForIgnoredFields)
 		if err != nil {
 			return false, err
 		}
