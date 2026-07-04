@@ -1007,6 +1007,9 @@ In this case, `elastic-package test system` will fail with an error and print a 
 skip_ignored_fields:
   - field.to.ignore
 ```
+
+For targeted verification runs, set `ELASTIC_PACKAGE_IGNORED_FIELDS_USE_DOC_VALUES=true` to read `_ignored` from doc values. This stricter lookup can surface ignored fields that the default `_fields` lookup misses.
+
 ### Kibana policy overrides
 
 If you need to test a system test with a Kibana policy override you can do that by setting the environment variable `ELASTIC_PACKAGE_KIBANA_POLICY_OVERRIDES` to be a path to a yaml file that contains the policy override.  For example:

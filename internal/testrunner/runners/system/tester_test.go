@@ -27,18 +27,54 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-func TestFieldsQueryReadsIgnoredFromDocValues(t *testing.T) {
-	var query struct {
-		RuntimeMappings map[string]struct {
-			Script struct {
-				Source string `json:"source"`
-			} `json:"script"`
-		} `json:"runtime_mappings"`
-	}
+func TestFieldsQueryIgnoredFieldsScript(t *testing.T) {
+	assert.Equal(t, fieldsQuery(false), FieldsQuery)
 
-	require.NoError(t, json.Unmarshal([]byte(FieldsQuery), &query))
-	assert.Equal(t, "for (def v : doc['_ignored']) { emit(v); }", query.RuntimeMappings["my_ignored"].Script.Source)
-	assert.NotContains(t, FieldsQuery, "params['_fields']")
+	for _, tc := range []struct {
+		name         string
+		useDocValues bool
+		expected     string
+		notExpected  string
+	}{
+		{
+			name:        "default keeps stored fields lookup",
+			expected:    storedFieldsIgnoredFieldsScript,
+			notExpected: docValuesIgnoredFieldsScript,
+		},
+		{
+			name:         "opt in reads ignored from doc values",
+			useDocValues: true,
+			expected:     docValuesIgnoredFieldsScript,
+			notExpected:  storedFieldsIgnoredFieldsScript,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			queryBody := fieldsQuery(tc.useDocValues)
+			var query struct {
+				RuntimeMappings map[string]struct {
+					Script struct {
+						Source string `json:"source"`
+					} `json:"script"`
+				} `json:"runtime_mappings"`
+			}
+
+			require.NoError(t, json.Unmarshal([]byte(queryBody), &query))
+			assert.Equal(t, tc.expected, query.RuntimeMappings["my_ignored"].Script.Source)
+			assert.NotContains(t, queryBody, tc.notExpected)
+		})
+	}
+}
+
+func TestIgnoredFieldsUseDocValues(t *testing.T) {
+	t.Run("disabled by default", func(t *testing.T) {
+		t.Setenv(ignoredFieldsUseDocValuesEnvVar, "")
+		assert.False(t, ignoredFieldsUseDocValues())
+	})
+
+	t.Run("enabled by environment", func(t *testing.T) {
+		t.Setenv(ignoredFieldsUseDocValuesEnvVar, "true")
+		assert.True(t, ignoredFieldsUseDocValues())
+	})
 }
 
 func TestFindPolicyTemplateForInput(t *testing.T) {

@@ -43,7 +43,13 @@ import (
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
-const FieldsQuery = `{
+const (
+	ignoredFieldsUseDocValuesEnvVar = "ELASTIC_PACKAGE_IGNORED_FIELDS_USE_DOC_VALUES"
+
+	storedFieldsIgnoredFieldsScript = "for (def v : params['_fields']._ignored.values) { emit(v); }"
+	docValuesIgnoredFieldsScript    = "for (def v : doc['_ignored']) { emit(v); }"
+
+	fieldsQueryTemplate = `{
   "fields": [
     "*"
   ],
@@ -51,7 +57,7 @@ const FieldsQuery = `{
     "my_ignored": {
       "type": "keyword",
       "script": {
-        "source": "for (def v : doc['_ignored']) { emit(v); }"
+        "source": %q
       }
     }
   },
@@ -78,6 +84,23 @@ const FieldsQuery = `{
     }
   }
 }`
+)
+
+// FieldsQuery is the default query body used by callers that don't opt in to
+// stricter _ignored doc-values detection.
+var FieldsQuery = fieldsQuery(false)
+
+func fieldsQuery(useDocValues bool) string {
+	script := storedFieldsIgnoredFieldsScript
+	if useDocValues {
+		script = docValuesIgnoredFieldsScript
+	}
+	return fmt.Sprintf(fieldsQueryTemplate, script)
+}
+
+func ignoredFieldsUseDocValues() bool {
+	return strings.EqualFold(os.Getenv(ignoredFieldsUseDocValuesEnvVar), "true")
+}
 
 // doNotSkipDeferCleanup is the value for tearDownTest's skipDeferCleanup parameter
 // when the caller wants to keep the defer-cleanup wait (e.g. setup/teardown-only paths).
@@ -835,14 +858,14 @@ func (h hits) size() int {
 	return len(h.Source)
 }
 
-func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) {
+func (r *tester) getDocs(ctx context.Context, dataStream string, useDocValuesForIgnoredFields bool) (*hits, error) {
 	resp, err := r.esAPI.Search(
 		r.esAPI.Search.WithContext(ctx),
 		r.esAPI.Search.WithIndex(dataStream),
 		r.esAPI.Search.WithSort("@timestamp:asc"),
 		r.esAPI.Search.WithSize(elasticsearchQuerySize),
 		r.esAPI.Search.WithSource("true"),
-		r.esAPI.Search.WithBody(strings.NewReader(FieldsQuery)),
+		r.esAPI.Search.WithBody(strings.NewReader(fieldsQuery(useDocValuesForIgnoredFields))),
 		r.esAPI.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
@@ -1840,7 +1863,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 	var missingFields []string
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
-		hits, err = r.getDocs(ctx, dataStream)
+		hits, err = r.getDocs(ctx, dataStream, ignoredFieldsUseDocValues())
 		if err != nil {
 			return false, err
 		}
