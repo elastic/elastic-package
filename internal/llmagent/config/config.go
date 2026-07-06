@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	DefaultModelID              = "gemini-3-flash-preview"
+	DefaultModelID              = "gemini-3.5-flash"
 	DefaultThinkingBudget int32 = 128
 	DefaultProvider             = "gemini"
 )

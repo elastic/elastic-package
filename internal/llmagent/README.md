@@ -281,7 +281,7 @@ Example: `workflow.DefaultConfig().WithModel(m).WithModelID("...").WithTools(too
 ```go
 agent, err := docagent.NewDocumentationAgent(ctx, docagent.AgentConfig{
     APIKey:      apiKey,
-    ModelID:     "gemini-3-flash-preview",
+    ModelID:     "gemini-3.5-flash",
     PackageRoot: "/path/to/package",
     DocFile:     "README.md",
 })
