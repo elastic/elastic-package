@@ -17,7 +17,7 @@ const (
 	DefaultEndpoint    = "http://localhost:6006/v1/traces"
 	DefaultProjectName = "elastic-package"
 	TracerName         = "elastic-package-llmagent"
-	DefaultModelID     = "gemini-3-flash-preview"
+	DefaultModelID     = "gemini-3.5-flash"
 )
 
 // Config holds LLM tracing configuration.

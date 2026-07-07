@@ -34,7 +34,7 @@ Currently only the Gemini provider is supported. Gemini is the default provider.
 ```yaml
 llm.provider: gemini
 llm.gemini.api_key: "YOUR_API_KEY"
-llm.gemini.model: "gemini-3-flash-preview"
+llm.gemini.model: "gemini-3.5-flash"
 llm.gemini.thinking_budget: "128"
 ```
 

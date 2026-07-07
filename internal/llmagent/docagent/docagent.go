@@ -6,6 +6,7 @@ package docagent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/tui"
 )
 
 const (
@@ -70,8 +72,10 @@ type TaskResult = executor.TaskResult
 type PromptType = prompts.Type
 
 const (
-	PromptTypeRevision          = prompts.TypeRevision
-	PromptTypeSectionGeneration = prompts.TypeSectionGeneration
+	PromptTypeRevision             = prompts.TypeRevision
+	PromptTypeSectionGeneration    = prompts.TypeSectionGeneration
+	PromptTypeModificationAnalysis = prompts.TypeModificationAnalysis
+	PromptTypeModification         = prompts.TypeModification
 )
 
 // DocumentationAgent handles documentation updates for packages
@@ -95,6 +99,7 @@ type PromptContext struct {
 	SectionLevel    int
 	TemplateSection string
 	ExampleSection  string
+	SectionList     string                     // formatted list of all available sections (for scope analysis)
 	PackageContext  *validators.PackageContext // For section-specific instructions
 }
 
@@ -292,27 +297,123 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 	return nil
 }
 
-// runInteractiveSectionReview allows user to review generated documentation in interactive mode
-func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context) error {
-	_ = ctx // reserved for future use
+// ModifyDocumentation runs the documentation modification process for targeted changes using section-based approach
+func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInteractive bool, modifyPrompt string) error {
+	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:modify", d.executor.ModelID(), d.executor.Provider())
+	var sessionOutput string
+	defer func() {
+		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
+	}()
 
-	// Display the generated documentation
-	if err := d.displayReadme(); err != nil {
-		logger.Debugf("could not display readme: %v", err)
+	d.printTracingSessionID(ctx)
+
+	// Check if documentation file exists
+	if _, err := os.Stat(d.docPath()); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("cannot modify documentation: %s does not exist at _dev/build/docs/%s", d.targetDocFile, d.targetDocFile)
+		}
+		return fmt.Errorf("failed to check %s: %w", d.targetDocFile, err)
 	}
 
-	// Get user action
-	action, err := d.getUserAction()
+	var instructions string
+	if modifyPrompt != "" {
+		instructions = modifyPrompt
+	} else if !nonInteractive {
+		var err error
+		instructions, err = tui.AskTextArea("What changes would you like to make to the documentation?")
+		if err != nil {
+			if errors.Is(err, tui.ErrCancelled) {
+				fmt.Println("⚠️  Modification cancelled.")
+				return nil
+			}
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+		if strings.TrimSpace(instructions) == "" {
+			return fmt.Errorf("no modification instructions provided")
+		}
+	} else {
+		return fmt.Errorf("--modify-prompt flag is required in non-interactive mode")
+	}
+
+	// Record initial input for session
+	inputDesc := fmt.Sprintf("Modify documentation for package: %s (file: %s) - Request: %s", d.manifest.Name, d.targetDocFile, instructions)
+	tracing.RecordSessionInput(sessionSpan, inputDesc)
+
+	// Confirm LLM understands the documentation guidelines before proceeding
+	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
+		return fmt.Errorf("instruction confirmation failed: %w", err)
+	}
+
+	// Backup original README content before making any changes
+	if err := d.backupOriginalReadme(); err != nil {
+		return fmt.Errorf("failed to backup original readme: %w", err)
+	}
+
+	fmt.Println("📝 Analyzing modification request...")
+
+	// Parse existing documentation into sections
+	existingContent, err := d.readCurrentReadme()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read current documentation: %w", err)
+	}
+	existingSections := parsing.ParseSections(existingContent)
+
+	if len(existingSections) == 0 {
+		return fmt.Errorf("no sections found in existing documentation")
 	}
 
-	actionResult := d.handleUserAction(action, true)
-	if actionResult.Err != nil {
-		return actionResult.Err
+	// Analyze modification scope against the actual document sections
+	scope := d.analyzeModificationScope(ctx, instructions, existingSections)
+
+	// Report scope to user
+	fmt.Printf("✓ Scope: %s", scope.Type)
+	if scope.Type == ScopeSpecific {
+		fmt.Printf(" (sections: %s)", strings.Join(scope.AffectedSections, ", "))
+	}
+	if scope.Confidence < 0.7 {
+		fmt.Printf(" [confidence: %.0f%%]", scope.Confidence*100)
+	}
+	fmt.Println()
+	if scope.Reasoning != "" {
+		logger.Debugf("Scope reasoning: %s", scope.Reasoning)
+	}
+
+	// Apply modifications based on scope
+	finalSections, err := d.applyModificationScope(ctx, existingSections, scope, instructions)
+	if err != nil {
+		return fmt.Errorf("failed to modify sections: %w", err)
+	}
+
+	// Combine and write
+	finalContent := parsing.CombineSections(finalSections)
+	sessionOutput = fmt.Sprintf("Modified %d sections, %d characters for %s", len(finalSections), len(finalContent), d.targetDocFile)
+
+	if err := d.writeDocumentation(d.docPath(), finalContent); err != nil {
+		return fmt.Errorf("failed to write documentation: %w", err)
+	}
+
+	fmt.Printf("\n✅ Documentation modified successfully! (%d characters)\n", len(finalContent))
+	fmt.Printf("📄 Written to: _dev/build/docs/%s\n", d.targetDocFile)
+
+	// In interactive mode, allow review
+	if !nonInteractive {
+		return d.runInteractiveSectionReview(ctx)
 	}
 
 	return nil
+}
+
+// logAgentResponse logs debug information about the agent response
+func (d *DocumentationAgent) logAgentResponse(result *TaskResult) {
+	logger.Debugf("DEBUG: Full agent task response follows (may contain sensitive content)")
+	logger.Debugf("Agent task response - Success: %t", result.Success)
+	logger.Debugf("Agent task response - FinalContent: %s", result.FinalContent)
+	logger.Debugf("Agent task response - Conversation entries: %d", len(result.Conversation))
+	for i, entry := range result.Conversation {
+		logger.Debugf("Agent task response - Conversation[%d]: type=%s, content_length=%d",
+			i, entry.Type, len(entry.Content))
+		logger.Tracef("Agent task response - Conversation[%d]: content=%s", i, entry.Content)
+	}
 }
 
 // NewResponseAnalyzer creates a new ResponseAnalyzer with default patterns
@@ -452,9 +553,271 @@ func (d *DocumentationAgent) writeDocumentation(path, content string) error {
 	return nil
 }
 
+// defaultModificationScope returns a default global scope when analysis fails.
+func defaultModificationScope(reason string) *ModificationScope {
+	s := &ModificationScope{Type: ScopeGlobal, Confidence: 0.5}
+	if reason != "" {
+		s.Reasoning = reason
+	}
+	return s
+}
+
+// applyModificationScope applies modifications to sections based on scope.
+func (d *DocumentationAgent) applyModificationScope(ctx context.Context, existingSections []Section, scope *ModificationScope, instructions string) ([]Section, error) {
+	switch scope.Type {
+	case ScopeGlobal, ScopeAmbiguous:
+		if scope.Type == ScopeAmbiguous {
+			fmt.Println("⚠️  Scope is ambiguous, modifying all sections to be safe")
+		}
+		fmt.Printf("📝 Modifying all %d sections...\n", len(existingSections))
+		return d.modifyAllSections(ctx, existingSections, instructions)
+	case ScopeSpecific:
+		fmt.Printf("📝 Modifying %d of %d sections...\n", len(scope.AffectedSections), len(existingSections))
+		return d.modifySpecificSections(ctx, existingSections, scope.AffectedSections, instructions)
+	default:
+		return nil, fmt.Errorf("unexpected scope type: %v", scope.Type)
+	}
+}
+
+// runInteractiveSectionReview allows user to review and request changes in interactive mode
+func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context) error {
+	for {
+		// Display the generated documentation
+		if err := d.displayReadme(); err != nil {
+			logger.Debugf("could not display readme: %v", err)
+		}
+
+		// Get user action
+		action, err := d.getUserAction()
+		if err != nil {
+			return err
+		}
+
+		actionResult := d.handleUserAction(action, true)
+		if actionResult.Err != nil {
+			return actionResult.Err
+		}
+
+		// If user doesn't want to continue, exit
+		if !actionResult.ShouldContinue {
+			return nil
+		}
+
+		// User requested changes - run modification workflow
+		if actionResult.Changes == "" {
+			continue // No changes provided, loop again
+		}
+
+		fmt.Println("📝 Applying requested changes...")
+
+		// Re-read current sections from file
+		existingContent, err := d.readCurrentReadme()
+		if err != nil {
+			return fmt.Errorf("failed to read current documentation: %w", err)
+		}
+		sectionsFromFile := parsing.ParseSections(existingContent)
+
+		// Analyze modification scope against the current document sections
+		scope := d.analyzeModificationScope(ctx, actionResult.Changes, sectionsFromFile)
+
+		// Apply modifications
+		modifiedSections, err := d.applyModificationScope(ctx, sectionsFromFile, scope, actionResult.Changes)
+		if err != nil {
+			return fmt.Errorf("failed to modify sections: %w", err)
+		}
+
+		// Write updated documentation
+		finalContent := parsing.CombineSections(modifiedSections)
+		if err := d.writeDocumentation(d.docPath(), finalContent); err != nil {
+			return fmt.Errorf("failed to write documentation: %w", err)
+		}
+
+		fmt.Printf("\n✅ Changes applied! (%d characters)\n", len(finalContent))
+	}
+}
+
+// modifyAllSections regenerates all sections with modification context, running in parallel
+func (d *DocumentationAgent) modifyAllSections(ctx context.Context, existingSections []Section, modificationPrompt string) ([]Section, error) {
+	fmt.Printf("📝 Modifying all %d sections concurrently...\n", len(existingSections))
+
+	resultsChan := make(chan sectionResult, len(existingSections))
+	var wg sync.WaitGroup
+
+	for i, section := range existingSections {
+		wg.Add(1)
+		go func(idx int, sec Section) {
+			defer wg.Done()
+			promptCtx := PromptContext{
+				Manifest:        d.manifest,
+				TargetDocFile:   d.targetDocFile,
+				Changes:         modificationPrompt,
+				SectionTitle:    sec.Title,
+				SectionLevel:    sec.Level,
+				TemplateSection: sec.Content,
+			}
+			prompt := d.buildPrompt(PromptTypeModification, promptCtx)
+			modifiedSection, err := d.generateModifiedSection(ctx, sec, prompt)
+			if err != nil {
+				logger.Debugf("Failed to modify section %s: %v", sec.Title, err)
+				resultsChan <- sectionResult{index: idx, section: sec, err: err}
+				return
+			}
+			resultsChan <- sectionResult{index: idx, section: modifiedSection}
+		}(i, section)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	results := make([]Section, len(existingSections))
+	for r := range resultsChan {
+		if r.err != nil {
+			results[r.index] = existingSections[r.index]
+		} else {
+			results[r.index] = r.section
+		}
+	}
+
+	fmt.Printf("✓ Modified all %d sections\n", len(results))
+	return results, nil
+}
+
+// modifySpecificSections regenerates only affected sections, running in parallel.
+// For hierarchical sections, if a subsection is affected, the entire parent section is regenerated.
+func (d *DocumentationAgent) modifySpecificSections(ctx context.Context, existingSections []Section, affectedSectionTitles []string, modificationPrompt string) ([]Section, error) {
+	// Pre-compute which top-level sections need modification so the denominator is accurate.
+	type sectionWork struct {
+		index   int
+		section Section
+	}
+	var toModify []sectionWork
+	for i, section := range existingSections {
+		isAffected := isSectionAffected(section.Title, affectedSectionTitles)
+		if !isAffected {
+			for _, subsection := range section.Subsections {
+				if isSectionAffected(subsection.Title, affectedSectionTitles) {
+					isAffected = true
+					logger.Debugf("Subsection %s is affected, will regenerate parent section %s", subsection.Title, section.Title)
+					break
+				}
+			}
+		}
+		if isAffected {
+			toModify = append(toModify, sectionWork{index: i, section: section})
+		}
+	}
+
+	fmt.Printf("📝 Modifying %d of %d sections concurrently...\n", len(toModify), len(existingSections))
+
+	if len(toModify) == 0 {
+		fmt.Println("✓ No matching sections found; document unchanged.")
+		return existingSections, nil
+	}
+
+	resultsChan := make(chan sectionResult, len(toModify))
+	var wg sync.WaitGroup
+
+	for _, work := range toModify {
+		wg.Add(1)
+		go func(idx int, sec Section) {
+			defer wg.Done()
+			promptCtx := PromptContext{
+				Manifest:        d.manifest,
+				TargetDocFile:   d.targetDocFile,
+				Changes:         modificationPrompt,
+				SectionTitle:    sec.Title,
+				SectionLevel:    sec.Level,
+				TemplateSection: sec.GetAllContent(), // include subsections in context
+			}
+			prompt := d.buildPrompt(PromptTypeModification, promptCtx)
+			modifiedSection, err := d.generateModifiedSection(ctx, sec, prompt)
+			if err != nil {
+				logger.Debugf("Failed to modify section %s: %v", sec.Title, err)
+				resultsChan <- sectionResult{index: idx, section: sec, err: err}
+				return
+			}
+			// Parse to restore hierarchical structure
+			parsedModified := parsing.ParseSections(modifiedSection.Content)
+			if len(parsedModified) > 0 {
+				modifiedSection = parsedModified[0]
+			}
+			resultsChan <- sectionResult{index: idx, section: modifiedSection}
+		}(work.index, work.section)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	finalSections := make([]Section, len(existingSections))
+	copy(finalSections, existingSections)
+	for r := range resultsChan {
+		if r.err != nil {
+			finalSections[r.index] = existingSections[r.index]
+		} else {
+			finalSections[r.index] = r.section
+		}
+	}
+
+	preservedCount := len(existingSections) - len(toModify)
+	fmt.Printf("✓ Modified: %d sections, Preserved: %d sections\n", len(toModify), preservedCount)
+	return finalSections, nil
+}
+
 // placeholderSectionContent returns markdown for a section that couldn't be populated.
 func placeholderSectionContent(sectionTitle string) string {
 	return fmt.Sprintf("## %s\n\n%s", sectionTitle, emptySectionPlaceholder)
+}
+
+// extractGeneratedSectionContent extracts the generated section content from the LLM response
+func (d *DocumentationAgent) extractGeneratedSectionContent(result *TaskResult, sectionTitle string) string {
+	content := result.FinalContent
+	if strings.TrimSpace(content) == "" {
+		logger.Warnf("LLM returned empty response for section: %s", sectionTitle)
+	}
+	return parsing.ExtractSectionFromLLMResponse(content, sectionTitle, emptySectionPlaceholder)
+}
+
+// generateModifiedSection generates a modified version of a section using the LLM
+func (d *DocumentationAgent) generateModifiedSection(ctx context.Context, originalSection Section, prompt string) (Section, error) {
+	// Execute the task
+	result, err := d.executor.ExecuteTask(ctx, prompt)
+	if err != nil {
+		return Section{}, fmt.Errorf("agent task failed: %w", err)
+	}
+
+	// Log the result
+	d.logAgentResponse(result)
+
+	// Analyze the response
+	analysis := d.responseAnalyzer.AnalyzeResponse(result.FinalContent, result.Conversation)
+	if analysis.Status == responseError {
+		return Section{}, fmt.Errorf("LLM reported an error: %s", analysis.Message)
+	}
+
+	// Extract the generated content
+	generatedContent := d.extractGeneratedSectionContent(result, originalSection.Title)
+
+	// Create the modified section
+	modifiedSection := Section{
+		Title:     originalSection.Title,
+		Level:     originalSection.Level,
+		Content:   generatedContent,
+		StartLine: originalSection.StartLine,
+		EndLine:   originalSection.EndLine,
+	}
+
+	return modifiedSection, nil
+}
+
+// sectionResult holds the result of processing a single section (generation or modification)
+type sectionResult struct {
+	index   int
+	section Section
+	err     error
 }
 
 // loadTemplateExampleExistingSections loads template, example, and existing doc sections and returns top-level template sections.

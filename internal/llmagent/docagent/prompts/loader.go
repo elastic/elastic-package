@@ -12,6 +12,8 @@ type Type int
 const (
 	TypeRevision Type = iota
 	TypeSectionGeneration
+	TypeModificationAnalysis
+	TypeModification
 )
 
 // Load returns the embedded prompt content for the given type
@@ -21,6 +23,10 @@ func Load(promptType Type) string {
 		return RevisionPrompt
 	case TypeSectionGeneration:
 		return SectionGenerationPrompt
+	case TypeModificationAnalysis:
+		return ModificationAnalysisPrompt
+	case TypeModification:
+		return ModificationPrompt
 	default:
 		return ""
 	}
