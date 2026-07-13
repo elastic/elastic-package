@@ -127,6 +127,9 @@ package dependencies are fetched from the configured package registry URL
 For details on using a local or custom registry when the required input packages are still
 under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).
 
+For a step-by-step guide to migrating an existing integration from inline agent templates to a
+required input package, see [HOWTO: Migrate an integration package to use required input dependencies](./migrate_integration_required_input_dependency.md).
+
 ### Updating `requires` pins from the package registry
 
 Integration packages with `requires` pin input and content dependencies in
