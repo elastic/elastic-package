@@ -157,9 +157,7 @@ data_stream:
 
 ```bash
 elastic-package build
-elastic-package test
-elastic-package test policy -v
-elastic-package test system
+elastic-package test -v
 ```
 
 Manually exercise dashboards against a live service instance when metrics only populate under traffic (search/package API requests, and so on).
