@@ -108,7 +108,7 @@ tags:
 {{/each}}
 ```
 
-Everything else is merged from the `prometheus_input` template at build time.
+Everything else is imported from the `prometheus_input` template at build time, and merged into a single policy by Fleet.
 
 If the integration shares agent templates via **link files** (`*.link`), set `template_path` to the **materialized** filename (without the `.link` suffix). The builder resolves templates after linked content is copied into the build output. See [Linked files and `template_path`](./dependency_management.md#linked-files-link-and-template_path).
 
