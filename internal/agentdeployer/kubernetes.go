@@ -199,19 +199,14 @@ func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInf
 		stackVersion = version
 	}
 
-	enrollmentToken := ""
-	if config.ElasticsearchAPIKey != "" {
-		// TODO: Review if this is the correct place to get the enrollment token.
-		kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create kibana client: %w", err)
-		}
-		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(ctx, agentInfo.Policy.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
-		}
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kibana client: %w", err)
 	}
-
+	enrollmentToken, err := kibanaClient.GetEnrollmentTokenForPolicyID(ctx, agentInfo.Policy.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
+	}
 	// default to stack version if no override is provided
 	agentVersion := stackVersion
 	if overrideAgentVersion != "" {
