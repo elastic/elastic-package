@@ -118,7 +118,7 @@ Set `dataset:` on the data stream manifest so documents keep the integration's i
 
 ### 5. Reconcile variable defaults and overrides
 
-Audit each input variable and decide whether to inherit, redeclare with a new default, or expose as integration-only — see [Variable overrides](#variable-overrides).
+Audit each input variable and decide whether to inherit, redeclare with a new default, or expose as integration-only — see [Variable overrides](#variable-overrides). For each variable, be explicit about its intent: who sets it (integration author vs end user), whether it appears in Fleet, and whether the rendered agent template references it via `{{variable}}` rather than a hardcoded literal.
 
 ### 6. Update tests
 
@@ -159,6 +159,8 @@ data_stream:
 elastic-package build
 elastic-package test -v
 ```
+
+Install the built package in a local stack and create an agent policy when possible: confirm variables shown in Fleet map to references in the rendered agent template and that changing a UI field updates the policy (no hardcoded template values that ignore user input).
 
 Manually exercise dashboards against a live service instance when metrics only populate under traffic (search/package API requests, and so on).
 
@@ -395,10 +397,10 @@ Before opening the migration PR:
 
 - [ ] `format_version` ≥ `3.6.5` and `requires.input` pinned to a published input version
 - [ ] `dataset` explicitly set on the data stream manifest when it must differ from the input default
-- [ ] Local `stream.yml.hbs` contains only integration-owned template fragments
-- [ ] Variable overrides use data stream `vars` (not silent template hardcoding) unless documented as intentional
+- [ ] Local `stream.yml.hbs` contains only integration-owned template fragments; integration-specific or overridden values use `{{variable}}` references, not hardcoded literals that bypass Fleet
+- [ ] Variable intent is explicit per [Variable overrides](#variable-overrides): manifest `vars` for integration-only or overridden defaults (categories A/B), inherit input defaults when acceptable (category C) — avoid silent template hardcoding that leaves misleading values in the Fleet UI
 - [ ] `_dev/test/config.yml` declares `requires` for local input package during development
-- [ ] Policy tests: default + overrides, expectations reviewed for dataset, overridden defaults, and sibling streams (`enabled: false` where required)
+- [ ] Policy tests (default + overrides): expectations confirm every Fleet-visible variable maps to the rendered agent template and user-set values take effect — review dataset, overridden defaults, sibling streams (`enabled: false` where required), and spot-check by installing the built package and creating a policy in Fleet when policy tests do not cover a variable
 - [ ] System tests pass with realistic service traffic where needed
 - [ ] Pipeline regression tests for edge cases found during migration
 - [ ] Changelog entries: migration, stack constraint, field-mapping fixes
