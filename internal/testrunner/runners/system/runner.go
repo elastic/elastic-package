@@ -17,8 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -623,20 +621,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	columnarSkipReasons := map[string]string{}
-	if r.logsDBColumnar {
-		columnarSkipReasons, err = r.skipReasonsForLogsDBColumnar(folders)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	var testers []testrunner.Tester
 	for _, t := range folders {
-		if reason, shouldSkip := columnarSkipReasons[t.Path]; shouldSkip {
-			testers = append(testers, newSkippedSystemTester(t, reason))
-			continue
-		}
 		folderTesters, err := r.createTestersForFolder(t, serviceState)
 		if err != nil {
 			return nil, err
@@ -700,127 +686,6 @@ func (r *runner) createTestersForFolder(testFolder testrunner.TestFolder, servic
 	}
 
 	return testers, nil
-}
-
-func (r *runner) skipReasonsForLogsDBColumnar(folders []testrunner.TestFolder) (map[string]string, error) {
-	reasons := map[string]string{}
-
-	for _, folder := range folders {
-		if folder.DataStream == "" {
-			continue
-		}
-
-		manifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, folder.DataStream)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read manifest for data stream %q: %w", folder.DataStream, err)
-		}
-		if manifest.Type != "logs" {
-			continue
-		}
-
-		hasNested, err := hasNestedFieldsInDataStream(r.packageRoot, folder.DataStream)
-		if err != nil {
-			return nil, err
-		}
-		if hasNested {
-			reasons[folder.Path] = "LogsDB Columnar does not support nested mappings for logs data streams"
-		}
-	}
-
-	return reasons, nil
-}
-
-type skippedSystemTester struct {
-	testFolder testrunner.TestFolder
-	reason     string
-}
-
-func newSkippedSystemTester(testFolder testrunner.TestFolder, reason string) *skippedSystemTester {
-	return &skippedSystemTester{
-		testFolder: testFolder,
-		reason:     reason,
-	}
-}
-
-func (s *skippedSystemTester) Type() testrunner.TestType {
-	return TestType
-}
-
-func (s *skippedSystemTester) String() string {
-	return "system"
-}
-
-func (s *skippedSystemTester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
-	logger.Warnf(
-		"skipping system test for %s/%s: %s",
-		s.testFolder.Package,
-		s.testFolder.DataStream,
-		s.reason,
-	)
-	result := testrunner.NewResultComposer(testrunner.TestResult{
-		TestType:   TestType,
-		Name:       "logsdb-columnar compatibility",
-		Package:    s.testFolder.Package,
-		DataStream: s.testFolder.DataStream,
-	})
-	return result.WithSkip(&testrunner.SkipConfig{Reason: s.reason})
-}
-
-func (s *skippedSystemTester) TearDown(ctx context.Context) error {
-	return nil
-}
-
-func (s *skippedSystemTester) Parallel() bool {
-	return true
-}
-
-func hasNestedFieldsInDataStream(packageRoot, dataStreamName string) (bool, error) {
-	fieldsDir := filepath.Join(packageRoot, "data_stream", dataStreamName, "fields")
-	info, err := os.Stat(fieldsDir)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("failed to inspect fields directory for data stream %q: %w", dataStreamName, err)
-	case !info.IsDir():
-		return false, nil
-	}
-
-	fieldFiles, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
-	if err != nil {
-		return false, fmt.Errorf("failed to list field files for data stream %q: %w", dataStreamName, err)
-	}
-
-	for _, fieldFile := range fieldFiles {
-		content, err := os.ReadFile(fieldFile)
-		if err != nil {
-			return false, fmt.Errorf("failed to read field file %q: %w", fieldFile, err)
-		}
-		var definitions fields.FieldDefinitions
-		if err := yaml.Unmarshal(content, &definitions); err != nil {
-			return false, fmt.Errorf("failed to parse field file %q: %w", fieldFile, err)
-		}
-		if hasNestedFieldDefinitions(definitions) {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func hasNestedFieldDefinitions(definitions []fields.FieldDefinition) bool {
-	for _, definition := range definitions {
-		if definition.Type == "nested" {
-			return true
-		}
-		if hasNestedFieldDefinitions(definition.Fields) {
-			return true
-		}
-		if hasNestedFieldDefinitions(definition.MultiFields) {
-			return true
-		}
-	}
-	return false
 }
 
 // Type returns the type of test that can be run by this test runner.

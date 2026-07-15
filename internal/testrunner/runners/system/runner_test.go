@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 func TestBuildLogsDBColumnarTemplatePayload(t *testing.T) {
@@ -166,59 +165,6 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 	assert.False(t, hasMode)
 }
 
-func TestHasNestedFieldsInDataStream(t *testing.T) {
-	packageRoot := t.TempDir()
-
-	err := writeFile(filepath.Join(packageRoot, "data_stream", "with_nested", "fields", "fields.yml"), `
-- name: dns.answers
-  type: nested
-`)
-	require.NoError(t, err)
-
-	err = writeFile(filepath.Join(packageRoot, "data_stream", "without_nested", "fields", "fields.yml"), `
-- name: message
-  type: keyword
-`)
-	require.NoError(t, err)
-
-	nested, err := hasNestedFieldsInDataStream(packageRoot, "with_nested")
-	require.NoError(t, err)
-	assert.True(t, nested)
-
-	nested, err = hasNestedFieldsInDataStream(packageRoot, "without_nested")
-	require.NoError(t, err)
-	assert.False(t, nested)
-
-	nested, err = hasNestedFieldsInDataStream(packageRoot, "missing")
-	require.NoError(t, err)
-	assert.False(t, nested)
-}
-
-func TestSkipReasonsForLogsDBColumnar(t *testing.T) {
-	packageRoot := t.TempDir()
-	require.NoError(t, writeFile(filepath.Join(packageRoot, "data_stream", "logs_stream", "manifest.yml"), "title: Logs\ntype: logs\n"))
-	require.NoError(t, writeFile(filepath.Join(packageRoot, "data_stream", "logs_stream", "fields", "fields.yml"), `
-- name: dns.answers
-  type: nested
-`))
-	require.NoError(t, writeFile(filepath.Join(packageRoot, "data_stream", "metrics_stream", "manifest.yml"), "title: Metrics\ntype: metrics\n"))
-	require.NoError(t, writeFile(filepath.Join(packageRoot, "data_stream", "metrics_stream", "fields", "fields.yml"), `
-- name: host.name
-  type: keyword
-`))
-
-	r := &runner{packageRoot: packageRoot}
-	folders := []testrunner.TestFolder{
-		{Path: "/tmp/logs", Package: "demo", DataStream: "logs_stream"},
-		{Path: "/tmp/metrics", Package: "demo", DataStream: "metrics_stream"},
-	}
-
-	reasons, err := r.skipReasonsForLogsDBColumnar(folders)
-	require.NoError(t, err)
-	require.Len(t, reasons, 1)
-	assert.Contains(t, reasons["/tmp/logs"], "does not support nested mappings")
-}
-
 func indexModeFromPayload(t *testing.T, payload []byte) string {
 	t.Helper()
 	decoded := map[string]any{}
@@ -227,11 +173,4 @@ func indexModeFromPayload(t *testing.T, payload []byte) string {
 	settings := template["settings"].(map[string]any)
 	index := settings["index"].(map[string]any)
 	return index["mode"].(string)
-}
-
-func writeFile(path string, content string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(content), 0644)
 }
