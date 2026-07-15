@@ -227,6 +227,88 @@ service:
 		assert.Contains(t, string(out), "- elasticsearch/componentid-0")
 	})
 
+	t.Run("bare forward connector normalizes to forward/componentid-N", func(t *testing.T) {
+		policy := `
+connectors:
+  forward: {}
+service:
+  pipelines:
+    logs/my-stream:
+      receivers:
+        - otlp/my-stream
+      exporters:
+        - forward
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - elasticsearch/default
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		assert.Contains(t, string(out), "forward/componentid-0")
+		assert.NotContains(t, string(out), "forward: {}")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("bare and suffixed forward normalize to same result", func(t *testing.T) {
+		bare := `
+connectors:
+  forward: {}
+service:
+  pipelines:
+    logs/my-stream:
+      exporters:
+        - forward
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - elasticsearch/default
+`
+		suffixed := `
+connectors:
+  forward/default: {}
+service:
+  pipelines:
+    logs/my-stream:
+      exporters:
+        - forward/default
+    logs/default:
+      receivers:
+        - forward/default
+      exporters:
+        - elasticsearch/default
+`
+		outBare, err := normalizePolicyToCanonical([]byte(bare))
+		assert.NoError(t, err)
+		t.Log(string(outBare))
+		outSuffixed, err := normalizePolicyToCanonical([]byte(suffixed))
+		assert.NoError(t, err)
+		t.Log(string(outSuffixed))
+		assert.Equal(t, string(outBare), string(outSuffixed))
+	})
+
+	t.Run("strips OTTL where clause from data_stream set statements", func(t *testing.T) {
+		policy := `
+processors:
+  transform/abc:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["data_stream.type"], "logs")
+          - set(attributes["data_stream.dataset"], "my_pkg.events") where attributes["data_stream.dataset"] == nil
+          - set(attributes["data_stream.namespace"], "ep") where attributes["data_stream.namespace"] == nil
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		s := string(out)
+		assert.Contains(t, s, `set(attributes["data_stream.dataset"], "my_pkg.events")`)
+		assert.Contains(t, s, `set(attributes["data_stream.namespace"], "ep")`)
+		assert.NotContains(t, s, "where")
+		assert.NotContains(t, s, "== nil")
+	})
+
 	t.Run("order-independent: same components different key order normalize to same result", func(t *testing.T) {
 		policyA := `
 exporters:

@@ -236,6 +236,70 @@ func isOTelVariableKey(key string) bool {
 	return strings.Contains(key, "/")
 }
 
+// ottlConditionalDataStreamAttr matches " where attributes["data_stream.<field>"] == nil"
+// suffixes appended by Fleet since kibana#274993. Stripping them makes policy comparison
+// stable across Fleet versions that do and don't add the guard.
+var ottlConditionalDataStreamAttr = regexp.MustCompile(` where attributes\["data_stream\.\w+"\] == nil$`)
+
+// preNormalizePolicy rewrites the decoded policy tree before component-ID normalization
+// to absorb Fleet version differences that would otherwise cause spurious policy test failures.
+func preNormalizePolicy(root map[string]any) {
+	// Rename the bare "forward" connector key to "forward/_bare" so it is treated as a
+	// variable key and participates in normalization. Fleet added an output-ID suffix in
+	// 9.4.3 (kibana#270487) producing "forward/<outputId>" keys, which already contain "/"
+	// and are normalized automatically. Only the bare case needs renaming here; distinct
+	// "forward/<outputId>" keys are left intact so policies with multiple outputs retain
+	// separate forward connectors.
+	if connectors, ok := toMap(root["connectors"]); ok {
+		if v, hasBare := connectors["forward"]; hasBare {
+			delete(connectors, "forward")
+			connectors["forward/_bare"] = v
+		}
+	}
+
+	// Rename bare pipeline keys (e.g. "logs", "metrics") to "<signal>/_bare" so
+	// they participate in normalization the same way suffixed keys do. Fleet
+	// started suffixing these with the output ID in 9.4.3 (kibana#270487).
+	if service, ok := toMap(root["service"]); ok {
+		if pipelines, ok := toMap(service["pipelines"]); ok {
+			for k, v := range pipelines {
+				if !strings.Contains(k, "/") {
+					delete(pipelines, k)
+					pipelines[k+"/_bare"] = v
+				}
+			}
+		}
+	}
+
+	// Walk string elements in arrays to:
+	//   - replace bare "forward" connector refs with "forward/_bare" (pipeline arrays)
+	//   - strip conditional "where ... == nil" OTTL suffixes from set() statements
+	preNormalizeNode(root)
+}
+
+// preNormalizeNode recursively walks the tree. String elements inside slices
+// are rewritten; map keys and scalar map values are left to the later normalization pass.
+func preNormalizeNode(node any) {
+	switch n := node.(type) {
+	case map[string]any:
+		for _, v := range n {
+			preNormalizeNode(v)
+		}
+	case []any:
+		for i, elem := range n {
+			if s, ok := elem.(string); ok {
+				s = ottlConditionalDataStreamAttr.ReplaceAllString(s, "")
+				if s == "forward" {
+					s = "forward/_bare"
+				}
+				n[i] = s
+			} else {
+				preNormalizeNode(elem)
+			}
+		}
+	}
+}
+
 // normalizePolicyToCanonical rewrites OTel component IDs to deterministic type/componentid-N
 // and updates all references. It works on the decoded tree and sorts variable keys by
 // canonical value so that equivalent policies with different map key order normalize to
@@ -245,6 +309,8 @@ func normalizePolicyToCanonical(policy []byte) ([]byte, error) {
 	if err := yaml.Unmarshal(policy, &root); err != nil {
 		return nil, fmt.Errorf("failed to decode policy: %w", err)
 	}
+
+	preNormalizePolicy(root)
 
 	// Build mapping oldKey -> newKey (e.g. "elasticsearch/default" -> "elasticsearch/componentid-0")
 	// by processing each variable-key section with deterministic (value-based) key order.
