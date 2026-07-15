@@ -402,6 +402,163 @@ service:
 		assert.Contains(t, string(out), "traces/componentid-0")
 	})
 
+	t.Run("bare extension key referenced from service.extensions normalizes to componentid-0", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+service:
+  extensions:
+    - basicauth
+  pipelines:
+    traces/abc:
+      receivers:
+        - otlp/abc
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "basicauth/componentid-0")
+		assert.Contains(t, string(out), "- basicauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("bare extension key referenced from auth.authenticator normalizes to componentid-0", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+      http:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "basicauth/componentid-0")
+		assert.Contains(t, string(out), "authenticator: basicauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("bare and suffixed extension normalize to same result", func(t *testing.T) {
+		bare := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+`
+		suffixed := `
+extensions:
+  basicauth/componentid-0:
+    htpasswd:
+      - username: user
+        password: pass
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth/componentid-0
+service:
+  extensions:
+    - basicauth/componentid-0
+`
+		outBare, err := normalizePolicyToCanonical([]byte(bare))
+		assert.NoError(t, err)
+		t.Log(string(outBare))
+		outSuffixed, err := normalizePolicyToCanonical([]byte(suffixed))
+		assert.NoError(t, err)
+		t.Log(string(outSuffixed))
+		assert.Equal(t, string(outBare), string(outSuffixed))
+	})
+
+	t.Run("suffixed extension key with bare reference normalizes correctly", func(t *testing.T) {
+		// Expected files may be in a mixed state: extension map key already has the
+		// componentid suffix but references (service.extensions, auth.authenticator) are
+		// still bare. This happens when Fleet starts suffixing extension IDs but the
+		// expected file was only partially updated.
+		policy := `
+extensions:
+  basicauth/componentid-0:
+    htpasswd:
+      file: /etc/otel/.htpasswd
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+      http:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "basicauth/componentid-0")
+		assert.Contains(t, string(out), "authenticator: basicauth/componentid-0")
+		assert.Contains(t, string(out), "- basicauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("two bare extensions both normalize with correct cross-references", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+  bearertokenauth:
+    token: mytoken
+receivers:
+  otlp/grpc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+      http:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+    - bearertokenauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.NotContains(t, string(out), "_bare")
+		// Both extensions must appear with a componentid suffix
+		assert.Contains(t, string(out), "basicauth/componentid-")
+		assert.Contains(t, string(out), "bearertokenauth/componentid-")
+	})
+
 	t.Run("does not mix up references when there are two distinct apikeyauth extensions", func(t *testing.T) {
 		policy := `
 extensions:

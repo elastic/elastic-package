@@ -271,19 +271,40 @@ func preNormalizePolicy(root map[string]any) {
 		}
 	}
 
-	// Walk string elements in arrays to:
+	// Collect bare extension keys (those without "/") and rename them to "<name>/_bare" so
+	// they participate in component-ID normalization. Fleet started suffixing these with a
+	// component ID in 9.5.0, so older expected files may still use bare keys.
+	bareExtNames := make(map[string]bool)
+	if extensions, ok := toMap(root["extensions"]); ok {
+		for k, v := range extensions {
+			if !strings.Contains(k, "/") {
+				delete(extensions, k)
+				extensions[k+"/_bare"] = v
+				bareExtNames[k] = true
+			}
+		}
+	}
+
+	// Walk string elements in arrays and scalar string values in maps to:
 	//   - replace bare "forward" connector refs with "forward/_bare" (pipeline arrays)
+	//   - replace bare extension refs (e.g. in service.extensions and auth.authenticator)
 	//   - strip conditional "where ... == nil" OTTL suffixes from set() statements
-	preNormalizeNode(root)
+	preNormalizeNode(root, bareExtNames)
 }
 
-// preNormalizeNode recursively walks the tree. String elements inside slices
-// are rewritten; map keys and scalar map values are left to the later normalization pass.
-func preNormalizeNode(node any) {
+// preNormalizeNode recursively walks the tree. String elements inside slices and scalar
+// string values in maps are rewritten; map keys are left to the later normalization pass.
+func preNormalizeNode(node any, bareExtNames map[string]bool) {
 	switch n := node.(type) {
 	case map[string]any:
-		for _, v := range n {
-			preNormalizeNode(v)
+		for k, v := range n {
+			if s, ok := v.(string); ok {
+				if bareExtNames[s] {
+					n[k] = s + "/_bare"
+				}
+			} else {
+				preNormalizeNode(v, bareExtNames)
+			}
 		}
 	case []any:
 		for i, elem := range n {
@@ -291,10 +312,12 @@ func preNormalizeNode(node any) {
 				s = ottlConditionalDataStreamAttr.ReplaceAllString(s, "")
 				if s == "forward" {
 					s = "forward/_bare"
+				} else if bareExtNames[s] {
+					s = s + "/_bare"
 				}
 				n[i] = s
 			} else {
-				preNormalizeNode(elem)
+				preNormalizeNode(elem, bareExtNames)
 			}
 		}
 	}
@@ -332,6 +355,25 @@ func normalizePolicyToCanonical(policy []byte) ([]byte, error) {
 	if service, ok := toMap(root["service"]); ok {
 		if pipelines, ok := toMap(service["pipelines"]); ok {
 			buildSectionMapping(pipelines, idMapping)
+		}
+	}
+
+	// For each extension key, also map the bare type name (the part before "/") to its
+	// canonical ID. This resolves references that use only the bare type name — a state
+	// that occurs in expected files where extension map keys were updated to include a
+	// component ID suffix but the references in service.extensions / auth.authenticator
+	// were not yet updated (e.g. Fleet 9.5.0 change).
+	if extMap, ok := toMap(root["extensions"]); ok {
+		for k := range extMap {
+			typ, _, hasSlash := strings.Cut(k, "/")
+			if !hasSlash || typ == "" {
+				continue
+			}
+			if canonical, found := idMapping[k]; found {
+				if _, alreadyMapped := idMapping[typ]; !alreadyMapped {
+					idMapping[typ] = canonical
+				}
+			}
 		}
 	}
 
