@@ -32,6 +32,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -110,6 +111,11 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return err
 	}
+
+	var stackVersion string
+	if opt.ExternalStack {
+		stackVersion = resolveStackVersion(prof)
+	}
 	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return err
@@ -178,10 +184,13 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if pkgInfo.prevVersion != "" {
 		baseEnv["PREVIOUS_VERSION"] = pkgInfo.prevVersion
 	}
+	if stackVersion != "" {
+		baseEnv["STACK_VERSION"] = stackVersion
+	}
 
 	var n int
 	for _, d := range pkgInfo.dirs {
-		ran, err := runScriptTestsForDir(ctx, t, d, pkgInfo, workdirRoot, baseEnv, scriptCmds, isLatestVersion, opt)
+		ran, err := runScriptTestsForDir(ctx, t, d, pkgInfo, workdirRoot, baseEnv, scriptCmds, isLatestVersion, stackVersion, opt)
 		if err != nil {
 			return err
 		}
@@ -193,6 +202,24 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		t.Log("[no test files]")
 	}
 	return nil
+}
+
+// resolveStackVersion queries the running stack for its version. Returns the
+// version string (e.g. "9.5.0-SNAPSHOT") or empty string if unavailable.
+func resolveStackVersion(prof *profile.Profile) string {
+	cfg, err := stack.LoadConfig(prof)
+	if err != nil {
+		return ""
+	}
+	kib, err := stack.NewKibanaClientFromProfile(prof, kibana.CertificateAuthority(cfg.CACertFile))
+	if err != nil {
+		return ""
+	}
+	vi, err := kib.Version()
+	if err != nil {
+		return ""
+	}
+	return vi.Version()
 }
 
 // packageInfo is the complete result of script test resolution: which directories to run,
@@ -265,7 +292,7 @@ func resolvePackageInfo(opt Options) (packageInfo, error) {
 }
 
 // buildScriptCondition returns the testscript condition evaluator for the given run context.
-func buildScriptCondition(opt Options, scriptEnv map[string]string, breakingChange, isLatestVersion bool, prevVersion string) func(string) (bool, error) {
+func buildScriptCondition(opt Options, scriptEnv map[string]string, breakingChange, isLatestVersion bool, prevVersion, stackVersion string) func(string) (bool, error) {
 	return func(cond string) (bool, error) {
 		switch {
 		case cond == "external_stack":
@@ -276,6 +303,8 @@ func buildScriptCondition(opt Options, scriptEnv map[string]string, breakingChan
 			return isLatestVersion, nil
 		case cond == "has_previous_release":
 			return prevVersion != "", nil
+		case strings.HasPrefix(cond, "stack_constraint:"):
+			return checkStackConstraint(stackVersion, cond[len("stack_constraint:"):])
 		case strings.HasPrefix(cond, "env:"):
 			_, ok := scriptEnv[cond[len("env:"):]]
 			return ok, nil
@@ -283,6 +312,28 @@ func buildScriptCondition(opt Options, scriptEnv map[string]string, breakingChan
 			return false, fmt.Errorf("unknown condition: %s", cond)
 		}
 	}
+}
+
+// checkStackConstraint checks whether the running stack version satisfies a
+// semver constraint string (e.g. ">=9.5.0", ">=9.5.0,<10.0.0"). Returns false
+// when the stack version is unknown. Pre-release suffixes (e.g. -SNAPSHOT) are
+// stripped from the version before checking so that snapshots satisfy release
+// constraints.
+func checkStackConstraint(stackVersion, constraint string) (bool, error) {
+	if stackVersion == "" {
+		return false, nil
+	}
+	c, err := semver.NewConstraint(constraint)
+	if err != nil {
+		return false, fmt.Errorf("invalid stack_constraint %q: %w", constraint, err)
+	}
+	// Strip pre-release so that e.g. 9.5.0-SNAPSHOT satisfies >=9.5.0.
+	v, err := semver.NewVersion(stackVersion)
+	if err != nil {
+		return false, fmt.Errorf("parsing stack version %q: %w", stackVersion, err)
+	}
+	release := semver.New(v.Major(), v.Minor(), v.Patch(), "", "")
+	return c.Check(release), nil
 }
 
 // scriptTestCommands returns the map of custom testscript commands.
@@ -323,7 +374,7 @@ func scriptTestCommands() map[string]func(ts *testscript.TestScript, neg bool, a
 
 // runScriptTestsForDir runs the script tests for a single data stream directory d.
 // It returns true when test files were found and executed.
-func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageInfo, workdirRoot string, baseEnv map[string]string, scriptCmds map[string]func(*testscript.TestScript, bool, []string), isLatestVersion bool, opt Options) (bool, error) {
+func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageInfo, workdirRoot string, baseEnv map[string]string, scriptCmds map[string]func(*testscript.TestScript, bool, []string), isLatestVersion bool, stackVersion string, opt Options) (bool, error) {
 	t.dataStream = d
 	scripts := d
 	var dsRoot string
@@ -363,7 +414,7 @@ func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageIn
 			e.Values[registryPackageRootsTag{}] = t.registryPackageRoots
 			return nil
 		},
-		Condition: buildScriptCondition(opt, scriptEnv, pkgInfo.breakingChange, isLatestVersion, pkgInfo.prevVersion),
+		Condition: buildScriptCondition(opt, scriptEnv, pkgInfo.breakingChange, isLatestVersion, pkgInfo.prevVersion, stackVersion),
 	}
 	// This is not the ideal approach. What I would like would
 	// be to pass this into the testscript, but that is a bunch

@@ -41,3 +41,34 @@ func TestRevisionsFromRegistry_propagatesRegistryClientError(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "creating package registry client")
 }
+
+func TestCheckStackConstraint(t *testing.T) {
+	tests := []struct {
+		name       string
+		version    string
+		constraint string
+		want       bool
+		wantErr    string
+	}{
+		{name: "empty version returns false", version: "", constraint: ">=9.5.0", want: false},
+		{name: "release satisfies >=", version: "9.5.0", constraint: ">=9.5.0", want: true},
+		{name: "snapshot satisfies >=", version: "9.5.0-SNAPSHOT", constraint: ">=9.5.0", want: true},
+		{name: "older version fails >=", version: "9.4.3", constraint: ">=9.5.0", want: false},
+		{name: "older snapshot fails >=", version: "9.4.3-SNAPSHOT", constraint: ">=9.5.0", want: false},
+		{name: "range constraint", version: "9.5.1", constraint: ">=9.5.0,<10.0.0", want: true},
+		{name: "outside range", version: "10.0.0", constraint: ">=9.5.0,<10.0.0", want: false},
+		{name: "invalid constraint", version: "9.5.0", constraint: "not-valid", wantErr: "invalid stack_constraint"},
+		{name: "invalid version", version: "bad", constraint: ">=9.5.0", wantErr: "parsing stack version"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := checkStackConstraint(tt.version, tt.constraint)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got, "checkStackConstraint(%q, %q)", tt.version, tt.constraint)
+		})
+	}
+}
