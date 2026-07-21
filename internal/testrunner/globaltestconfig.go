@@ -82,6 +82,18 @@ type GlobalRunnerTestConfig struct {
 	Parallel        bool                     `config:"parallel"`
 	Requires        []PackageTestRequirement `config:"requires"`
 	SkippableConfig `config:",inline"`
+
+	// PackageVersion overrides the package version during test setup.
+	// When set, the source manifest is temporarily patched so that
+	// _meta.package.version resolves to a stable, known value instead
+	// of the real (changing) version. Only meaningful for policy tests.
+	PackageVersion string `config:"package_version"`
+
+	// IgnoreFields lists rendered stream fields to strip before comparing
+	// the actual policy against the expected file. Paths use dot notation
+	// scoped to the stream level (e.g. "state.user_agent" strips
+	// inputs[].streams[].state.user_agent). Only meaningful for policy tests.
+	IgnoreFields []string `config:"ignore_fields"`
 }
 
 func ReadGlobalTestConfig(packageRoot string) (*globalTestConfig, error) {
