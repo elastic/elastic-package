@@ -86,6 +86,7 @@ a stack, starting agents and services and validating results.
 - `LATEST_EPR_VERSION`: the version of the latest EPR-available version
 - `CURRENT_VERSION`: the current version of the package
 - `PREVIOUS_VERSION`: the previous version of the package
+- `STACK_VERSION`: the version of the running stack (e.g. `9.5.0-SNAPSHOT`), set when `--external-stack` is used
 - `DATA_STREAM`: the name of the data stream
 - `DATA_STREAM_ROOT`: the path to the root of the data stream
 - `ECS_BASE_SCHEMA_URL`: the ECS base schema URL
@@ -112,6 +113,14 @@ test for changes that are back-ports.
 The `has_previous_release` condition indicates whether there is a previous version
 in the changelog file.
 
+The `stack_constraint:<constraint>` condition checks whether the running stack
+version satisfies a [semver constraint](https://github.com/Masterminds/semver#checking-version-constraints).
+Pre-release suffixes (e.g. `-SNAPSHOT`) are stripped before checking, so a
+`9.5.0-SNAPSHOT` stack satisfies `>=9.5.0`. When no stack version is available
+(e.g. the stack has not been started), the condition evaluates to false. This is
+useful for skipping tests that depend on features introduced in a specific stack
+version.
+
 The `env:<VAR>` condition is true when the named environment variable is set and
 non-empty. For example, `[!env:LATEST_EPR_VERSION] skip` skips when there is no
 EPR release for the package.
@@ -123,6 +132,8 @@ As an example, a basic system test could be expressed as follows.
 ```
 # Only run the test if --external-stack=true.
 [!external_stack] skip 'Skipping external stack test.'
+# Only run the test if the stack is >= 9.5.0.
+[!stack_constraint:>=9.5.0] skip 'requires stack >= 9.5.0'
 # Only run the test if the jq executable is in $PATH. This is needed for a test below.
 [!exec:jq] skip 'Skipping test requiring absent jq command'
 
