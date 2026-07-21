@@ -92,7 +92,7 @@ func (r *tester) collectFromInternalLogs(agent agentdeployer.DeployedAgent, star
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpParent)
+	defer os.RemoveAll(tmpParent) //nolint:errcheck // best-effort cleanup of temp dir
 
 	destDir := filepath.Join(tmpParent, "logs")
 	if err := agent.CopyInternalLogs(destDir); err != nil {
@@ -125,7 +125,7 @@ func (r *tester) collectFromComposeLogs(ctx context.Context, agent agentdeployer
 		return err
 	}
 	path := f.Name()
-	defer os.Remove(path)
+	defer os.Remove(path) //nolint:errcheck // best-effort cleanup of temp file
 
 	if _, err := f.Write(output); err != nil {
 		f.Close()
