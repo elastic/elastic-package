@@ -835,12 +835,13 @@ The following settings are available per profile:
   enables logs index mode in all data streams that support it. Defaults to false.
 * `stack.logsdb_columnar_enabled` can be set to true to activate LogsDB Columnar support in
   Elasticsearch for logs data streams. Defaults to false.
-  When system tests run with `--logsdb-columnar`, elastic-package configures dataset
-  `@custom` component templates after package install with `index.mode: logsdb_columnar`
-  and forces `doc_values: true` on fields that would otherwise fail under columnar mode
-  (including ECS `event.original` and package fields declared with `doc_values: false`).
-  That override is a test-only workaround: `logsdb_columnar` reconstructs `_source`
-  from doc values, and ECS still needs a product solution for this mode.
+  When this profile setting is true, or when system tests run with `--logsdb-columnar`,
+  elastic-package configures dataset `@custom` component templates after package install
+  with `index.mode: logsdb_columnar` and forces `doc_values: true` on fields that would
+  otherwise fail under columnar mode (including ECS `event.original` and package fields
+  declared with `doc_values: false`). That override is a test-only workaround:
+  `logsdb_columnar` reconstructs `_source` from doc values, and ECS still needs a product
+  solution for this mode.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.

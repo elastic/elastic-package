@@ -91,6 +91,8 @@ func setupTestCommand() *cobraext.Command {
 	// Just used in pipeline and system tests
 	// Keep it here for backwards compatibility
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
+	// System tests only; persistent so `elastic-package test --logsdb-columnar` works in CI.
+	cmd.PersistentFlags().Bool(cobraext.LogsDBColumnarFlagName, false, cobraext.LogsDBColumnarFlagDescription)
 
 	assetCmd := getTestRunnerAssetCommand()
 	cmd.AddCommand(assetCmd)
@@ -483,7 +485,6 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
-	cmd.Flags().Bool(cobraext.LogsDBColumnarFlagName, false, cobraext.LogsDBColumnarFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -614,6 +615,12 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	logsDBColumnar, err := cmd.Flags().GetBool(cobraext.LogsDBColumnarFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.LogsDBColumnarFlagName)
+	}
+	// CI enables columnar via stack profile (-U stack.logsdb_columnar_enabled=true) without
+	// always passing --logsdb-columnar. Follow the profile so doc_values overrides still apply.
+	if !logsDBColumnar && profile.Config("stack.logsdb_columnar_enabled", "false") == "true" {
+		logger.Info("Enabling LogsDB Columnar system-test overrides (stack.logsdb_columnar_enabled=true)")
+		logsDBColumnar = true
 	}
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
