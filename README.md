@@ -836,15 +836,17 @@ The following settings are available per profile:
 * `stack.logsdb_columnar_enabled` can be set to true to activate LogsDB Columnar support in
   Elasticsearch for logs data streams. Defaults to false.
   When this profile setting is true, or when system tests run with `--logsdb-columnar`,
-  elastic-package configures dataset `@custom` component templates after package install
-  with `index.mode: logsdb_columnar` and forces `doc_values: true` on fields that would
-  otherwise fail under columnar mode (including ECS `event.original` and package fields
-  declared with `doc_values: false`). It also strips explicit `subobjects` mapping
-  parameters from all logs `@package` templates in the package (including sibling
-  streams not under test), which columnar mode rejects (the mode already disables
-  subobjects). These overrides are a test-only workaround: `logsdb_columnar`
-  reconstructs `_source` from doc values, and ECS / package mappings still need a
-  product solution for this mode.
+  elastic-package configures each selected logs dataset `@custom` component template
+  after package install with `index.mode: logsdb_columnar` and forces `doc_values: true`
+  on fields that would otherwise fail under columnar mode (including ECS `event.original`
+  and package fields declared with `doc_values: false`). It also strips explicit
+  `subobjects` mapping parameters from all logs `@package` templates in the package
+  (including sibling streams not under test), which columnar mode rejects (the mode
+  already disables subobjects). Global `logs@custom` is never modified, so other
+  installed packages (for example `elastic_agent`) are unaffected. Metrics-only
+  packages skip this path. These overrides are a test-only workaround:
+  `logsdb_columnar` reconstructs `_source` from doc values, and ECS / package
+  mappings still need a product solution for this mode.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.

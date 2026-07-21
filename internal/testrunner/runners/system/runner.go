@@ -568,9 +568,10 @@ func (r *runner) logsDBColumnarPackageTemplateNames() ([]string, error) {
 
 func (r *runner) logsDBColumnarCustomTemplateNames(selectedOnly bool) ([]string, error) {
 	if r.packageRoot == "" {
-		if selectedOnly {
-			return []string{defaultLogsDBColumnarComponentTemplateName}, nil
-		}
+		// Without a package root there is no per-dataset @custom to configure.
+		// Never fall back to global logs@custom: putting index.mode there breaks
+		// every logs index template that still has explicit subobjects (for example
+		// elastic_agent.*) when templates are merged.
 		return nil, nil
 	}
 
@@ -612,9 +613,6 @@ func (r *runner) logsDBColumnarCustomTemplateNames(selectedOnly bool) ([]string,
 		templateNames = append(templateNames, "logs-"+dataset+"@custom")
 	}
 
-	if selectedOnly && len(templateNames) == 0 {
-		return []string{defaultLogsDBColumnarComponentTemplateName}, nil
-	}
 	return templateNames, nil
 }
 

@@ -166,6 +166,7 @@ func TestPackageComponentTemplateName(t *testing.T) {
 func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testing.T) {
 	var putBodies [][]byte
 	deleteCount := 0
+	customName := "logs-testpkg.stream@custom"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
 		switch {
@@ -176,18 +177,18 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testin
 			assert.Equal(t, "/{index}", req.URL.Query().Get("path"))
 			assert.Equal(t, "columnar_index_modes", req.URL.Query().Get("capabilities"))
 			_, _ = io.WriteString(w, `{"supported":true}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@custom":
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/"+customName:
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"status":404}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@package":
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-testpkg.stream@package":
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"status":404}`)
-		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs@custom":
+		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/"+customName:
 			body, err := io.ReadAll(req.Body)
 			require.NoError(t, err)
 			putBodies = append(putBodies, body)
 			_, _ = io.WriteString(w, `{"acknowledged":true}`)
-		case req.Method == http.MethodDelete && req.URL.Path == "/_component_template/logs@custom":
+		case req.Method == http.MethodDelete && req.URL.Path == "/_component_template/"+customName:
 			deleteCount++
 			_, _ = io.WriteString(w, `{"acknowledged":true}`)
 		default:
@@ -203,6 +204,8 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testin
 	r := &runner{
 		esAPI:                   client.API,
 		esClient:                client,
+		packageRoot:             writeLogsPackageRoot(t, "testpkg", "stream"),
+		dataStreams:             []string{"stream"},
 		logsDBColumnarStatePath: statePath,
 	}
 
@@ -224,6 +227,7 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testin
 func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T) {
 	originalTemplate := `{"template":{"settings":{"index":{"number_of_shards":"2"}}}}`
 	var putBodies [][]byte
+	customName := "logs-testpkg.stream@custom"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
 		switch {
@@ -231,16 +235,16 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 			_, _ = io.WriteString(w, `{"version":{"number":"9.5.0-SNAPSHOT"}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/_capabilities":
 			_, _ = io.WriteString(w, `{"supported":true}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@custom":
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/"+customName:
 			_, _ = io.WriteString(w, fmt.Sprintf(`{
 				"component_templates":[
-					{"name":"logs@custom","component_template":%s}
+					{"name":%q,"component_template":%s}
 				]
-			}`, originalTemplate))
-		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@package":
+			}`, customName, originalTemplate))
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-testpkg.stream@package":
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"status":404}`)
-		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs@custom":
+		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/"+customName:
 			body, err := io.ReadAll(req.Body)
 			require.NoError(t, err)
 			putBodies = append(putBodies, body)
@@ -257,6 +261,8 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 	r := &runner{
 		esAPI:                   client.API,
 		esClient:                client,
+		packageRoot:             writeLogsPackageRoot(t, "testpkg", "stream"),
+		dataStreams:             []string{"stream"},
 		logsDBColumnarStatePath: filepath.Join(t.TempDir(), "logsdb-columnar-state.json"),
 	}
 
@@ -277,6 +283,82 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 	assert.Equal(t, "2", index["number_of_shards"])
 	_, hasMode := index["mode"]
 	assert.False(t, hasMode)
+}
+
+func TestEnsureLogsDBColumnarTemplateSkipsMetricsOnlyPackage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/":
+			_, _ = io.WriteString(w, `{"version":{"number":"9.5.0-SNAPSHOT"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_capabilities":
+			_, _ = io.WriteString(w, `{"supported":true}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL))
+	require.NoError(t, err)
+
+	packageRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "manifest.yml"), []byte(`
+format_version: 3.3.2
+name: airflow
+title: Airflow
+version: 0.0.1
+description: test
+type: integration
+conditions:
+  kibana:
+    version: "^8.0.0"
+owner:
+  github: elastic/obs-infraobs-integrations
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "data_stream", "statsd"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "data_stream", "statsd", "manifest.yml"), []byte(`
+title: Statsd
+type: metrics
+`), 0o644))
+
+	statePath := filepath.Join(t.TempDir(), "logsdb-columnar-state.json")
+	r := &runner{
+		esAPI:                   client.API,
+		esClient:                client,
+		packageRoot:             packageRoot,
+		dataStreams:             []string{"statsd"},
+		logsDBColumnarStatePath: statePath,
+	}
+
+	err = r.ensureLogsDBColumnarTemplate(t.Context())
+	require.NoError(t, err)
+	_, err = os.Stat(statePath)
+	require.ErrorIs(t, err, os.ErrNotExist, "metrics-only packages must not configure logs@custom")
+}
+
+func writeLogsPackageRoot(t *testing.T, packageName, streamName string) string {
+	t.Helper()
+	packageRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "manifest.yml"), []byte(fmt.Sprintf(`
+format_version: 3.3.2
+name: %s
+title: Test
+version: 0.0.1
+description: test
+type: integration
+conditions:
+  kibana:
+    version: "^8.0.0"
+owner:
+  github: elastic/test
+`, packageName)), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "data_stream", streamName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "data_stream", streamName, "manifest.yml"), []byte(fmt.Sprintf(`
+title: %s
+type: logs
+`, streamName)), 0o644))
+	return packageRoot
 }
 
 func TestEnsureLogsDBColumnarTemplateWithPackageDocValuesOverrides(t *testing.T) {
