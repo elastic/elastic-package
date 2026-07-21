@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -34,6 +35,32 @@ const (
 	logsDBColumnarIndexMode                    = "logsdb_columnar"
 	logsDBColumnarStateFileName                = "logsdb-columnar-template.json"
 )
+
+// logsDBColumnarDocValuesDynamicTemplates are prepended to @custom so they match
+// before ecs@mappings templates that set doc_values:false. This is a test-only
+// workaround; ECS still needs a product solution for logsdb_columnar.
+var logsDBColumnarDocValuesDynamicTemplates = []map[string]any{
+	{
+		"event_original_logsdb_columnar_workaround": map[string]any{
+			"path_match": []any{"event.original", "*event.original", "*gen_ai.agent.description"},
+			"mapping": map[string]any{
+				"type":       "keyword",
+				"index":      false,
+				"doc_values": true,
+			},
+		},
+	},
+	{
+		"x509_public_key_exponent_logsdb_columnar_workaround": map[string]any{
+			"path_match": "*.x509.public_key_exponent",
+			"mapping": map[string]any{
+				"type":       "long",
+				"index":      false,
+				"doc_values": true,
+			},
+		},
+	},
+}
 
 type logsDBColumnarTemplateState struct {
 	Templates         map[string]logsDBColumnarTemplateSnapshot `json:"templates,omitempty"`
@@ -154,12 +181,6 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		return nil
 	}
 
-	if r.logsDBColumnar {
-		if err := r.ensureLogsDBColumnarTemplate(ctx); err != nil {
-			return err
-		}
-	}
-
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
 	logger.Info("Installing package...")
@@ -170,6 +191,15 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 	if err != nil {
 		return fmt.Errorf("can't install the package: %w", err)
+	}
+
+	// Configure logsdb_columnar after install so @package mappings exist. Mode and
+	// doc_values overrides must be applied together: ES rejects columnar mode when
+	// composed mappings still contain doc_values:false fields.
+	if r.logsDBColumnar {
+		if err := r.ensureLogsDBColumnarTemplate(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -237,7 +267,22 @@ func (r *runner) ensureLogsDBColumnarTemplate(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		payload, err := buildLogsDBColumnarTemplatePayload(currentTemplate, exists)
+
+		overrides := logsDBColumnarPropertyOverrides()
+		packageTemplateName := packageComponentTemplateName(templateName)
+		if packageTemplateName != "" {
+			packageTemplate, packageExists, err := r.getComponentTemplate(ctx, packageTemplateName)
+			if err != nil {
+				return err
+			}
+			if packageExists {
+				for path, mapping := range collectDocValuesDisabledFieldOverrides(packageTemplate) {
+					overrides[path] = mapping
+				}
+			}
+		}
+
+		payload, err := buildLogsDBColumnarTemplatePayload(currentTemplate, exists, overrides, logsDBColumnarDocValuesDynamicTemplates)
 		if err != nil {
 			return err
 		}
@@ -248,7 +293,7 @@ func (r *runner) ensureLogsDBColumnarTemplate(ctx context.Context) error {
 			Existed:           exists,
 			ComponentTemplate: currentTemplate,
 		}
-		logger.Debugf("Configured %s with index.mode=%s for system tests", templateName, logsDBColumnarIndexMode)
+		logger.Debugf("Configured %s with index.mode=%s and %d doc_values overrides for system tests", templateName, logsDBColumnarIndexMode, len(overrides))
 	}
 
 	if err := r.saveLogsDBColumnarState(state); err != nil {
@@ -286,6 +331,24 @@ func (r *runner) restoreLogsDBColumnarTemplate(ctx context.Context) error {
 		return fmt.Errorf("failed to remove logsdb columnar state file: %w", err)
 	}
 	return nil
+}
+
+func logsDBColumnarPropertyOverrides() map[string]map[string]any {
+	return map[string]map[string]any{
+		// ECS dynamic templates leave event.original without doc values.
+		"event.original": {
+			"type":       "keyword",
+			"index":      false,
+			"doc_values": true,
+		},
+	}
+}
+
+func packageComponentTemplateName(customTemplateName string) string {
+	if !strings.HasSuffix(customTemplateName, "@custom") {
+		return ""
+	}
+	return strings.TrimSuffix(customTemplateName, "@custom") + "@package"
 }
 
 func (r *runner) hasColumnarIndexModeCapability(ctx context.Context) (bool, error) {
@@ -510,7 +573,7 @@ func (r *runner) selectedDataStreamsForRun() ([]string, error) {
 	return nil, nil
 }
 
-func buildLogsDBColumnarTemplatePayload(currentTemplate json.RawMessage, exists bool) ([]byte, error) {
+func buildLogsDBColumnarTemplatePayload(currentTemplate json.RawMessage, exists bool, propertyOverrides map[string]map[string]any, dynamicTemplates []map[string]any) ([]byte, error) {
 	template := map[string]any{}
 	if exists {
 		if err := json.Unmarshal(currentTemplate, &template); err != nil {
@@ -535,11 +598,157 @@ func buildLogsDBColumnarTemplatePayload(currentTemplate json.RawMessage, exists 
 	}
 	indexSection["mode"] = logsDBColumnarIndexMode
 
+	if len(propertyOverrides) > 0 || len(dynamicTemplates) > 0 {
+		mappingsSection, ok := templateSection["mappings"].(map[string]any)
+		if !ok {
+			mappingsSection = map[string]any{}
+			templateSection["mappings"] = mappingsSection
+		}
+
+		if len(propertyOverrides) > 0 {
+			propertiesSection, ok := mappingsSection["properties"].(map[string]any)
+			if !ok {
+				propertiesSection = map[string]any{}
+				mappingsSection["properties"] = propertiesSection
+			}
+			mergeMappingProperties(propertiesSection, nestFieldMappingOverrides(propertyOverrides))
+		}
+
+		if len(dynamicTemplates) > 0 {
+			mappingsSection["dynamic_templates"] = prependDynamicTemplates(mappingsSection["dynamic_templates"], dynamicTemplates)
+		}
+	}
+
 	payload, err := json.Marshal(template)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode logsdb columnar component template payload: %w", err)
 	}
 	return payload, nil
+}
+
+func collectDocValuesDisabledFieldOverrides(componentTemplate json.RawMessage) map[string]map[string]any {
+	var template struct {
+		Template struct {
+			Mappings struct {
+				Properties map[string]any `json:"properties"`
+			} `json:"mappings"`
+		} `json:"template"`
+	}
+	if err := json.Unmarshal(componentTemplate, &template); err != nil {
+		return nil
+	}
+	return collectDocValuesDisabledFields(template.Template.Mappings.Properties, "")
+}
+
+func collectDocValuesDisabledFields(properties map[string]any, prefix string) map[string]map[string]any {
+	if len(properties) == 0 {
+		return nil
+	}
+
+	overrides := map[string]map[string]any{}
+	for name, raw := range properties {
+		prop, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+
+		if nested, ok := prop["properties"].(map[string]any); ok {
+			for nestedPath, mapping := range collectDocValuesDisabledFields(nested, path) {
+				overrides[nestedPath] = mapping
+			}
+			continue
+		}
+
+		docValues, hasDocValues := prop["doc_values"].(bool)
+		if !hasDocValues || docValues {
+			continue
+		}
+
+		override := maps.Clone(prop)
+		override["doc_values"] = true
+		overrides[path] = override
+	}
+	return overrides
+}
+
+func nestFieldMappingOverrides(flat map[string]map[string]any) map[string]any {
+	root := map[string]any{}
+	for path, mapping := range flat {
+		parts := strings.Split(path, ".")
+		current := root
+		for i, part := range parts {
+			if i == len(parts)-1 {
+				current[part] = mapping
+				break
+			}
+			child, ok := current[part].(map[string]any)
+			if !ok {
+				child = map[string]any{}
+				current[part] = child
+			}
+			props, ok := child["properties"].(map[string]any)
+			if !ok {
+				props = map[string]any{}
+				child["properties"] = props
+			}
+			current = props
+		}
+	}
+	return root
+}
+
+func mergeMappingProperties(dst, src map[string]any) {
+	for key, srcValue := range src {
+		srcMap, srcIsMap := srcValue.(map[string]any)
+		if !srcIsMap {
+			dst[key] = srcValue
+			continue
+		}
+
+		dstValue, exists := dst[key]
+		if !exists {
+			dst[key] = srcValue
+			continue
+		}
+		dstMap, dstIsMap := dstValue.(map[string]any)
+		if !dstIsMap {
+			dst[key] = srcValue
+			continue
+		}
+
+		srcProps, srcHasProps := srcMap["properties"].(map[string]any)
+		if !srcHasProps {
+			dst[key] = srcValue
+			continue
+		}
+
+		dstProps, ok := dstMap["properties"].(map[string]any)
+		if !ok {
+			dstProps = map[string]any{}
+			dstMap["properties"] = dstProps
+		}
+		mergeMappingProperties(dstProps, srcProps)
+	}
+}
+
+func prependDynamicTemplates(existing any, templates []map[string]any) []any {
+	result := make([]any, 0, len(templates)+8)
+	for _, template := range templates {
+		result = append(result, template)
+	}
+	switch current := existing.(type) {
+	case []any:
+		result = append(result, current...)
+	case nil:
+		// nothing
+	default:
+		// Unexpected shape from JSON decode; keep only our workarounds.
+	}
+	return result
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {

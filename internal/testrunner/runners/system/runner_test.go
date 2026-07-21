@@ -23,7 +23,7 @@ import (
 
 func TestBuildLogsDBColumnarTemplatePayload(t *testing.T) {
 	t.Run("creates payload when template is missing", func(t *testing.T) {
-		payload, err := buildLogsDBColumnarTemplatePayload(nil, false)
+		payload, err := buildLogsDBColumnarTemplatePayload(nil, false, nil, nil)
 		require.NoError(t, err)
 
 		mode := indexModeFromPayload(t, payload)
@@ -43,7 +43,7 @@ func TestBuildLogsDBColumnarTemplatePayload(t *testing.T) {
 				"managed_by": "test"
 			}
 		}`)
-		payload, err := buildLogsDBColumnarTemplatePayload(current, true)
+		payload, err := buildLogsDBColumnarTemplatePayload(current, true, nil, nil)
 		require.NoError(t, err)
 
 		decoded := map[string]any{}
@@ -55,6 +55,111 @@ func TestBuildLogsDBColumnarTemplatePayload(t *testing.T) {
 		assert.Equal(t, "2", index["number_of_shards"])
 		assert.Equal(t, "test", decoded["_meta"].(map[string]any)["managed_by"])
 	})
+
+	t.Run("merges doc_values property overrides and dynamic templates", func(t *testing.T) {
+		current := []byte(`{
+			"template": {
+				"settings": {
+					"index": {
+						"mode": "logsdb_columnar"
+					}
+				},
+				"mappings": {
+					"dynamic_templates": [
+						{"existing": {"path_match": "foo", "mapping": {"type": "keyword"}}}
+					]
+				}
+			}
+		}`)
+		overrides := map[string]map[string]any{
+			"event.original": {
+				"type":       "keyword",
+				"index":      false,
+				"doc_values": true,
+			},
+			"doppel.darkweb.cred_leaks_password": {
+				"type":       "keyword",
+				"index":      false,
+				"doc_values": true,
+			},
+		}
+		payload, err := buildLogsDBColumnarTemplatePayload(current, true, overrides, logsDBColumnarDocValuesDynamicTemplates)
+		require.NoError(t, err)
+
+		decoded := map[string]any{}
+		require.NoError(t, json.Unmarshal(payload, &decoded))
+		mappings := decoded["template"].(map[string]any)["mappings"].(map[string]any)
+
+		properties := mappings["properties"].(map[string]any)
+		event := properties["event"].(map[string]any)["properties"].(map[string]any)
+		original := event["original"].(map[string]any)
+		assert.Equal(t, true, original["doc_values"])
+		assert.Equal(t, false, original["index"])
+
+		doppel := properties["doppel"].(map[string]any)["properties"].(map[string]any)
+		darkweb := doppel["darkweb"].(map[string]any)["properties"].(map[string]any)
+		password := darkweb["cred_leaks_password"].(map[string]any)
+		assert.Equal(t, true, password["doc_values"])
+
+		dynamicTemplates := mappings["dynamic_templates"].([]any)
+		require.GreaterOrEqual(t, len(dynamicTemplates), 3)
+		first := dynamicTemplates[0].(map[string]any)
+		_, hasWorkaround := first["event_original_logsdb_columnar_workaround"]
+		assert.True(t, hasWorkaround, "workaround dynamic template should be prepended")
+		last := dynamicTemplates[len(dynamicTemplates)-1].(map[string]any)
+		_, hasExisting := last["existing"]
+		assert.True(t, hasExisting, "existing dynamic templates should be preserved after workarounds")
+	})
+}
+
+func TestCollectDocValuesDisabledFieldOverrides(t *testing.T) {
+	packageTemplate := []byte(`{
+		"template": {
+			"mappings": {
+				"properties": {
+					"event": {
+						"properties": {
+							"original": {
+								"type": "keyword",
+								"index": false,
+								"doc_values": false
+							},
+							"category": {
+								"type": "keyword"
+							}
+						}
+					},
+					"doppel": {
+						"properties": {
+							"darkweb": {
+								"properties": {
+									"cred_leaks_password": {
+										"type": "keyword",
+										"index": false,
+										"doc_values": false
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+
+	overrides := collectDocValuesDisabledFieldOverrides(packageTemplate)
+	require.Len(t, overrides, 2)
+	assert.Equal(t, true, overrides["event.original"]["doc_values"])
+	assert.Equal(t, false, overrides["event.original"]["index"])
+	assert.Equal(t, true, overrides["doppel.darkweb.cred_leaks_password"]["doc_values"])
+	_, hasCategory := overrides["event.category"]
+	assert.False(t, hasCategory, "fields without doc_values:false should not be overridden")
+}
+
+func TestPackageComponentTemplateName(t *testing.T) {
+	assert.Equal(t, "logs-doppel.alerts@package", packageComponentTemplateName("logs-doppel.alerts@custom"))
+	assert.Equal(t, "logs@package", packageComponentTemplateName("logs@custom"))
+	assert.Equal(t, "", packageComponentTemplateName("logs-foo"))
 }
 
 func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testing.T) {
@@ -71,6 +176,9 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testin
 			assert.Equal(t, "columnar_index_modes", req.URL.Query().Get("capabilities"))
 			_, _ = io.WriteString(w, `{"supported":true}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@custom":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"status":404}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@package":
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"status":404}`)
 		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs@custom":
@@ -101,6 +209,7 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithoutExistingTemplate(t *testin
 	require.NoError(t, err)
 	require.Len(t, putBodies, 1)
 	assert.Equal(t, logsDBColumnarIndexMode, indexModeFromPayload(t, putBodies[0]))
+	assert.Equal(t, true, eventOriginalDocValuesFromPayload(t, putBodies[0]))
 	_, err = os.Stat(statePath)
 	require.NoError(t, err)
 
@@ -127,6 +236,9 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 					{"name":"logs@custom","component_template":%s}
 				]
 			}`, originalTemplate))
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs@package":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"status":404}`)
 		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs@custom":
 			body, err := io.ReadAll(req.Body)
 			require.NoError(t, err)
@@ -151,6 +263,7 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 	require.NoError(t, err)
 	require.Len(t, putBodies, 1)
 	assert.Equal(t, logsDBColumnarIndexMode, indexModeFromPayload(t, putBodies[0]))
+	assert.Equal(t, true, eventOriginalDocValuesFromPayload(t, putBodies[0]))
 
 	err = r.restoreLogsDBColumnarTemplate(context.Background())
 	require.NoError(t, err)
@@ -165,6 +278,107 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 	assert.False(t, hasMode)
 }
 
+func TestEnsureLogsDBColumnarTemplateWithPackageDocValuesOverrides(t *testing.T) {
+	var putBodies [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/":
+			_, _ = io.WriteString(w, `{"version":{"number":"9.5.0-SNAPSHOT"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_capabilities":
+			_, _ = io.WriteString(w, `{"supported":true}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-doppel.alerts@custom":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"status":404}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-doppel.alerts@package":
+			_, _ = io.WriteString(w, `{
+				"component_templates":[{
+					"name":"logs-doppel.alerts@package",
+					"component_template":{
+						"template":{
+							"mappings":{
+								"properties":{
+									"doppel":{
+										"properties":{
+											"darkweb":{
+												"properties":{
+													"cred_leaks_password":{
+														"type":"keyword",
+														"index":false,
+														"doc_values":false
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs-doppel.alerts@custom":
+			body, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			putBodies = append(putBodies, body)
+			_, _ = io.WriteString(w, `{"acknowledged":true}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL))
+	require.NoError(t, err)
+
+	packageRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "manifest.yml"), []byte(`
+format_version: 3.3.2
+name: doppel
+title: Doppel
+version: 0.0.1
+description: test
+type: integration
+conditions:
+  kibana:
+    version: "^8.0.0"
+owner:
+  github: elastic/security-service-integrations
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "data_stream", "alerts"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "data_stream", "alerts", "manifest.yml"), []byte(`
+title: Alerts
+type: logs
+`), 0o644))
+
+	r := &runner{
+		esAPI:                   client.API,
+		esClient:                client,
+		packageRoot:             packageRoot,
+		dataStreams:             []string{"alerts"},
+		logsDBColumnarStatePath: filepath.Join(t.TempDir(), "logsdb-columnar-state.json"),
+	}
+
+	err = r.ensureLogsDBColumnarTemplate(t.Context())
+	require.NoError(t, err)
+	require.Len(t, putBodies, 1)
+
+	decoded := map[string]any{}
+	require.NoError(t, json.Unmarshal(putBodies[0], &decoded))
+	assert.Equal(t, logsDBColumnarIndexMode, indexModeFromPayload(t, putBodies[0]))
+	assert.Equal(t, true, eventOriginalDocValuesFromPayload(t, putBodies[0]))
+
+	properties := decoded["template"].(map[string]any)["mappings"].(map[string]any)["properties"].(map[string]any)
+	password := properties["doppel"].(map[string]any)["properties"].(map[string]any)["darkweb"].(map[string]any)["properties"].(map[string]any)["cred_leaks_password"].(map[string]any)
+	assert.Equal(t, true, password["doc_values"])
+
+	dynamicTemplates := decoded["template"].(map[string]any)["mappings"].(map[string]any)["dynamic_templates"].([]any)
+	require.NotEmpty(t, dynamicTemplates)
+	first := dynamicTemplates[0].(map[string]any)
+	_, ok := first["event_original_logsdb_columnar_workaround"]
+	assert.True(t, ok)
+}
+
 func indexModeFromPayload(t *testing.T, payload []byte) string {
 	t.Helper()
 	decoded := map[string]any{}
@@ -173,4 +387,12 @@ func indexModeFromPayload(t *testing.T, payload []byte) string {
 	settings := template["settings"].(map[string]any)
 	index := settings["index"].(map[string]any)
 	return index["mode"].(string)
+}
+
+func eventOriginalDocValuesFromPayload(t *testing.T, payload []byte) bool {
+	t.Helper()
+	decoded := map[string]any{}
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	properties := decoded["template"].(map[string]any)["mappings"].(map[string]any)["properties"].(map[string]any)
+	return properties["event"].(map[string]any)["properties"].(map[string]any)["original"].(map[string]any)["doc_values"].(bool)
 }
