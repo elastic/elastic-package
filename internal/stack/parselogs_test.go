@@ -5,9 +5,13 @@
 package stack
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,6 +44,114 @@ func TestParseLogsFromReader(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedParsedLogCount, redLogLines)
+		})
+	}
+}
+
+const sampleFailedToIndexDocument = `{"log.level":"error","@timestamp":"2026-07-01T17:34:35.220Z","message":"failed to index document","http.response.status_code":400,"error.type":"illegal_argument_exception","error.reason":"field [event.original] cannot reconstruct _source from doc values; every field must be reconstructable from doc values in index using [logsdb_columnar] index mode","ecs.version":"1.6.0"}`
+
+func TestParseNDJSONLogsFromReader_IndexingFailure(t *testing.T) {
+	start, err := time.Parse(time.RFC3339Nano, "2026-07-01T17:00:00.000Z")
+	require.NoError(t, err, "parse start time")
+
+	var logs []LogLine
+	err = ParseNDJSONLogsFromReader(strings.NewReader(sampleFailedToIndexDocument+"\n"), ParseLogsOptions{
+		StartTime: start,
+	}, func(log LogLine) error {
+		logs = append(logs, log)
+		return nil
+	})
+	require.NoError(t, err, "parse NDJSON")
+	require.Len(t, logs, 1, "expected one log line")
+
+	assert.Equal(t, "failed to index document", logs[0].Message, "message")
+	assert.Equal(t, "illegal_argument_exception", logs[0].ErrorType, "error.type")
+	assert.Contains(t, logs[0].ErrorReason, "logsdb_columnar", "error.reason should mention logsdb_columnar")
+	assert.Equal(t,
+		"failed to index document: field [event.original] cannot reconstruct _source from doc values; every field must be reconstructable from doc values in index using [logsdb_columnar] index mode (illegal_argument_exception)",
+		logs[0].FormatError(),
+		"FormatError should include message, reason, and type",
+	)
+}
+
+func TestParseNDJSONLogsFromReader_FiltersByStartTime(t *testing.T) {
+	start, err := time.Parse(time.RFC3339Nano, "2026-07-01T18:00:00.000Z")
+	require.NoError(t, err, "parse start time")
+
+	var count int
+	err = ParseNDJSONLogsFromReader(strings.NewReader(sampleFailedToIndexDocument+"\n"), ParseLogsOptions{
+		StartTime: start,
+	}, func(log LogLine) error {
+		count++
+		return nil
+	})
+	require.NoError(t, err, "parse NDJSON")
+	assert.Equal(t, 0, count, "log before start time should be skipped")
+}
+
+func TestParseLogsFromReader_PreservesErrorFields(t *testing.T) {
+	line := "elastic-agent-1  | " + sampleFailedToIndexDocument + "\n"
+	start, err := time.Parse(time.RFC3339Nano, "2026-07-01T17:00:00.000Z")
+	require.NoError(t, err, "parse start time")
+
+	var logs []LogLine
+	err = ParseLogsFromReader(strings.NewReader(line), ParseLogsOptions{StartTime: start}, func(log LogLine) error {
+		logs = append(logs, log)
+		return nil
+	})
+	require.NoError(t, err, "parse docker-compose logs")
+	require.Len(t, logs, 1, "expected one log line")
+	assert.Equal(t, "failed to index document", logs[0].Message, "message")
+	assert.Contains(t, logs[0].ErrorReason, "event.original", "error.reason")
+}
+
+func TestParseNDJSONLogsDir(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "elastic-agent-20260701.ndjson")
+	require.NoError(t, os.WriteFile(path, []byte(sampleFailedToIndexDocument+"\n"), 0o644), "write fixture")
+
+	start, err := time.Parse(time.RFC3339Nano, "2026-07-01T17:00:00.000Z")
+	require.NoError(t, err, "parse start time")
+
+	var logs []LogLine
+	err = ParseNDJSONLogsDir(dir, start, func(log LogLine) error {
+		logs = append(logs, log)
+		return nil
+	})
+	require.NoError(t, err, "parse NDJSON dir")
+	require.Len(t, logs, 1, "expected one log from dir")
+	assert.Equal(t, "failed to index document", logs[0].Message, "message")
+}
+
+func TestLogLineFormatError(t *testing.T) {
+	tests := []struct {
+		name string
+		log  LogLine
+		want string
+	}{
+		{
+			name: "message only",
+			log:  LogLine{Message: "something failed"},
+			want: "something failed",
+		},
+		{
+			name: "message and reason",
+			log:  LogLine{Message: "failed to index document", ErrorReason: "bad mapping"},
+			want: "failed to index document: bad mapping",
+		},
+		{
+			name: "message reason and type",
+			log: LogLine{
+				Message:     "failed to index document",
+				ErrorReason: "bad mapping",
+				ErrorType:   "illegal_argument_exception",
+			},
+			want: "failed to index document: bad mapping (illegal_argument_exception)",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.log.FormatError())
 		})
 	}
 }

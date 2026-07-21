@@ -28,4 +28,9 @@ type DeployedAgent interface {
 
 	// Logs returns the logs from the agent starting at the given time
 	Logs(ctx context.Context, t time.Time) ([]byte, error)
+
+	// CopyInternalLogs copies Elastic Agent internal NDJSON logs from
+	// /usr/share/elastic-agent/state/data/logs/ into destDir.
+	// Returns ErrNotSupported when the agent runtime cannot expose those logs.
+	CopyInternalLogs(destDir string) error
 }
