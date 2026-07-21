@@ -64,6 +64,7 @@ var logsDBColumnarDocValuesDynamicTemplates = []map[string]any{
 
 type logsDBColumnarTemplateState struct {
 	Templates         map[string]logsDBColumnarTemplateSnapshot `json:"templates,omitempty"`
+	PackageTemplates  map[string]logsDBColumnarTemplateSnapshot `json:"package_templates,omitempty"`
 	Existed           bool                                      `json:"existed,omitempty"`
 	ComponentTemplate json.RawMessage                           `json:"component_template,omitempty"`
 }
@@ -260,7 +261,8 @@ func (r *runner) ensureLogsDBColumnarTemplate(ctx context.Context) error {
 	}
 
 	state = &logsDBColumnarTemplateState{
-		Templates: make(map[string]logsDBColumnarTemplateSnapshot, len(templateNames)),
+		Templates:        make(map[string]logsDBColumnarTemplateSnapshot, len(templateNames)),
+		PackageTemplates: make(map[string]logsDBColumnarTemplateSnapshot),
 	}
 	for _, templateName := range templateNames {
 		currentTemplate, exists, err := r.getComponentTemplate(ctx, templateName)
@@ -276,6 +278,24 @@ func (r *runner) ensureLogsDBColumnarTemplate(ctx context.Context) error {
 				return err
 			}
 			if packageExists {
+				// Columnar mode rejects explicit subobjects mapping params (it implies
+				// subobjects disabled). Strip them from @package before enabling mode.
+				strippedPackageTemplate, stripped, err := stripSubobjectsFromComponentTemplate(packageTemplate)
+				if err != nil {
+					return fmt.Errorf("failed to strip subobjects from %q: %w", packageTemplateName, err)
+				}
+				if stripped {
+					if err := r.putComponentTemplate(ctx, packageTemplateName, strippedPackageTemplate); err != nil {
+						return err
+					}
+					state.PackageTemplates[packageTemplateName] = logsDBColumnarTemplateSnapshot{
+						Existed:           true,
+						ComponentTemplate: packageTemplate,
+					}
+					logger.Debugf("Stripped subobjects from %s for logsdb_columnar testing", packageTemplateName)
+					packageTemplate = strippedPackageTemplate
+				}
+
 				for path, mapping := range collectDocValuesDisabledFieldOverrides(packageTemplate) {
 					overrides[path] = mapping
 				}
@@ -312,6 +332,7 @@ func (r *runner) restoreLogsDBColumnarTemplate(ctx context.Context) error {
 		return nil
 	}
 
+	// Remove columnar mode from @custom first so @package can regain subobjects.
 	for templateName, snapshot := range state.Templates {
 		if snapshot.Existed {
 			if err := r.putComponentTemplate(ctx, templateName, snapshot.ComponentTemplate); err != nil {
@@ -324,6 +345,13 @@ func (r *runner) restoreLogsDBColumnarTemplate(ctx context.Context) error {
 			}
 			logger.Debugf("Removed temporary %s component template", templateName)
 		}
+	}
+
+	for templateName, snapshot := range state.PackageTemplates {
+		if err := r.putComponentTemplate(ctx, templateName, snapshot.ComponentTemplate); err != nil {
+			return err
+		}
+		logger.Debugf("Restored previous %s component template", templateName)
 	}
 
 	r.logsDBColumnarState = nil
@@ -638,6 +666,70 @@ func collectDocValuesDisabledFieldOverrides(componentTemplate json.RawMessage) m
 		return nil
 	}
 	return collectDocValuesDisabledFields(template.Template.Mappings.Properties, "")
+}
+
+// stripSubobjectsFromComponentTemplate removes explicit subobjects mapping
+// parameters. logsdb_columnar rejects them because the mode already disables
+// subobjects. Returns the (possibly unchanged) template and whether anything
+// was removed.
+func stripSubobjectsFromComponentTemplate(componentTemplate json.RawMessage) ([]byte, bool, error) {
+	template := map[string]any{}
+	if err := json.Unmarshal(componentTemplate, &template); err != nil {
+		return nil, false, fmt.Errorf("failed to decode component template: %w", err)
+	}
+
+	templateSection, ok := template["template"].(map[string]any)
+	if !ok {
+		return componentTemplate, false, nil
+	}
+	mappingsSection, ok := templateSection["mappings"].(map[string]any)
+	if !ok {
+		return componentTemplate, false, nil
+	}
+
+	if !stripSubobjectsFromMappings(mappingsSection) {
+		return componentTemplate, false, nil
+	}
+
+	payload, err := json.Marshal(template)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to encode component template without subobjects: %w", err)
+	}
+	return payload, true, nil
+}
+
+func stripSubobjectsFromMappings(mappings map[string]any) bool {
+	changed := false
+	if _, ok := mappings["subobjects"]; ok {
+		delete(mappings, "subobjects")
+		changed = true
+	}
+	if properties, ok := mappings["properties"].(map[string]any); ok {
+		if stripSubobjectsFromProperties(properties) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+func stripSubobjectsFromProperties(properties map[string]any) bool {
+	changed := false
+	for _, raw := range properties {
+		prop, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, ok := prop["subobjects"]; ok {
+			delete(prop, "subobjects")
+			changed = true
+		}
+		if nested, ok := prop["properties"].(map[string]any); ok {
+			if stripSubobjectsFromProperties(nested) {
+				changed = true
+			}
+		}
+	}
+	return changed
 }
 
 func collectDocValuesDisabledFields(properties map[string]any, prefix string) map[string]map[string]any {

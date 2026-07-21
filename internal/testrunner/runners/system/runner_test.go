@@ -379,6 +379,132 @@ type: logs
 	assert.True(t, ok)
 }
 
+func TestStripSubobjectsFromComponentTemplate(t *testing.T) {
+	original := []byte(`{
+		"template": {
+			"mappings": {
+				"subobjects": false,
+				"properties": {
+					"host": {
+						"type": "object",
+						"subobjects": false,
+						"properties": {
+							"name": {"type": "keyword"}
+						}
+					},
+					"message": {"type": "match_only_text"}
+				}
+			}
+		}
+	}`)
+
+	stripped, changed, err := stripSubobjectsFromComponentTemplate(original)
+	require.NoError(t, err)
+	assert.True(t, changed)
+
+	decoded := map[string]any{}
+	require.NoError(t, json.Unmarshal(stripped, &decoded))
+	mappings := decoded["template"].(map[string]any)["mappings"].(map[string]any)
+	_, hasRootSubobjects := mappings["subobjects"]
+	assert.False(t, hasRootSubobjects)
+	host := mappings["properties"].(map[string]any)["host"].(map[string]any)
+	_, hasHostSubobjects := host["subobjects"]
+	assert.False(t, hasHostSubobjects)
+	assert.Equal(t, "keyword", host["properties"].(map[string]any)["name"].(map[string]any)["type"])
+
+	unchanged, changedAgain, err := stripSubobjectsFromComponentTemplate(stripped)
+	require.NoError(t, err)
+	assert.False(t, changedAgain)
+	assert.JSONEq(t, string(stripped), string(unchanged))
+}
+
+func TestEnsureLogsDBColumnarTemplateStripsPackageSubobjects(t *testing.T) {
+	originalPackage := `{"template":{"mappings":{"subobjects":false,"properties":{"message":{"type":"keyword"}}}}}`
+	var packagePuts [][]byte
+	var customPuts [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("X-Elastic-Product", "Elasticsearch")
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/":
+			_, _ = io.WriteString(w, `{"version":{"number":"9.5.0-SNAPSHOT"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_capabilities":
+			_, _ = io.WriteString(w, `{"supported":true}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-doppler.activity@custom":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = io.WriteString(w, `{"status":404}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-doppler.activity@package":
+			_, _ = io.WriteString(w, fmt.Sprintf(`{
+				"component_templates":[{
+					"name":"logs-doppler.activity@package",
+					"component_template":%s
+				}]
+			}`, originalPackage))
+		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs-doppler.activity@package":
+			body, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			packagePuts = append(packagePuts, body)
+			_, _ = io.WriteString(w, `{"acknowledged":true}`)
+		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs-doppler.activity@custom":
+			body, err := io.ReadAll(req.Body)
+			require.NoError(t, err)
+			customPuts = append(customPuts, body)
+			_, _ = io.WriteString(w, `{"acknowledged":true}`)
+		case req.Method == http.MethodDelete && req.URL.Path == "/_component_template/logs-doppler.activity@custom":
+			_, _ = io.WriteString(w, `{"acknowledged":true}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client, err := elasticsearch.NewClient(elasticsearch.OptionWithAddress(server.URL))
+	require.NoError(t, err)
+
+	packageRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "manifest.yml"), []byte(`
+format_version: 3.3.2
+name: doppler
+title: Doppler
+version: 0.0.1
+description: test
+type: integration
+conditions:
+  kibana:
+    version: "^8.0.0"
+owner:
+  github: elastic/security-service-integrations
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "data_stream", "activity"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "data_stream", "activity", "manifest.yml"), []byte(`
+title: Activity
+type: logs
+`), 0o644))
+
+	r := &runner{
+		esAPI:                   client.API,
+		esClient:                client,
+		packageRoot:             packageRoot,
+		dataStreams:             []string{"activity"},
+		logsDBColumnarStatePath: filepath.Join(t.TempDir(), "logsdb-columnar-state.json"),
+	}
+
+	err = r.ensureLogsDBColumnarTemplate(t.Context())
+	require.NoError(t, err)
+	require.Len(t, packagePuts, 1, "package template should be rewritten without subobjects")
+	require.Len(t, customPuts, 1)
+
+	strippedPackage := map[string]any{}
+	require.NoError(t, json.Unmarshal(packagePuts[0], &strippedPackage))
+	mappings := strippedPackage["template"].(map[string]any)["mappings"].(map[string]any)
+	_, hasSubobjects := mappings["subobjects"]
+	assert.False(t, hasSubobjects, "subobjects should be stripped before enabling columnar mode")
+
+	err = r.restoreLogsDBColumnarTemplate(t.Context())
+	require.NoError(t, err)
+	require.Len(t, packagePuts, 2, "original package template should be restored after custom")
+	assert.JSONEq(t, originalPackage, string(packagePuts[1]))
+}
+
 func indexModeFromPayload(t *testing.T, payload []byte) string {
 	t.Helper()
 	decoded := map[string]any{}
