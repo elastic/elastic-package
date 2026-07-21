@@ -83,3 +83,32 @@ func StartWorkflowSpanWithConfig(ctx context.Context, _ string, _ uint) (context
 }
 
 func RecordWorkflowResult(_ trace.Span, _ bool, _ int, _ string) {}
+
+// TraceSummary provides aggregated trace statistics (no-op stub).
+type TraceSummary struct {
+	TotalSpans            int     `json:"total_spans"`
+	TotalLatencyMs        float64 `json:"total_latency_ms"`
+	TotalPromptTokens     int     `json:"total_prompt_tokens"`
+	TotalCompletionTokens int     `json:"total_completion_tokens"`
+	TotalTokens           int     `json:"total_tokens"`
+	LLMCalls              int     `json:"llm_calls"`
+}
+
+// PhoenixClient is a no-op stub for the Phoenix trace client.
+type PhoenixClient struct{ baseURL string }
+
+// NewPhoenixClient creates a no-op Phoenix client.
+func NewPhoenixClient(baseURL string) *PhoenixClient { return &PhoenixClient{baseURL: baseURL} }
+
+// IsPhoenixAvailable always returns false in the no-op stub.
+func (c *PhoenixClient) IsPhoenixAvailable(_ context.Context) bool { return false }
+
+// SessionTraces represents trace data for a session (no-op stub).
+type SessionTraces struct {
+	Summary *TraceSummary `json:"summary,omitempty"`
+}
+
+// FetchSessionTraces returns nil in the no-op stub.
+func (c *PhoenixClient) FetchSessionTraces(_ context.Context, _ string) (*SessionTraces, error) {
+	return nil, nil
+}
