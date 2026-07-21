@@ -449,6 +449,7 @@ func SaveEvaluationResult(result *EvaluationResult, outputDir string) error {
 	mdPath := filepath.Join(resultDir, result.RunID+".md")
 	if err := os.WriteFile(mdPath, []byte(result.GeneratedContent), 0o644); err != nil {
 		logger.Debugf("Failed to save generated markdown: %v", err)
+		return err
 	}
 
 	// Save original content if available
@@ -456,6 +457,7 @@ func SaveEvaluationResult(result *EvaluationResult, outputDir string) error {
 		originalPath := filepath.Join(resultDir, result.RunID+"_original.md")
 		if err := os.WriteFile(originalPath, []byte(result.OriginalContent), 0o644); err != nil {
 			logger.Debugf("Failed to save original markdown: %v", err)
+			return err
 		}
 	}
 
