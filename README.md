@@ -840,8 +840,9 @@ The following settings are available per profile:
   with `index.mode: logsdb_columnar` and forces `doc_values: true` on fields that would
   otherwise fail under columnar mode (including ECS `event.original` and package fields
   declared with `doc_values: false`). It also strips explicit `subobjects` mapping
-  parameters from `@package` templates, which columnar mode rejects (the mode already
-  disables subobjects). These overrides are a test-only workaround: `logsdb_columnar`
+  parameters from all logs `@package` templates in the package (including sibling
+  streams not under test), which columnar mode rejects (the mode already disables
+  subobjects). These overrides are a test-only workaround: `logsdb_columnar`
   reconstructs `_source` from doc values, and ECS / package mappings still need a
   product solution for this mode.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the

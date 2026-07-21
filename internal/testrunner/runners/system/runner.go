@@ -264,6 +264,43 @@ func (r *runner) ensureLogsDBColumnarTemplate(ctx context.Context) error {
 		Templates:        make(map[string]logsDBColumnarTemplateSnapshot, len(templateNames)),
 		PackageTemplates: make(map[string]logsDBColumnarTemplateSnapshot),
 	}
+
+	// Strip subobjects from every logs @package template in the package, not only
+	// selected streams. Sibling streams can still be created under
+	// cluster.logsdb_columnar.enabled even when only one stream is under test.
+	packageTemplateNames, err := r.logsDBColumnarPackageTemplateNames()
+	if err != nil {
+		return err
+	}
+	packageTemplates := make(map[string]json.RawMessage, len(packageTemplateNames))
+	for _, packageTemplateName := range packageTemplateNames {
+		packageTemplate, packageExists, err := r.getComponentTemplate(ctx, packageTemplateName)
+		if err != nil {
+			return err
+		}
+		if !packageExists {
+			continue
+		}
+		// Columnar mode rejects explicit subobjects mapping params (it implies
+		// subobjects disabled). Strip them from @package before enabling mode.
+		strippedPackageTemplate, stripped, err := stripSubobjectsFromComponentTemplate(packageTemplate)
+		if err != nil {
+			return fmt.Errorf("failed to strip subobjects from %q: %w", packageTemplateName, err)
+		}
+		if stripped {
+			if err := r.putComponentTemplate(ctx, packageTemplateName, strippedPackageTemplate); err != nil {
+				return err
+			}
+			state.PackageTemplates[packageTemplateName] = logsDBColumnarTemplateSnapshot{
+				Existed:           true,
+				ComponentTemplate: packageTemplate,
+			}
+			logger.Debugf("Stripped subobjects from %s for logsdb_columnar testing", packageTemplateName)
+			packageTemplate = strippedPackageTemplate
+		}
+		packageTemplates[packageTemplateName] = packageTemplate
+	}
+
 	for _, templateName := range templateNames {
 		currentTemplate, exists, err := r.getComponentTemplate(ctx, templateName)
 		if err != nil {
@@ -272,33 +309,9 @@ func (r *runner) ensureLogsDBColumnarTemplate(ctx context.Context) error {
 
 		overrides := logsDBColumnarPropertyOverrides()
 		packageTemplateName := packageComponentTemplateName(templateName)
-		if packageTemplateName != "" {
-			packageTemplate, packageExists, err := r.getComponentTemplate(ctx, packageTemplateName)
-			if err != nil {
-				return err
-			}
-			if packageExists {
-				// Columnar mode rejects explicit subobjects mapping params (it implies
-				// subobjects disabled). Strip them from @package before enabling mode.
-				strippedPackageTemplate, stripped, err := stripSubobjectsFromComponentTemplate(packageTemplate)
-				if err != nil {
-					return fmt.Errorf("failed to strip subobjects from %q: %w", packageTemplateName, err)
-				}
-				if stripped {
-					if err := r.putComponentTemplate(ctx, packageTemplateName, strippedPackageTemplate); err != nil {
-						return err
-					}
-					state.PackageTemplates[packageTemplateName] = logsDBColumnarTemplateSnapshot{
-						Existed:           true,
-						ComponentTemplate: packageTemplate,
-					}
-					logger.Debugf("Stripped subobjects from %s for logsdb_columnar testing", packageTemplateName)
-					packageTemplate = strippedPackageTemplate
-				}
-
-				for path, mapping := range collectDocValuesDisabledFieldOverrides(packageTemplate) {
-					overrides[path] = mapping
-				}
+		if packageTemplate, ok := packageTemplates[packageTemplateName]; ok {
+			for path, mapping := range collectDocValuesDisabledFieldOverrides(packageTemplate) {
+				overrides[path] = mapping
 			}
 		}
 
@@ -534,8 +547,31 @@ func (r *runner) saveLogsDBColumnarState(state *logsDBColumnarTemplateState) err
 }
 
 func (r *runner) logsDBColumnarTemplateNames() ([]string, error) {
+	return r.logsDBColumnarCustomTemplateNames(true)
+}
+
+// logsDBColumnarPackageTemplateNames returns @package component template names
+// for every logs data stream in the package.
+func (r *runner) logsDBColumnarPackageTemplateNames() ([]string, error) {
+	customNames, err := r.logsDBColumnarCustomTemplateNames(false)
+	if err != nil {
+		return nil, err
+	}
+	packageNames := make([]string, 0, len(customNames))
+	for _, customName := range customNames {
+		if packageName := packageComponentTemplateName(customName); packageName != "" {
+			packageNames = append(packageNames, packageName)
+		}
+	}
+	return packageNames, nil
+}
+
+func (r *runner) logsDBColumnarCustomTemplateNames(selectedOnly bool) ([]string, error) {
 	if r.packageRoot == "" {
-		return []string{defaultLogsDBColumnarComponentTemplateName}, nil
+		if selectedOnly {
+			return []string{defaultLogsDBColumnarComponentTemplateName}, nil
+		}
+		return nil, nil
 	}
 
 	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
@@ -547,18 +583,20 @@ func (r *runner) logsDBColumnarTemplateNames() ([]string, error) {
 		return nil, fmt.Errorf("reading data stream manifests failed (path: %s): %w", r.packageRoot, err)
 	}
 
-	selectedDataStreams, err := r.selectedDataStreamsForRun()
-	if err != nil {
-		return nil, err
-	}
 	selectedSet := map[string]struct{}{}
-	for _, dataStream := range selectedDataStreams {
-		selectedSet[dataStream] = struct{}{}
+	if selectedOnly {
+		selectedDataStreams, err := r.selectedDataStreamsForRun()
+		if err != nil {
+			return nil, err
+		}
+		for _, dataStream := range selectedDataStreams {
+			selectedSet[dataStream] = struct{}{}
+		}
 	}
 
 	templateNames := make([]string, 0, len(dataStreamManifests))
 	for _, dataStreamManifest := range dataStreamManifests {
-		if len(selectedSet) > 0 {
+		if selectedOnly && len(selectedSet) > 0 {
 			if _, found := selectedSet[dataStreamManifest.Name]; !found {
 				continue
 			}
@@ -574,7 +612,7 @@ func (r *runner) logsDBColumnarTemplateNames() ([]string, error) {
 		templateNames = append(templateNames, "logs-"+dataset+"@custom")
 	}
 
-	if len(templateNames) == 0 {
+	if selectedOnly && len(templateNames) == 0 {
 		return []string{defaultLogsDBColumnarComponentTemplateName}, nil
 	}
 	return templateNames, nil

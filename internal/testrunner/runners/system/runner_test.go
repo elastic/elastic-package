@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -453,7 +454,7 @@ func TestEnsureLogsDBColumnarTemplateStripsPackageSubobjects(t *testing.T) {
 		"created_date_millis":1784647677960,
 		"modified_date_millis":1784647677960
 	}`
-	var packagePuts [][]byte
+	packagePuts := map[string][][]byte{}
 	var customPuts [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("X-Elastic-Product", "Elasticsearch")
@@ -465,17 +466,21 @@ func TestEnsureLogsDBColumnarTemplateStripsPackageSubobjects(t *testing.T) {
 		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-doppler.activity@custom":
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = io.WriteString(w, `{"status":404}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/_component_template/logs-doppler.activity@package":
+		case req.Method == http.MethodGet && (req.URL.Path == "/_component_template/logs-doppler.activity@package" ||
+			req.URL.Path == "/_component_template/logs-doppler.secret_read@package"):
+			name := strings.TrimPrefix(req.URL.Path, "/_component_template/")
 			_, _ = io.WriteString(w, fmt.Sprintf(`{
 				"component_templates":[{
-					"name":"logs-doppler.activity@package",
+					"name":%q,
 					"component_template":%s
 				}]
-			}`, originalPackage))
-		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs-doppler.activity@package":
+			}`, name, originalPackage))
+		case req.Method == http.MethodPut && (req.URL.Path == "/_component_template/logs-doppler.activity@package" ||
+			req.URL.Path == "/_component_template/logs-doppler.secret_read@package"):
+			name := strings.TrimPrefix(req.URL.Path, "/_component_template/")
 			body, err := io.ReadAll(req.Body)
 			require.NoError(t, err)
-			packagePuts = append(packagePuts, body)
+			packagePuts[name] = append(packagePuts[name], body)
 			_, _ = io.WriteString(w, `{"acknowledged":true}`)
 		case req.Method == http.MethodPut && req.URL.Path == "/_component_template/logs-doppler.activity@custom":
 			body, err := io.ReadAll(req.Body)
@@ -507,11 +512,13 @@ conditions:
 owner:
   github: elastic/security-service-integrations
 `), 0o644))
-	require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "data_stream", "activity"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "data_stream", "activity", "manifest.yml"), []byte(`
-title: Activity
+	for _, stream := range []string{"activity", "secret_read"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "data_stream", stream), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "data_stream", stream, "manifest.yml"), []byte(fmt.Sprintf(`
+title: %s
 type: logs
-`), 0o644))
+`, stream)), 0o644))
+	}
 
 	r := &runner{
 		esAPI:                   client.API,
@@ -523,29 +530,35 @@ type: logs
 
 	err = r.ensureLogsDBColumnarTemplate(t.Context())
 	require.NoError(t, err)
-	require.Len(t, packagePuts, 1, "package template should be rewritten without subobjects")
-	require.Len(t, customPuts, 1)
+	require.Len(t, packagePuts["logs-doppler.activity@package"], 1, "selected stream package template should be rewritten")
+	require.Len(t, packagePuts["logs-doppler.secret_read@package"], 1, "sibling stream package template should also be stripped")
+	require.Len(t, customPuts, 1, "columnar @custom should only be configured for the selected stream")
 
-	strippedPackage := map[string]any{}
-	require.NoError(t, json.Unmarshal(packagePuts[0], &strippedPackage))
-	mappings := strippedPackage["template"].(map[string]any)["mappings"].(map[string]any)
-	_, hasSubobjects := mappings["subobjects"]
-	assert.False(t, hasSubobjects, "subobjects should be stripped before enabling columnar mode")
-	_, hasCreatedMillis := strippedPackage["created_date_millis"]
-	_, hasModifiedMillis := strippedPackage["modified_date_millis"]
-	assert.False(t, hasCreatedMillis, "system-managed created_date_millis must not be sent on put")
-	assert.False(t, hasModifiedMillis, "system-managed modified_date_millis must not be sent on put")
+	for name, puts := range packagePuts {
+		strippedPackage := map[string]any{}
+		require.NoError(t, json.Unmarshal(puts[0], &strippedPackage), name)
+		mappings := strippedPackage["template"].(map[string]any)["mappings"].(map[string]any)
+		_, hasSubobjects := mappings["subobjects"]
+		assert.False(t, hasSubobjects, "%s: subobjects should be stripped before enabling columnar mode", name)
+		_, hasCreatedMillis := strippedPackage["created_date_millis"]
+		_, hasModifiedMillis := strippedPackage["modified_date_millis"]
+		assert.False(t, hasCreatedMillis, "%s: system-managed created_date_millis must not be sent on put", name)
+		assert.False(t, hasModifiedMillis, "%s: system-managed modified_date_millis must not be sent on put", name)
+	}
 
 	err = r.restoreLogsDBColumnarTemplate(t.Context())
 	require.NoError(t, err)
-	require.Len(t, packagePuts, 2, "original package template should be restored after custom")
-	restoredPackage := map[string]any{}
-	require.NoError(t, json.Unmarshal(packagePuts[1], &restoredPackage))
-	assert.Equal(t, false, restoredPackage["template"].(map[string]any)["mappings"].(map[string]any)["subobjects"])
-	_, hasCreatedMillis = restoredPackage["created_date_millis"]
-	_, hasModifiedMillis = restoredPackage["modified_date_millis"]
-	assert.False(t, hasCreatedMillis)
-	assert.False(t, hasModifiedMillis)
+	require.Len(t, packagePuts["logs-doppler.activity@package"], 2, "original activity package template should be restored after custom")
+	require.Len(t, packagePuts["logs-doppler.secret_read@package"], 2, "original sibling package template should be restored")
+	for name, puts := range packagePuts {
+		restoredPackage := map[string]any{}
+		require.NoError(t, json.Unmarshal(puts[1], &restoredPackage), name)
+		assert.Equal(t, false, restoredPackage["template"].(map[string]any)["mappings"].(map[string]any)["subobjects"], name)
+		_, hasCreatedMillis := restoredPackage["created_date_millis"]
+		_, hasModifiedMillis := restoredPackage["modified_date_millis"]
+		assert.False(t, hasCreatedMillis, name)
+		assert.False(t, hasModifiedMillis, name)
+	}
 }
 
 func indexModeFromPayload(t *testing.T, payload []byte) string {
