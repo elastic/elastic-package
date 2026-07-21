@@ -379,6 +379,35 @@ type: logs
 	assert.True(t, ok)
 }
 
+func TestSanitizeComponentTemplateForPut(t *testing.T) {
+	original := []byte(`{
+		"template": {"mappings": {"subobjects": false}},
+		"_meta": {"managed": true},
+		"version": 1,
+		"created_date_millis": 1784647677960,
+		"modified_date_millis": 1784647677960,
+		"created_date": "2026-01-01T00:00:00.000Z",
+		"modified_date": "2026-01-01T00:00:00.000Z"
+	}`)
+
+	sanitized, err := sanitizeComponentTemplateForPut(original)
+	require.NoError(t, err)
+
+	decoded := map[string]any{}
+	require.NoError(t, json.Unmarshal(sanitized, &decoded))
+	assert.Equal(t, false, decoded["template"].(map[string]any)["mappings"].(map[string]any)["subobjects"])
+	assert.Equal(t, map[string]any{"managed": true}, decoded["_meta"])
+	assert.EqualValues(t, 1, decoded["version"])
+	_, hasCreatedMillis := decoded["created_date_millis"]
+	_, hasModifiedMillis := decoded["modified_date_millis"]
+	_, hasCreated := decoded["created_date"]
+	_, hasModified := decoded["modified_date"]
+	assert.False(t, hasCreatedMillis)
+	assert.False(t, hasModifiedMillis)
+	assert.False(t, hasCreated)
+	assert.False(t, hasModified)
+}
+
 func TestStripSubobjectsFromComponentTemplate(t *testing.T) {
 	original := []byte(`{
 		"template": {
@@ -419,7 +448,11 @@ func TestStripSubobjectsFromComponentTemplate(t *testing.T) {
 }
 
 func TestEnsureLogsDBColumnarTemplateStripsPackageSubobjects(t *testing.T) {
-	originalPackage := `{"template":{"mappings":{"subobjects":false,"properties":{"message":{"type":"keyword"}}}}}`
+	originalPackage := `{
+		"template":{"mappings":{"subobjects":false,"properties":{"message":{"type":"keyword"}}}},
+		"created_date_millis":1784647677960,
+		"modified_date_millis":1784647677960
+	}`
 	var packagePuts [][]byte
 	var customPuts [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -498,11 +531,21 @@ type: logs
 	mappings := strippedPackage["template"].(map[string]any)["mappings"].(map[string]any)
 	_, hasSubobjects := mappings["subobjects"]
 	assert.False(t, hasSubobjects, "subobjects should be stripped before enabling columnar mode")
+	_, hasCreatedMillis := strippedPackage["created_date_millis"]
+	_, hasModifiedMillis := strippedPackage["modified_date_millis"]
+	assert.False(t, hasCreatedMillis, "system-managed created_date_millis must not be sent on put")
+	assert.False(t, hasModifiedMillis, "system-managed modified_date_millis must not be sent on put")
 
 	err = r.restoreLogsDBColumnarTemplate(t.Context())
 	require.NoError(t, err)
 	require.Len(t, packagePuts, 2, "original package template should be restored after custom")
-	assert.JSONEq(t, originalPackage, string(packagePuts[1]))
+	restoredPackage := map[string]any{}
+	require.NoError(t, json.Unmarshal(packagePuts[1], &restoredPackage))
+	assert.Equal(t, false, restoredPackage["template"].(map[string]any)["mappings"].(map[string]any)["subobjects"])
+	_, hasCreatedMillis = restoredPackage["created_date_millis"]
+	_, hasModifiedMillis = restoredPackage["modified_date_millis"]
+	assert.False(t, hasCreatedMillis)
+	assert.False(t, hasModifiedMillis)
 }
 
 func indexModeFromPayload(t *testing.T, payload []byte) string {

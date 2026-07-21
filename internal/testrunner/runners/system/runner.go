@@ -448,6 +448,11 @@ func (r *runner) getComponentTemplate(ctx context.Context, templateName string) 
 }
 
 func (r *runner) putComponentTemplate(ctx context.Context, templateName string, payload []byte) error {
+	payload, err := sanitizeComponentTemplateForPut(payload)
+	if err != nil {
+		return fmt.Errorf("failed to prepare component template %q for put: %w", templateName, err)
+	}
+
 	resp, err := r.esAPI.Cluster.PutComponentTemplate(
 		templateName,
 		bytes.NewReader(payload),
@@ -696,6 +701,32 @@ func stripSubobjectsFromComponentTemplate(componentTemplate json.RawMessage) ([]
 		return nil, false, fmt.Errorf("failed to encode component template without subobjects: %w", err)
 	}
 	return payload, true, nil
+}
+
+// sanitizeComponentTemplateForPut removes GET-only system fields that
+// Elasticsearch rejects on PutComponentTemplate.
+func sanitizeComponentTemplateForPut(componentTemplate []byte) ([]byte, error) {
+	template := map[string]any{}
+	if err := json.Unmarshal(componentTemplate, &template); err != nil {
+		return nil, fmt.Errorf("failed to decode component template: %w", err)
+	}
+
+	changed := false
+	for _, key := range []string{"created_date_millis", "modified_date_millis", "created_date", "modified_date"} {
+		if _, ok := template[key]; ok {
+			delete(template, key)
+			changed = true
+		}
+	}
+	if !changed {
+		return componentTemplate, nil
+	}
+
+	payload, err := json.Marshal(template)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode sanitized component template: %w", err)
+	}
+	return payload, nil
 }
 
 func stripSubobjectsFromMappings(mappings map[string]any) bool {
