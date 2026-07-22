@@ -1567,7 +1567,7 @@ func TestPatchManifestVersion(t *testing.T) {
 
 	t.Run("errors on missing manifest file", func(t *testing.T) {
 		dir := t.TempDir()
-		_, err := patchManifestVersion(dir, "0.0.0")
+		_, err := patchManifestVersion(dir, "0.0.1")
 		require.Error(t, err)
 	})
 }
