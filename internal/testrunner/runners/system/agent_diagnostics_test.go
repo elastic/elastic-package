@@ -104,6 +104,14 @@ func TestMatchLogPatterns_FailedToIndexDocument(t *testing.T) {
 	assert.True(t, matchLogPatterns(log, errorPatterns[0].patterns), "should match shared errorPatterns")
 }
 
+func TestMatchLogPatterns_InputFailed(t *testing.T) {
+	log := stack.LogLine{Message: "Input 'azure-blob-storage' failed with: GET http://svc:10000/... RESPONSE 400"}
+	assert.True(t, matchLogPatterns(log, indexingErrorPatterns), "should match permanent input failures")
+
+	failed := stack.LogLine{Message: "Component state changed azure-blob-storage-default (STARTING->FAILED): Permanent: failed to fetch next page"}
+	assert.True(t, matchLogPatterns(failed, indexingErrorPatterns), "should match STARTING->FAILED")
+}
+
 func TestCollectAgentIndexingDiagnostics_FromInternalLogs(t *testing.T) {
 	r := &tester{}
 	agent := &stubAgent{

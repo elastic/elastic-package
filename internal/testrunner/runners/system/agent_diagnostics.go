@@ -24,8 +24,9 @@ import (
 // missing-hits failure so Buildkite junit annotations stay within size limits.
 const maxAgentDiagnosticErrors = 5
 
-// indexingErrorPatterns matches Elasticsearch indexing failures in agent logs.
-// These are a subset of errorPatterns focused on explaining zero-hit failures.
+// indexingErrorPatterns matches agent log lines that explain zero-hit failures.
+// Includes Elasticsearch indexing rejections and permanent input/component
+// failures (for example an unreachable mock service).
 var indexingErrorPatterns = []logsRegexp{
 	{
 		includes: regexp.MustCompile(`^Cannot index event publisher.Event`),
@@ -35,6 +36,16 @@ var indexingErrorPatterns = []logsRegexp{
 	},
 	{
 		includes: regexp.MustCompile(`^failed to index document`),
+	},
+	{
+		// Permanent input startup/runtime failures (e.g. mock service API mismatch).
+		includes: regexp.MustCompile(`^Input '.*' failed with:`),
+	},
+	{
+		includes: regexp.MustCompile(`(STARTING|HEALTHY|DEGRADED)->FAILED\)`),
+		excludes: []*regexp.Regexp{
+			regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+		},
 	},
 }
 

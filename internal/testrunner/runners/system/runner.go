@@ -28,6 +28,8 @@ import (
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -595,7 +597,20 @@ func (r *runner) logsDBColumnarCustomTemplateNames(selectedOnly bool) ([]string,
 		}
 	}
 
+	seen := map[string]struct{}{}
 	templateNames := make([]string, 0, len(dataStreamManifests))
+	addTemplate := func(dataset string) {
+		if dataset == "" {
+			return
+		}
+		name := "logs-" + dataset + "@custom"
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		templateNames = append(templateNames, name)
+	}
+
 	for _, dataStreamManifest := range dataStreamManifests {
 		if selectedOnly && len(selectedSet) > 0 {
 			if _, found := selectedSet[dataStreamManifest.Name]; !found {
@@ -610,10 +625,101 @@ func (r *runner) logsDBColumnarCustomTemplateNames(selectedOnly bool) ([]string,
 		if dataset == "" {
 			dataset = packageManifest.Name + "." + dataStreamManifest.Name
 		}
-		templateNames = append(templateNames, "logs-"+dataset+"@custom")
+		addTemplate(dataset)
+	}
+
+	// Input packages have no data_stream manifests. Cluster logsdb_columnar can
+	// still force columnar mode on their datasets, so configure per-dataset
+	// @custom from policy defaults and system test configs.
+	if packageManifest.Type == "input" {
+		datasets, err := inputPackageLogsDatasets(r.packageRoot, packageManifest)
+		if err != nil {
+			return nil, err
+		}
+		for _, dataset := range datasets {
+			addTemplate(dataset)
+		}
 	}
 
 	return templateNames, nil
+}
+
+// inputPackageLogsDatasets returns datasets used by an input package's logs
+// policy templates: defaults from the manifest plus overrides from system test
+// configs under _dev/test/system.
+func inputPackageLogsDatasets(packageRoot string, packageManifest *packages.PackageManifest) ([]string, error) {
+	seen := map[string]struct{}{}
+	var datasets []string
+	add := func(dataset string) {
+		dataset = strings.TrimSpace(dataset)
+		if dataset == "" {
+			return
+		}
+		if _, ok := seen[dataset]; ok {
+			return
+		}
+		seen[dataset] = struct{}{}
+		datasets = append(datasets, dataset)
+	}
+
+	for _, policyTemplate := range packageManifest.PolicyTemplates {
+		if policyTemplate.Type != "" && policyTemplate.Type != "logs" {
+			continue
+		}
+		for _, variable := range policyTemplate.Vars {
+			if variable.Name != "data_stream.dataset" || variable.Default == nil {
+				continue
+			}
+			if dataset, ok := variable.Default.Value().(string); ok {
+				add(dataset)
+			}
+		}
+	}
+
+	systemTestDir := filepath.Join(packageRoot, "_dev", "test", "system")
+	configFiles, err := listConfigFiles(systemTestDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return datasets, nil
+		}
+		return nil, fmt.Errorf("listing system test configs failed: %w", err)
+	}
+	for _, configFile := range configFiles {
+		dataset, err := datasetFromSystemTestConfigFile(filepath.Join(systemTestDir, configFile))
+		if err != nil {
+			return nil, err
+		}
+		add(dataset)
+	}
+
+	return datasets, nil
+}
+
+func datasetFromSystemTestConfigFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("reading system test config %q failed: %w", path, err)
+	}
+
+	var probe struct {
+		Vars       map[string]any `yaml:"vars"`
+		DataStream struct {
+			Vars map[string]any `yaml:"vars"`
+		} `yaml:"data_stream"`
+	}
+	if err := yaml.Unmarshal(content, &probe); err != nil {
+		return "", fmt.Errorf("parsing system test config %q failed: %w", path, err)
+	}
+
+	for _, vars := range []map[string]any{probe.Vars, probe.DataStream.Vars} {
+		if vars == nil {
+			continue
+		}
+		if dataset, ok := vars["data_stream.dataset"].(string); ok {
+			return dataset, nil
+		}
+	}
+	return "", nil
 }
 
 func (r *runner) selectedDataStreamsForRun() ([]string, error) {

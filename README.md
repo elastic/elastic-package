@@ -842,11 +842,13 @@ The following settings are available per profile:
   and package fields declared with `doc_values: false`). It also strips explicit
   `subobjects` mapping parameters from all logs `@package` templates in the package
   (including sibling streams not under test), which columnar mode rejects (the mode
-  already disables subobjects). Global `logs@custom` is never modified, so other
-  installed packages (for example `elastic_agent`) are unaffected. Metrics-only
-  packages skip this path. These overrides are a test-only workaround:
-  `logsdb_columnar` reconstructs `_source` from doc values, and ECS / package
-  mappings still need a product solution for this mode.
+  already disables subobjects). For input packages, datasets are taken from policy
+  template defaults and system test `data_stream.dataset` overrides. Global
+  `logs@custom` is never modified, so other installed packages (for example
+  `elastic_agent`) are unaffected. Metrics-only packages skip this path. These
+  overrides are a test-only workaround: `logsdb_columnar` reconstructs `_source`
+  from doc values, and ECS / package mappings still need a product solution for
+  this mode.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.

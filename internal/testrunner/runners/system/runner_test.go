@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func TestBuildLogsDBColumnarTemplatePayload(t *testing.T) {
@@ -283,6 +284,63 @@ func TestEnsureAndRestoreLogsDBColumnarTemplateWithExistingTemplate(t *testing.T
 	assert.Equal(t, "2", index["number_of_shards"])
 	_, hasMode := index["mode"]
 	assert.False(t, hasMode)
+}
+
+func TestInputPackageLogsDatasets(t *testing.T) {
+	packageRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "manifest.yml"), []byte(`
+format_version: 3.1.5
+name: filestream
+title: Filestream
+version: 0.0.1
+description: test
+type: input
+conditions:
+  kibana:
+    version: "^8.0.0"
+owner:
+  github: elastic/test
+policy_templates:
+  - name: filestream
+    type: logs
+    title: Filestream
+    description: test
+    input: filestream
+    vars:
+      - name: data_stream.dataset
+        type: text
+        default: filestream.generic
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(packageRoot, "_dev", "test", "system"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "_dev", "test", "system", "test-default-config.yml"), []byte(`
+input: filestream
+vars:
+  data_stream.dataset: filestream.generic
+  paths:
+    - "{{SERVICE_LOGS_DIR}}/test.log"
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "_dev", "test", "system", "test-custom-dataset-config.yml"), []byte(`
+input: filestream
+vars:
+  data_stream.dataset: elastic_agent.test
+  paths:
+    - "{{SERVICE_LOGS_DIR}}/test.log"
+`), 0o644))
+
+	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	require.NoError(t, err)
+
+	datasets, err := inputPackageLogsDatasets(packageRoot, packageManifest)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"filestream.generic", "elastic_agent.test"}, datasets)
+
+	r := &runner{packageRoot: packageRoot}
+	names, err := r.logsDBColumnarCustomTemplateNames(true)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"logs-filestream.generic@custom",
+		"logs-elastic_agent.test@custom",
+	}, names)
 }
 
 func TestEnsureLogsDBColumnarTemplateSkipsMetricsOnlyPackage(t *testing.T) {
