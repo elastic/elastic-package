@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "description": "An example dashboard for testing the rendering of dashboards in the package README.",
+    "kibanaSavedObjectMeta": {
+      "searchSourceJSON": "{\"filter\":[],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"
+    },
+    "optionsJSON": "{\"useMargins\":true,\"hidePanelTitles\":false}",
+    "panelsJSON": "[]",
+    "timeRestore": false,
+    "title": "[Example] Dashboard"
+  },
+  "coreMigrationVersion": "8.8.0",
+  "id": "dashboards-example",
+  "references": [],
+  "type": "dashboard",
+  "typeMigrationVersion": "10.3.0"
+}
