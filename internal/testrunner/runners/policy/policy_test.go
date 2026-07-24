@@ -289,6 +289,55 @@ service:
 		assert.Equal(t, string(outBare), string(outSuffixed))
 	})
 
+	// Regression test for kibana#270487: Fleet started suffixing bare pipeline keys
+	// (e.g. "logs", "metrics") with the output ID (e.g. "logs/default"). A bare key
+	// and its suffixed equivalent must normalize to the same canonical form.
+	t.Run("bare and suffixed pipeline keys normalize to same result", func(t *testing.T) {
+		bare := `
+receivers:
+  otlp/abc: {}
+exporters:
+  elasticsearch/default: {}
+service:
+  pipelines:
+    logs:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+    metrics:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+`
+		suffixed := `
+receivers:
+  otlp/abc: {}
+exporters:
+  elasticsearch/default: {}
+service:
+  pipelines:
+    logs/default:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+    metrics/default:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+`
+		outBare, err := normalizePolicyToCanonical([]byte(bare))
+		assert.NoError(t, err)
+		t.Log(string(outBare))
+		outSuffixed, err := normalizePolicyToCanonical([]byte(suffixed))
+		assert.NoError(t, err)
+		t.Log(string(outSuffixed))
+		assert.Equal(t, string(outBare), string(outSuffixed))
+	})
+
 	t.Run("strips OTTL where clause from data_stream set statements", func(t *testing.T) {
 		policy := `
 processors:
