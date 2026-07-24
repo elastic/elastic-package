@@ -559,6 +559,50 @@ service:
 		assert.Contains(t, string(out), "bearertokenauth/componentid-")
 	})
 
+	// Regression test: extension type names that appear as arbitrary config values (e.g. a
+	// processor action's "value" field) must not be renamed. Only values at known OTel
+	// extension-reference positions — auth.authenticator and service.extensions[] — are
+	// extension references per the OTel collector source (config/configauth).
+	t.Run("extension type name used as config value is not renamed", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      file: /etc/otel/.htpasswd
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+        endpoint: localhost:4317
+      http:
+        auth:
+          authenticator: basicauth
+        endpoint: localhost:4318
+processors:
+  attributes/abc:
+    actions:
+      - key: auth.scheme
+        value: basicauth
+        action: insert
+service:
+  extensions:
+    - basicauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		require.NoError(t, err)
+		t.Log(string(out))
+		// Receiver auth.authenticator references (nested inside receivers.*.protocols.*.auth)
+		// must be normalized — this is the real OTel extension-reference position.
+		assert.Contains(t, string(out), "authenticator: basicauth/componentid-0")
+		// service.extensions reference must also be normalized.
+		assert.Contains(t, string(out), "- basicauth/componentid-0")
+		// The processor "value" field is NOT an extension reference — must stay unchanged.
+		assert.Contains(t, string(out), "value: basicauth")
+		assert.NotContains(t, string(out), "value: basicauth/componentid-0")
+	})
+
 	t.Run("does not mix up references when there are two distinct apikeyauth extensions", func(t *testing.T) {
 		policy := `
 extensions:
