@@ -44,7 +44,7 @@ func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, t
 	return nil
 }
 
-func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
+func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string, ignoreFields []string) error {
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
@@ -54,7 +54,8 @@ func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client,
 		return fmt.Errorf("failed to read expected policy: %w", err)
 	}
 
-	diff, err := comparePolicies(expectedPolicy, policy)
+	filters := filtersWithIgnoreFields(policyEntryFilters, ignoreFields)
+	diff, err := comparePolicies(expectedPolicy, policy, filters)
 	if err != nil {
 		return fmt.Errorf("failed to compare policies: %w", err)
 	}
@@ -65,14 +66,14 @@ func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client,
 	return nil
 }
 
-func comparePolicies(expected, found []byte) (string, error) {
+func comparePolicies(expected, found []byte, filters []policyEntryFilter) (string, error) {
 	logger.Tracef("expected policy before cleaning:\n%s", string(expected))
 	logger.Tracef("found policy before cleaning:\n%s", string(found))
-	want, err := cleanPolicy(expected, policyEntryFilters)
+	want, err := cleanPolicy(expected, filters)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare expected policy: %w", err)
 	}
-	got, err := cleanPolicy(found, policyEntryFilters)
+	got, err := cleanPolicy(found, filters)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare found policy: %w", err)
 	}
@@ -100,6 +101,24 @@ func comparePolicies(expected, found []byte) (string, error) {
 func expectedPathFor(testPath string) string {
 	ext := filepath.Ext(testPath)
 	return strings.TrimSuffix(testPath, ext) + ".expected"
+}
+
+// filtersWithIgnoreFields appends dynamic stream-level field removal filters
+// derived from the test config's ignore_fields list to the base filters.
+func filtersWithIgnoreFields(base []policyEntryFilter, ignoreFields []string) []policyEntryFilter {
+	if len(ignoreFields) == 0 {
+		return base
+	}
+	streamFilters := make([]policyEntryFilter, len(ignoreFields))
+	for i, f := range ignoreFields {
+		streamFilters[i] = policyEntryFilter{name: f}
+	}
+	return append(slices.Clone(base), policyEntryFilter{
+		name: "inputs",
+		elementsEntries: []policyEntryFilter{
+			{name: "streams", elementsEntries: streamFilters},
+		},
+	})
 }
 
 type policyEntryFilter struct {
