@@ -252,8 +252,10 @@ func preNormalizePolicy(root map[string]any) {
 	// separate forward connectors.
 	if connectors, ok := toMap(root["connectors"]); ok {
 		if v, hasBare := connectors["forward"]; hasBare {
-			delete(connectors, "forward")
-			connectors["forward/_bare"] = v
+			if _, taken := connectors["forward/_bare"]; !taken {
+				delete(connectors, "forward")
+				connectors["forward/_bare"] = v
+			}
 		}
 	}
 
@@ -264,8 +266,11 @@ func preNormalizePolicy(root map[string]any) {
 		if pipelines, ok := toMap(service["pipelines"]); ok {
 			for k, v := range pipelines {
 				if !strings.Contains(k, "/") {
-					delete(pipelines, k)
-					pipelines[k+"/_bare"] = v
+					target := k + "/_bare"
+					if _, taken := pipelines[target]; !taken {
+						delete(pipelines, k)
+						pipelines[target] = v
+					}
 				}
 			}
 		}
@@ -279,8 +284,11 @@ func preNormalizePolicy(root map[string]any) {
 	if extensions, ok := toMap(root["extensions"]); ok {
 		for k, v := range extensions {
 			if !strings.Contains(k, "/") {
-				delete(extensions, k)
-				extensions[k+"/_bare"] = v
+				target := k + "/_bare"
+				if _, taken := extensions[target]; !taken {
+					delete(extensions, k)
+					extensions[target] = v
+				}
 			}
 		}
 	}
@@ -477,6 +485,11 @@ func replaceOrRecurse(v any, idMapping map[string]string) any {
 //     references still use the bare type name (e.g. authenticator: basicauth).
 //   - Fully-bare state: extension map key was renamed to _bare by preNormalizePolicy; the
 //     reference is still the bare type name since preNormalizeNode no longer renames it.
+//
+// If every extension key and every reference already use a suffixed form (fully-suffixed state),
+// typeToCanonical is built from those suffixed keys but contains only bare type names as keys
+// (e.g. "basicauth"). The walker then looks for bare type names at reference positions, finds
+// none (all references already contain "/"), and makes no changes — the function is a no-op.
 //
 // If multiple extensions share the same type prefix the type is excluded from the mapping to
 // avoid non-deterministic resolution; the expected file must use full canonical IDs in that case.

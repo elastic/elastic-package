@@ -652,6 +652,51 @@ service:
 		assert.NotContains(t, string(out), "value: basicauth/componentid-0")
 	})
 
+	// Regression test: if the policy already contains a genuine "name/_bare" key, the
+	// bare-key rename in preNormalizePolicy must not overwrite it. Without a guard the
+	// bare rename silently replaces the existing "_bare" entry, losing its config content.
+	// Covers both connectors (forward/_bare) and extensions (basicauth/_bare).
+	t.Run("bare rename is skipped when _bare variant already exists", func(t *testing.T) {
+		policy := `
+connectors:
+  forward/_bare:
+    timeout: 5s
+  forward:
+    timeout: 10s
+extensions:
+  basicauth/_bare:
+    htpasswd:
+      file: /etc/otel/.htpasswd-real
+  basicauth:
+    htpasswd:
+      file: /etc/otel/.htpasswd-bare
+service:
+  extensions:
+    - basicauth/_bare
+  pipelines:
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - forward/_bare
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		require.NoError(t, err)
+		t.Log(string(out))
+		// The real basicauth/_bare entry must survive — its content must not be lost.
+		assert.Contains(t, string(out), "/etc/otel/.htpasswd-real")
+		// The bare basicauth entry must survive as its own key (rename skipped).
+		// "basicauth:\n" matches the bare key but not "basicauth/componentid-0:".
+		assert.Contains(t, string(out), "/etc/otel/.htpasswd-bare")
+		assert.Contains(t, string(out), "basicauth:\n")
+		// The real forward/_bare entry must survive — timeout: 5s must not be lost.
+		assert.Contains(t, string(out), "timeout: 5s")
+		// The bare forward entry must survive as its own key (rename skipped).
+		// "forward:\n" matches the bare key but not "forward/componentid-0:".
+		assert.Contains(t, string(out), "timeout: 10s")
+		assert.Contains(t, string(out), "forward:\n")
+	})
+
 	t.Run("does not mix up references when there are two distinct apikeyauth extensions", func(t *testing.T) {
 		policy := `
 extensions:
