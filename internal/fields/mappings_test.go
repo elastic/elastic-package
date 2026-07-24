@@ -83,6 +83,49 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{},
 		},
 		{
+			title: "same logical mappings with dotted actual fields",
+			preview: map[string]any{
+				"data_stream": map[string]any{
+					"properties": map[string]any{
+						"dataset": map[string]any{
+							"type": "constant_keyword",
+						},
+					},
+				},
+				"prisma_access": map[string]any{
+					"properties": map[string]any{
+						"event": map[string]any{
+							"properties": map[string]any{
+								"access_point_name": map[string]any{
+									"type": "keyword",
+								},
+								"agent": map[string]any{
+									"properties": map[string]any{
+										"id": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"data_stream.dataset": map[string]any{
+					"type": "constant_keyword",
+				},
+				"prisma_access.event.access_point_name": map[string]any{
+					"type": "keyword",
+				},
+				"prisma_access.event.agent.id": map[string]any{
+					"type": "keyword",
+				},
+			},
+			schema:         []FieldDefinition{},
+			expectedErrors: []string{},
+		},
+		{
 			title: "validate fields with ECS",
 			preview: map[string]any{
 				"foo": map[string]any{

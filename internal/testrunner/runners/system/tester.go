@@ -159,6 +159,10 @@ var (
 					},
 				},
 				{
+					// OTel Elasticsearch exporter indexing failure (e.g. logsdb_columnar rejection).
+					includes: regexp.MustCompile(`^failed to index document`),
+				},
+				{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
 					excludes: []*regexp.Regexp{
@@ -808,6 +812,7 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 	syntheticsIndexModes := []string{
 		"logs", // Replaced in 8.15.0 with "logsdb", see https://github.com/elastic/elasticsearch/pull/111054
 		"logsdb",
+		"logsdb_columnar",
 		"time_series",
 	}
 	if slices.Contains(syntheticsIndexModes, results.Template.Settings.Index.Mode) {
@@ -1478,7 +1483,7 @@ func (r *tester) finalizeScenario(ctx context.Context, scenario *scenarioTest, o
 	var err error
 	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, opts.dsType, opts.dsDataset, opts.policy.Namespace, scenario.policyTemplate, opts.config)
 	if err != nil {
-		return err
+		return r.enrichWithAgentDiagnostics(ctx, scenario, err)
 	}
 
 	dataStreamNames := make([]string, len(scenario.dataStreams))
@@ -1489,7 +1494,7 @@ func (r *tester) finalizeScenario(ctx context.Context, scenario *scenarioTest, o
 
 	for i := range scenario.dataStreams {
 		if err := r.verifyDataStream(ctx, opts.config, opts.service, &scenario.dataStreams[i]); err != nil {
-			return err
+			return r.enrichWithAgentDiagnostics(ctx, scenario, err)
 		}
 	}
 
@@ -2750,23 +2755,10 @@ func (r *tester) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time,
 func (r *tester) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
 	var multiErr multierror.Error
 	processLog := func(log stack.LogLine) error {
-		for _, pattern := range errorPatterns {
-			if !pattern.includes.MatchString(log.Message) {
-				continue
-			}
-			isExcluded := false
-			for _, excludes := range pattern.excludes {
-				if excludes.MatchString(log.Message) {
-					isExcluded = true
-					break
-				}
-			}
-			if isExcluded {
-				continue
-			}
-
-			multiErr = append(multiErr, fmt.Errorf("found error %q", log.Message))
+		if !matchLogPatterns(log, errorPatterns) {
+			return nil
 		}
+		multiErr = append(multiErr, fmt.Errorf("found error %q", log.FormatError()))
 		return nil
 	}
 	err := stack.ParseLogs(stack.ParseLogsOptions{

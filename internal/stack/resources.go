@@ -70,6 +70,7 @@ const (
 	configGeoIPDir                               = "stack.geoip_dir"
 	configKibanaHTTP2Enabled                     = "stack.kibana_http2_enabled"
 	configLogsDBEnabled                          = "stack.logsdb_enabled"
+	configLogsDBColumnarEnabled                  = "stack.logsdb_columnar_enabled"
 	configLogstashEnabled                        = "stack.logstash_enabled"
 	configSelfMonitorEnabled                     = "stack.self_monitor_enabled"
 	configElasticEPRProxyTo                      = "stack.epr.proxy_to"
@@ -205,6 +206,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"geoip_dir":                                   profile.Config(configGeoIPDir, "./ingest-geoip"),
 		"kibana_http2_enabled":                        profile.Config(configKibanaHTTP2Enabled, "true"),
 		"logsdb_enabled":                              profile.Config(configLogsDBEnabled, "false"),
+		"logsdb_columnar_enabled":                     profile.Config(configLogsDBColumnarEnabled, "false"),
 		"logstash_enabled":                            profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled":                        profile.Config(configSelfMonitorEnabled, "false"),
 		"epr_proxy_to":                                packageRegistryProxyToURL(profile, appConfig),

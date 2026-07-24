@@ -450,6 +450,23 @@ func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]b
 	return p.Logs(ctx, opts)
 }
 
+const agentInternalLogsPath = "/usr/share/elastic-agent/state/data/logs/"
+
+// CopyInternalLogs copies Elastic Agent internal NDJSON logs into destDir.
+// destDir should not already exist; docker cp creates it.
+func (s *dockerComposeDeployedAgent) CopyInternalLogs(destDir string) error {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return fmt.Errorf("could not create Docker Compose project for agent: %w", err)
+	}
+
+	containerName := p.ContainerName(s.agentInfo.Name)
+	if err := docker.Copy(containerName, agentInternalLogsPath, destDir); err != nil {
+		return fmt.Errorf("copy agent internal logs from %s: %w", containerName, err)
+	}
+	return nil
+}
+
 // TearDown tears down the agent.
 func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	logger.Debugf("tearing down agent using Docker Compose runner")

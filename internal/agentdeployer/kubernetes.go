@@ -88,6 +88,11 @@ func (s *kubernetesDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte
 	return nil, nil
 }
 
+// CopyInternalLogs is not supported for Kubernetes agents.
+func (s *kubernetesDeployedAgent) CopyInternalLogs(destDir string) error {
+	return ErrNotSupported
+}
+
 var _ DeployedAgent = new(kubernetesDeployedAgent)
 
 // NewKubernetesAgentDeployer function creates a new instance of KubernetesAgentDeployer.

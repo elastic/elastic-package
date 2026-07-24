@@ -82,6 +82,75 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	assert.Contains(t, volumes, expectedVolume)
 }
 
+func TestApplyResourcesWithLogsDBColumnarEnabled(t *testing.T) {
+	cases := []struct {
+		name                 string
+		stackVersion         string
+		expectClusterSetting bool
+		expectFeatureFlag    bool
+	}{
+		{
+			name:                 "columnar disabled in older stack versions",
+			stackVersion:         "9.4.0-SNAPSHOT",
+			expectClusterSetting: false,
+			expectFeatureFlag:    false,
+		},
+		{
+			name:                 "columnar enabled in supported stack versions",
+			stackVersion:         "9.5.0-SNAPSHOT",
+			expectClusterSetting: true,
+			expectFeatureFlag:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			const profileName = "logsdb_columnar"
+
+			elasticPackagePath := t.TempDir()
+			profilesPath := filepath.Join(elasticPackagePath, "profiles")
+
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", elasticPackagePath)
+
+			err := profile.CreateProfile(profile.Options{
+				ProfilesDirPath: profilesPath,
+				Name:            profileName,
+			})
+			require.NoError(t, err)
+
+			configPath := filepath.Join(profilesPath, profileName, profile.PackageProfileConfigFile)
+			config := "stack.logsdb_enabled: true\nstack.logsdb_columnar_enabled: true\n"
+			err = os.WriteFile(configPath, []byte(config), 0644)
+			require.NoError(t, err)
+
+			p, err := profile.LoadProfile(profileName)
+			require.NoError(t, err)
+
+			appConfig, err := install.Configuration()
+			require.NoError(t, err)
+
+			err = applyResources(p, appConfig, tc.stackVersion, tc.stackVersion)
+			require.NoError(t, err)
+
+			esConfig, err := os.ReadFile(p.Path(ProfileStackPath, ElasticsearchConfigFile))
+			require.NoError(t, err)
+			if tc.expectClusterSetting {
+				assert.Contains(t, string(esConfig), "cluster.logsdb_columnar.enabled: true")
+			} else {
+				assert.NotContains(t, string(esConfig), "cluster.logsdb_columnar.enabled: true")
+			}
+
+			composeConfig, err := os.ReadFile(p.Path(ProfileStackPath, ComposeFile))
+			require.NoError(t, err)
+			if tc.expectFeatureFlag {
+				assert.Contains(t, string(composeConfig), "-Des.columnar_index_mode_feature_flag_enabled=true")
+			} else {
+				assert.NotContains(t, string(composeConfig), "-Des.columnar_index_mode_feature_flag_enabled=true")
+			}
+		})
+	}
+}
+
 func TestApplyResourcesWithPackageRegistryConfigurations(t *testing.T) {
 	cases := []struct {
 		name                  string
