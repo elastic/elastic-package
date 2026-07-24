@@ -227,6 +227,137 @@ service:
 		assert.Contains(t, string(out), "- elasticsearch/componentid-0")
 	})
 
+	t.Run("bare forward connector normalizes to forward/componentid-N", func(t *testing.T) {
+		policy := `
+connectors:
+  forward: {}
+service:
+  pipelines:
+    logs/my-stream:
+      receivers:
+        - otlp/my-stream
+      exporters:
+        - forward
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - elasticsearch/default
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		assert.Contains(t, string(out), "forward/componentid-0")
+		assert.NotContains(t, string(out), "forward: {}")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("bare and suffixed forward normalize to same result", func(t *testing.T) {
+		bare := `
+connectors:
+  forward: {}
+service:
+  pipelines:
+    logs/my-stream:
+      exporters:
+        - forward
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - elasticsearch/default
+`
+		suffixed := `
+connectors:
+  forward/default: {}
+service:
+  pipelines:
+    logs/my-stream:
+      exporters:
+        - forward/default
+    logs/default:
+      receivers:
+        - forward/default
+      exporters:
+        - elasticsearch/default
+`
+		outBare, err := normalizePolicyToCanonical([]byte(bare))
+		assert.NoError(t, err)
+		t.Log(string(outBare))
+		outSuffixed, err := normalizePolicyToCanonical([]byte(suffixed))
+		assert.NoError(t, err)
+		t.Log(string(outSuffixed))
+		assert.Equal(t, string(outBare), string(outSuffixed))
+	})
+
+	// Regression test for kibana#270487: Fleet started suffixing bare pipeline keys
+	// (e.g. "logs", "metrics") with the output ID (e.g. "logs/default"). A bare key
+	// and its suffixed equivalent must normalize to the same canonical form.
+	t.Run("bare and suffixed pipeline keys normalize to same result", func(t *testing.T) {
+		bare := `
+receivers:
+  otlp/abc: {}
+exporters:
+  elasticsearch/default: {}
+service:
+  pipelines:
+    logs:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+    metrics:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+`
+		suffixed := `
+receivers:
+  otlp/abc: {}
+exporters:
+  elasticsearch/default: {}
+service:
+  pipelines:
+    logs/default:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+    metrics/default:
+      receivers:
+        - otlp/abc
+      exporters:
+        - elasticsearch/default
+`
+		outBare, err := normalizePolicyToCanonical([]byte(bare))
+		assert.NoError(t, err)
+		t.Log(string(outBare))
+		outSuffixed, err := normalizePolicyToCanonical([]byte(suffixed))
+		assert.NoError(t, err)
+		t.Log(string(outSuffixed))
+		assert.Equal(t, string(outBare), string(outSuffixed))
+	})
+
+	t.Run("strips OTTL where clause from data_stream set statements", func(t *testing.T) {
+		policy := `
+processors:
+  transform/abc:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["data_stream.type"], "logs")
+          - set(attributes["data_stream.dataset"], "my_pkg.events") where attributes["data_stream.dataset"] == nil
+          - set(attributes["data_stream.namespace"], "ep") where attributes["data_stream.namespace"] == nil
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		s := string(out)
+		assert.Contains(t, s, `set(attributes["data_stream.dataset"], "my_pkg.events")`)
+		assert.Contains(t, s, `set(attributes["data_stream.namespace"], "ep")`)
+		assert.NotContains(t, s, "where")
+		assert.NotContains(t, s, "== nil")
+	})
+
 	t.Run("order-independent: same components different key order normalize to same result", func(t *testing.T) {
 		policyA := `
 exporters:
@@ -318,6 +449,252 @@ service:
 		assert.Contains(t, string(out), "- apikeyauth/componentid-0")
 		assert.Contains(t, string(out), "authenticator: apikeyauth/componentid-0")
 		assert.Contains(t, string(out), "traces/componentid-0")
+	})
+
+	t.Run("bare extension key referenced from service.extensions normalizes to componentid-0", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+service:
+  extensions:
+    - basicauth
+  pipelines:
+    traces/abc:
+      receivers:
+        - otlp/abc
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "basicauth/componentid-0")
+		assert.Contains(t, string(out), "- basicauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("bare extension key referenced from auth.authenticator normalizes to componentid-0", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+      http:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "basicauth/componentid-0")
+		assert.Contains(t, string(out), "authenticator: basicauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("bare and suffixed extension normalize to same result", func(t *testing.T) {
+		bare := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+`
+		suffixed := `
+extensions:
+  basicauth/componentid-0:
+    htpasswd:
+      - username: user
+        password: pass
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth/componentid-0
+service:
+  extensions:
+    - basicauth/componentid-0
+`
+		outBare, err := normalizePolicyToCanonical([]byte(bare))
+		assert.NoError(t, err)
+		t.Log(string(outBare))
+		outSuffixed, err := normalizePolicyToCanonical([]byte(suffixed))
+		assert.NoError(t, err)
+		t.Log(string(outSuffixed))
+		assert.Equal(t, string(outBare), string(outSuffixed))
+	})
+
+	t.Run("suffixed extension key with bare reference normalizes correctly", func(t *testing.T) {
+		// Expected files may be in a mixed state: extension map key already has the
+		// componentid suffix but references (service.extensions, auth.authenticator) are
+		// still bare. This happens when Fleet starts suffixing extension IDs but the
+		// expected file was only partially updated.
+		policy := `
+extensions:
+  basicauth/componentid-0:
+    htpasswd:
+      file: /etc/otel/.htpasswd
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+      http:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "basicauth/componentid-0")
+		assert.Contains(t, string(out), "authenticator: basicauth/componentid-0")
+		assert.Contains(t, string(out), "- basicauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("two bare extensions both normalize with correct cross-references", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      - username: user
+        password: pass
+  bearertokenauth:
+    token: mytoken
+receivers:
+  otlp/grpc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+      http:
+        auth:
+          authenticator: basicauth
+service:
+  extensions:
+    - basicauth
+    - bearertokenauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.NotContains(t, string(out), "_bare")
+		// Both extensions must appear with a componentid suffix
+		assert.Contains(t, string(out), "basicauth/componentid-")
+		assert.Contains(t, string(out), "bearertokenauth/componentid-")
+	})
+
+	// Regression test: extension type names that appear as arbitrary config values (e.g. a
+	// processor action's "value" field) must not be renamed. Only values at known OTel
+	// extension-reference positions — auth.authenticator and service.extensions[] — are
+	// extension references per the OTel collector source (config/configauth).
+	t.Run("extension type name used as config value is not renamed", func(t *testing.T) {
+		policy := `
+extensions:
+  basicauth:
+    htpasswd:
+      file: /etc/otel/.htpasswd
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        auth:
+          authenticator: basicauth
+        endpoint: localhost:4317
+      http:
+        auth:
+          authenticator: basicauth
+        endpoint: localhost:4318
+processors:
+  attributes/abc:
+    actions:
+      - key: auth.scheme
+        value: basicauth
+        action: insert
+service:
+  extensions:
+    - basicauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		require.NoError(t, err)
+		t.Log(string(out))
+		// Receiver auth.authenticator references (nested inside receivers.*.protocols.*.auth)
+		// must be normalized — this is the real OTel extension-reference position.
+		assert.Contains(t, string(out), "authenticator: basicauth/componentid-0")
+		// service.extensions reference must also be normalized.
+		assert.Contains(t, string(out), "- basicauth/componentid-0")
+		// The processor "value" field is NOT an extension reference — must stay unchanged.
+		assert.Contains(t, string(out), "value: basicauth")
+		assert.NotContains(t, string(out), "value: basicauth/componentid-0")
+	})
+
+	// Regression test: if the policy already contains a genuine "name/_bare" key, the
+	// bare-key rename in preNormalizePolicy must not overwrite it. Without a guard the
+	// bare rename silently replaces the existing "_bare" entry, losing its config content.
+	// Covers both connectors (forward/_bare) and extensions (basicauth/_bare).
+	t.Run("bare rename is skipped when _bare variant already exists", func(t *testing.T) {
+		policy := `
+connectors:
+  forward/_bare:
+    timeout: 5s
+  forward:
+    timeout: 10s
+extensions:
+  basicauth/_bare:
+    htpasswd:
+      file: /etc/otel/.htpasswd-real
+  basicauth:
+    htpasswd:
+      file: /etc/otel/.htpasswd-bare
+service:
+  extensions:
+    - basicauth/_bare
+  pipelines:
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - forward/_bare
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		require.NoError(t, err)
+		t.Log(string(out))
+		// The real basicauth/_bare entry must survive — its content must not be lost.
+		assert.Contains(t, string(out), "/etc/otel/.htpasswd-real")
+		// The bare basicauth entry must survive as its own key (rename skipped).
+		// "basicauth:\n" matches the bare key but not "basicauth/componentid-0:".
+		assert.Contains(t, string(out), "/etc/otel/.htpasswd-bare")
+		assert.Contains(t, string(out), "basicauth:\n")
+		// The real forward/_bare entry must survive — timeout: 5s must not be lost.
+		assert.Contains(t, string(out), "timeout: 5s")
+		// The bare forward entry must survive as its own key (rename skipped).
+		// "forward:\n" matches the bare key but not "forward/componentid-0:".
+		assert.Contains(t, string(out), "timeout: 10s")
+		assert.Contains(t, string(out), "forward:\n")
 	})
 
 	t.Run("does not mix up references when there are two distinct apikeyauth extensions", func(t *testing.T) {
@@ -1238,6 +1615,245 @@ service:
                 - sqlserver/componentid-0
 `,
 			equal: true,
+		},
+		{
+			// Verifies the normalization does not hide genuine differences between policies
+			// that have matching extension IDs but different extension bodies. The expected
+			// file uses a bare extension ref (mixed state); the found policy uses the full
+			// component-ID form. Only the htpasswd file path differs — that must still be
+			// detected as a difference.
+			title: "different extension body is still detected as different after bare-ref normalization",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.other-htpasswd
+service:
+    extensions:
+        - basicauth/componentid-0
+`,
+			equal: false,
+		},
+		// --- end-to-end mixed-state positive: bare refs in expected, suffixed refs in found ---
+		{
+			// Reproduces the exact state of the otlp_input_otel expected files: extension map
+			// key already has the componentid suffix, but service.extensions and
+			// auth.authenticator still use the bare type name. Found policy (from 9.5.0+) has
+			// the suffix everywhere. Same body → should compare as equal.
+			title: "mixed-state expected (bare refs) equals fully-suffixed found with same body",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+            http:
+                auth:
+                    authenticator: basicauth
+service:
+    extensions:
+        - basicauth
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth/componentid-0
+            http:
+                auth:
+                    authenticator: basicauth/componentid-0
+service:
+    extensions:
+        - basicauth/componentid-0
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			equal: true,
+		},
+		{
+			// Multi-extension variant of the mixed-state scenario, matching the
+			// test-auth-multi.yml case: two extensions with different componentid suffixes
+			// in the map keys; expected file references both with bare type names.
+			title: "multi-extension mixed-state expected equals fully-suffixed found",
+			expected: `
+extensions:
+    basicauth/componentid-1:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-0:
+        token: mytoken
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+            http:
+                auth:
+                    authenticator: basicauth
+service:
+    extensions:
+        - basicauth
+        - bearertokenauth
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			found: `
+extensions:
+    basicauth/componentid-1:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-0:
+        token: mytoken
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth/componentid-1
+            http:
+                auth:
+                    authenticator: basicauth/componentid-1
+service:
+    extensions:
+        - basicauth/componentid-1
+        - bearertokenauth/componentid-0
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			equal: true,
+		},
+		// --- negatives: genuine differences must still be detected ---
+		{
+			// Different extension types must not be treated as equivalent even when both
+			// sides use bare names or componentid suffixes.
+			title: "different extension type is detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    bearertokenauth/componentid-0:
+        token: mytoken
+service:
+    extensions:
+        - bearertokenauth/componentid-0
+`,
+			equal: false,
+		},
+		{
+			// Found policy has an extra extension not present in the expected file.
+			title: "extra extension in found is detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+service:
+    extensions:
+        - basicauth/componentid-0
+        - bearertokenauth/componentid-1
+`,
+			equal: false,
+		},
+		{
+			// In a two-extension setup, if the authenticator assignments are swapped between
+			// receivers the difference must still be caught after normalization.
+			title: "swapped authenticator assignments between receivers are detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+receivers:
+    otlp/grpc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+    otlp/http:
+        protocols:
+            http:
+                auth:
+                    authenticator: bearertokenauth
+service:
+    extensions:
+        - basicauth
+        - bearertokenauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+receivers:
+    otlp/grpc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: bearertokenauth/componentid-1
+    otlp/http:
+        protocols:
+            http:
+                auth:
+                    authenticator: basicauth/componentid-0
+service:
+    extensions:
+        - basicauth/componentid-0
+        - bearertokenauth/componentid-1
+`,
+			equal: false,
 		},
 	}
 
