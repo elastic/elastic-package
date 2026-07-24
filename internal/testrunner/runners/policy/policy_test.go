@@ -1478,6 +1478,245 @@ service:
 `,
 			equal: true,
 		},
+		{
+			// Verifies the normalization does not hide genuine differences between policies
+			// that have matching extension IDs but different extension bodies. The expected
+			// file uses a bare extension ref (mixed state); the found policy uses the full
+			// component-ID form. Only the htpasswd file path differs — that must still be
+			// detected as a difference.
+			title: "different extension body is still detected as different after bare-ref normalization",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.other-htpasswd
+service:
+    extensions:
+        - basicauth/componentid-0
+`,
+			equal: false,
+		},
+		// --- end-to-end mixed-state positive: bare refs in expected, suffixed refs in found ---
+		{
+			// Reproduces the exact state of the otlp_input_otel expected files: extension map
+			// key already has the componentid suffix, but service.extensions and
+			// auth.authenticator still use the bare type name. Found policy (from 9.5.0+) has
+			// the suffix everywhere. Same body → should compare as equal.
+			title: "mixed-state expected (bare refs) equals fully-suffixed found with same body",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+            http:
+                auth:
+                    authenticator: basicauth
+service:
+    extensions:
+        - basicauth
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth/componentid-0
+            http:
+                auth:
+                    authenticator: basicauth/componentid-0
+service:
+    extensions:
+        - basicauth/componentid-0
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			equal: true,
+		},
+		{
+			// Multi-extension variant of the mixed-state scenario, matching the
+			// test-auth-multi.yml case: two extensions with different componentid suffixes
+			// in the map keys; expected file references both with bare type names.
+			title: "multi-extension mixed-state expected equals fully-suffixed found",
+			expected: `
+extensions:
+    basicauth/componentid-1:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-0:
+        token: mytoken
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+            http:
+                auth:
+                    authenticator: basicauth
+service:
+    extensions:
+        - basicauth
+        - bearertokenauth
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			found: `
+extensions:
+    basicauth/componentid-1:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-0:
+        token: mytoken
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth/componentid-1
+            http:
+                auth:
+                    authenticator: basicauth/componentid-1
+service:
+    extensions:
+        - basicauth/componentid-1
+        - bearertokenauth/componentid-0
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			equal: true,
+		},
+		// --- negatives: genuine differences must still be detected ---
+		{
+			// Different extension types must not be treated as equivalent even when both
+			// sides use bare names or componentid suffixes.
+			title: "different extension type is detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    bearertokenauth/componentid-0:
+        token: mytoken
+service:
+    extensions:
+        - bearertokenauth/componentid-0
+`,
+			equal: false,
+		},
+		{
+			// Found policy has an extra extension not present in the expected file.
+			title: "extra extension in found is detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+service:
+    extensions:
+        - basicauth/componentid-0
+        - bearertokenauth/componentid-1
+`,
+			equal: false,
+		},
+		{
+			// In a two-extension setup, if the authenticator assignments are swapped between
+			// receivers the difference must still be caught after normalization.
+			title: "swapped authenticator assignments between receivers are detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+receivers:
+    otlp/grpc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+    otlp/http:
+        protocols:
+            http:
+                auth:
+                    authenticator: bearertokenauth
+service:
+    extensions:
+        - basicauth
+        - bearertokenauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+receivers:
+    otlp/grpc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: bearertokenauth/componentid-1
+    otlp/http:
+        protocols:
+            http:
+                auth:
+                    authenticator: basicauth/componentid-0
+service:
+    extensions:
+        - basicauth/componentid-0
+        - bearertokenauth/componentid-1
+`,
+			equal: false,
+		},
 	}
 
 	for _, c := range cases {
