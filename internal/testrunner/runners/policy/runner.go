@@ -6,7 +6,6 @@ package policy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ type runner struct {
 	dataStreams        []string
 	failOnMissingTests bool
 	generateTestResult bool
-	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	globalTestConfig   testrunner.PolicyRunnerTestConfig
 	withCoverage       bool
 	coverageType       string
 
@@ -54,7 +53,7 @@ type PolicyTestRunnerOptions struct {
 	DataStreams            []string
 	FailOnMissingTests     bool
 	GenerateTestResult     bool
-	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
+	GlobalTestConfig       testrunner.PolicyRunnerTestConfig
 	WithCoverage           bool
 	CoverageType           string
 	RepositoryRoot         *os.Root
@@ -173,14 +172,6 @@ func (r *runner) Type() testrunner.TestType {
 }
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
-	var restoreVersion func() error
-	if r.globalTestConfig.PackageVersion != "" {
-		restoreVersion, err = patchManifestVersion(r.packageRoot, r.globalTestConfig.PackageVersion)
-		if err != nil {
-			return nil, fmt.Errorf("patching manifest version for policy test: %w", err)
-		}
-	}
-
 	packageResource := resources.FleetPackage{
 		PackageRoot:            r.packageRoot,
 		RepositoryRoot:         r.repositoryRoot,
@@ -194,10 +185,6 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 	cleanup = func(ctx context.Context) error {
 		packageResource.Absent = true
 		_, uninstallErr := manager.ApplyCtx(ctx, setupResources)
-		if restoreVersion != nil {
-			restoreErr := restoreVersion()
-			return errors.Join(uninstallErr, restoreErr)
-		}
 		return uninstallErr
 	}
 
@@ -214,45 +201,4 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 	}
 
 	return cleanup, err
-}
-
-// patchManifestVersion rewrites the version field in the package's manifest.yml
-// and returns a function that restores the original content. This allows policy
-// tests to install the package under a stable version so that rendered templates
-// referencing _meta.package.version produce deterministic output.
-func patchManifestVersion(packageRoot, newVersion string) (restore func() error, err error) {
-	manifestPath := filepath.Join(packageRoot, packages.PackageManifestFile)
-	original, err := os.ReadFile(manifestPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading manifest for version patch: %w", err)
-	}
-
-	lines := strings.Split(string(original), "\n")
-	found := false
-	for i, line := range lines {
-		if strings.HasPrefix(line, "version:") {
-			lines[i] = "version: " + newVersion
-			found = true
-			break
-		}
-	}
-	if !found {
-		return nil, fmt.Errorf("could not find version field in %s", manifestPath)
-	}
-
-	patched := strings.Join(lines, "\n")
-	if err := os.WriteFile(manifestPath, []byte(patched), 0o644); err != nil {
-		return nil, fmt.Errorf("writing patched manifest: %w", err)
-	}
-
-	logger.Debugf("Patched package version to %q for policy test", newVersion)
-
-	restore = func() error {
-		if err := os.WriteFile(manifestPath, original, 0o644); err != nil {
-			return fmt.Errorf("restoring original manifest version: %w", err)
-		}
-		logger.Debugf("Restored original package version")
-		return nil
-	}
-	return restore, nil
 }

@@ -142,8 +142,10 @@ type: input
 		System: GlobalRunnerTestConfig{
 			Requires: []PackageTestRequirement{{Source: "ci_input_pkg"}},
 		},
-		Policy: GlobalRunnerTestConfig{
-			Requires: []PackageTestRequirement{{Source: "./ci_input_pkg"}},
+		Policy: PolicyRunnerTestConfig{
+			GlobalRunnerTestConfig: GlobalRunnerTestConfig{
+				Requires: []PackageTestRequirement{{Source: "./ci_input_pkg"}},
+			},
 		},
 	}
 
@@ -171,8 +173,10 @@ type: input
 		System: GlobalRunnerTestConfig{
 			Requires: []PackageTestRequirement{{Source: "a"}},
 		},
-		Policy: GlobalRunnerTestConfig{
-			Requires: []PackageTestRequirement{{Source: "b"}},
+		Policy: PolicyRunnerTestConfig{
+			GlobalRunnerTestConfig: GlobalRunnerTestConfig{
+				Requires: []PackageTestRequirement{{Source: "b"}},
+			},
 		},
 	}
 

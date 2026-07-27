@@ -25,7 +25,7 @@ type tester struct {
 	kibanaClient       *kibana.Client
 	testPath           string
 	generateTestResult bool
-	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	globalTestConfig   testrunner.PolicyRunnerTestConfig
 	withCoverage       bool
 	coverageType       string
 
@@ -41,7 +41,7 @@ type PolicyTesterOptions struct {
 	KibanaClient       *kibana.Client
 	PackageRoot        string
 	GenerateTestResult bool
-	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	GlobalTestConfig   testrunner.PolicyRunnerTestConfig
 	WithCoverage       bool
 	CoverageType       string
 }
