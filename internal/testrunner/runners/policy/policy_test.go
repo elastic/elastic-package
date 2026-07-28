@@ -608,6 +608,85 @@ service:
 		assert.Contains(t, string(out), "bearertokenauth/componentid-")
 	})
 
+	t.Run("bare extension key referenced from middlewares[].id normalizes to componentid-0", func(t *testing.T) {
+		policy := `
+extensions:
+  myauth:
+    token: secret
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        middlewares:
+          - id: myauth
+service:
+  extensions:
+    - myauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "myauth/componentid-0")
+		assert.Contains(t, string(out), "id: myauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("suffixed extension key with bare middlewares[].id reference normalizes correctly", func(t *testing.T) {
+		// Mixed state: extension map key already has the componentid suffix but
+		// middlewares[].id still uses the bare type name.
+		policy := `
+extensions:
+  myauth/componentid-0:
+    token: secret
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        middlewares:
+          - id: myauth
+service:
+  extensions:
+    - myauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "myauth/componentid-0")
+		assert.Contains(t, string(out), "id: myauth/componentid-0")
+		assert.Contains(t, string(out), "- myauth/componentid-0")
+		assert.NotContains(t, string(out), "_bare")
+	})
+
+	t.Run("non-extension id field inside middlewares is not affected by extension ref resolver", func(t *testing.T) {
+		// A middlewares list element may carry fields other than "id" — and an "id" field
+		// elsewhere in the tree (outside of middlewares) must not be touched.
+		policy := `
+extensions:
+  myauth/componentid-0:
+    token: secret
+processors:
+  batch/abc:
+    send_batch_size: 100
+receivers:
+  otlp/abc:
+    protocols:
+      grpc:
+        middlewares:
+          - id: myauth
+            extra_field: myauth
+service:
+  extensions:
+    - myauth
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "id: myauth/componentid-0")
+		// extra_field is not an extension-reference position — must stay unchanged.
+		assert.Contains(t, string(out), "extra_field: myauth")
+		assert.NotContains(t, string(out), "extra_field: myauth/componentid-0")
+	})
+
 	// Regression test: extension type names that appear as arbitrary config values (e.g. a
 	// processor action's "value" field) must not be renamed. Only values at known OTel
 	// extension-reference positions — auth.authenticator and service.extensions[] — are
