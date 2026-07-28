@@ -494,7 +494,11 @@ func replaceOrRecurse(v any, idMapping map[string]string) any {
 // If multiple extensions share the same type prefix the type is excluded from the mapping to
 // avoid non-deterministic resolution; the expected file must use full canonical IDs in that case.
 func resolveExtensionRefs(root map[string]any, idMapping map[string]string) {
-	typeToCanonical := buildExtensionTypeMapping(root, idMapping)
+	extMap, ok := toMap(root["extensions"])
+	if !ok {
+		return
+	}
+	typeToCanonical := buildExtensionTypeMapping(extMap, idMapping)
 	if len(typeToCanonical) == 0 {
 		return
 	}
@@ -520,14 +524,9 @@ func resolveExtensionRefs(root map[string]any, idMapping map[string]string) {
 // its canonical component ID (e.g. "basicauth/componentid-0"), derived from the extension keys
 // and their idMapping entries. Types with more than one extension are excluded to prevent
 // non-deterministic resolution.
-func buildExtensionTypeMapping(root map[string]any, idMapping map[string]string) map[string]string {
-	extMap, ok := toMap(root["extensions"])
-	if !ok {
-		return nil
-	}
-
+func buildExtensionTypeMapping(extensions map[string]any, idMapping map[string]string) map[string]string {
 	typeCounts := make(map[string]int)
-	for k := range extMap {
+	for k := range extensions {
 		typ, _, hasSlash := strings.Cut(k, "/")
 		if hasSlash && typ != "" {
 			typeCounts[typ]++
@@ -535,7 +534,7 @@ func buildExtensionTypeMapping(root map[string]any, idMapping map[string]string)
 	}
 
 	typeToCanonical := make(map[string]string)
-	for k := range extMap {
+	for k := range extensions {
 		typ, _, hasSlash := strings.Cut(k, "/")
 		if !hasSlash || typ == "" || typeCounts[typ] > 1 {
 			continue
