@@ -293,15 +293,37 @@ func preNormalizePolicy(root map[string]any) {
 		}
 	}
 
-	// Walk string elements in arrays to:
-	//   - replace bare "forward" connector refs with "forward/_bare" (pipeline arrays)
-	//   - strip conditional "where ... == nil" OTTL suffixes from set() statements
+	// Rename bare "forward" connector refs to "forward/_bare" in pipeline receiver and
+	// exporter lists. Scoped to service.pipelines.*.{receivers,exporters} to avoid
+	// incorrectly rewriting the string "forward" that appears as an arbitrary value in
+	// component config lists (e.g. a filter processor body-match list).
+	if service, ok := toMap(root["service"]); ok {
+		if pipelines, ok := toMap(service["pipelines"]); ok {
+			for _, p := range pipelines {
+				if pipeline, ok := toMap(p); ok {
+					for _, field := range []string{"receivers", "exporters"} {
+						if list, ok := pipeline[field].([]any); ok {
+							for i, v := range list {
+								if s, ok := v.(string); ok && s == "forward" {
+									list[i] = "forward/_bare"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Walk string elements in arrays to strip conditional "where ... == nil" OTTL
+	// suffixes from set() statements.
 	preNormalizeNode(root)
 }
 
-// preNormalizeNode recursively walks the tree. String elements inside slices are rewritten;
-// map keys are left to the later normalization pass. Extension string references are NOT
-// touched here — they are resolved at known structural positions by resolveExtensionRefs.
+// preNormalizeNode recursively walks the tree and strips conditional "where ... == nil"
+// OTTL suffixes from string elements inside slices. Map keys are left to the later
+// normalization pass. Extension string references are NOT touched here — they are resolved
+// at known structural positions by resolveExtensionRefs.
 func preNormalizeNode(node any) {
 	switch n := node.(type) {
 	case map[string]any:
@@ -311,11 +333,7 @@ func preNormalizeNode(node any) {
 	case []any:
 		for i, elem := range n {
 			if s, ok := elem.(string); ok {
-				s = ottlConditionalDataStreamAttr.ReplaceAllString(s, "")
-				if s == "forward" {
-					s = "forward/_bare"
-				}
-				n[i] = s
+				n[i] = ottlConditionalDataStreamAttr.ReplaceAllString(s, "")
 			} else {
 				preNormalizeNode(elem)
 			}

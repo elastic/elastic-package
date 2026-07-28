@@ -289,6 +289,41 @@ service:
 		assert.Equal(t, string(outBare), string(outSuffixed))
 	})
 
+	// Regression test: the string "forward" must only be renamed to "forward/_bare" when
+	// it appears as a connector reference inside pipeline receiver/exporter lists. A
+	// component config list that happens to contain the string "forward" as an arbitrary
+	// value (e.g. a filter processor body-match list) must not be rewritten.
+	t.Run("forward string in non-pipeline list is not renamed to forward/_bare", func(t *testing.T) {
+		policy := `
+connectors:
+  forward: {}
+processors:
+  filter/abc:
+    logs:
+      include:
+        match_type: strict
+        bodies:
+          - forward
+service:
+  pipelines:
+    logs:
+      receivers:
+        - otlp/abc
+      processors:
+        - filter/abc
+      exporters:
+        - forward
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		// The connector reference in the pipeline exporter list must be normalized.
+		assert.Contains(t, string(out), "- forward/componentid-0")
+		// The "forward" string inside the filter processor body list is not a connector
+		// reference — it must remain unchanged.
+		assert.Contains(t, string(out), "- forward\n")
+	})
+
 	// Regression test for kibana#270487: Fleet started suffixing bare pipeline keys
 	// (e.g. "logs", "metrics") with the output ID (e.g. "logs/default"). A bare key
 	// and its suffixed equivalent must normalize to the same canonical form.
