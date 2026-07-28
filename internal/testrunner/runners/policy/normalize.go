@@ -32,80 +32,108 @@ var ottlConditionalDataStreamAttr = regexp.MustCompile(` where attributes\["data
 // preNormalizePolicy rewrites the decoded policy tree before component-ID normalization
 // to absorb Fleet version differences that would otherwise cause spurious policy test failures.
 func preNormalizePolicy(root map[string]any) {
-	// Rename the bare "forward" connector key to "forward/_bare" so it is treated as a
-	// variable key and participates in normalization. Fleet added an output-ID suffix in
-	// 9.4.3 (kibana#270487) producing "forward/<outputId>" keys, which already contain "/"
-	// and are normalized automatically. Only the bare case needs renaming here; distinct
-	// "forward/<outputId>" keys are left intact so policies with multiple outputs retain
-	// separate forward connectors.
-	if connectors, ok := toMap(root["connectors"]); ok {
-		if v, hasBare := connectors["forward"]; hasBare {
-			if _, taken := connectors["forward/_bare"]; !taken {
-				delete(connectors, "forward")
-				connectors["forward/_bare"] = v
-			}
-		}
-	}
-
-	// Rename bare pipeline keys (e.g. "logs", "metrics") to "<signal>/_bare" so
-	// they participate in normalization the same way suffixed keys do. Fleet
-	// started suffixing these with the output ID in 9.4.3 (kibana#270487).
-	if service, ok := toMap(root["service"]); ok {
-		if pipelines, ok := toMap(service["pipelines"]); ok {
-			for k, v := range pipelines {
-				if !strings.Contains(k, "/") {
-					target := k + "/_bare"
-					if _, taken := pipelines[target]; !taken {
-						delete(pipelines, k)
-						pipelines[target] = v
-					}
-				}
-			}
-		}
-	}
-
-	// Rename bare extension map keys (those without "/") to "<name>/_bare" so they
-	// participate in component-ID normalization. Fleet started suffixing these with a
-	// component ID in 9.5.0, so older expected files may still use bare keys.
-	// String references to these extensions at known positions are resolved later by
-	// resolveExtensionRefs, after buildSectionMapping has established the canonical IDs.
-	if extensions, ok := toMap(root["extensions"]); ok {
-		for k, v := range extensions {
-			if !strings.Contains(k, "/") {
-				target := k + "/_bare"
-				if _, taken := extensions[target]; !taken {
-					delete(extensions, k)
-					extensions[target] = v
-				}
-			}
-		}
-	}
-
-	// Rename bare "forward" connector refs to "forward/_bare" in pipeline receiver and
-	// exporter lists. Scoped to service.pipelines.*.{receivers,exporters} to avoid
-	// incorrectly rewriting the string "forward" that appears as an arbitrary value in
-	// component config lists (e.g. a filter processor body-match list).
-	if service, ok := toMap(root["service"]); ok {
-		if pipelines, ok := toMap(service["pipelines"]); ok {
-			for _, p := range pipelines {
-				if pipeline, ok := toMap(p); ok {
-					for _, field := range []string{"receivers", "exporters"} {
-						if list, ok := pipeline[field].([]any); ok {
-							for i, v := range list {
-								if s, ok := v.(string); ok && s == "forward" {
-									list[i] = "forward/_bare"
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
+	preNormalizeBareConnectorKey(root)
+	preNormalizeBareExtensionKeys(root)
+	preNormalizeBareServicePipelineKeys(root)
+	preNormalizePipelineForwardRefs(root)
 	// Walk string elements in arrays to strip conditional "where ... == nil" OTTL
 	// suffixes from set() statements.
 	preNormalizeNode(root)
+}
+
+// preNormalizeBareConnectorKey renames the bare "forward" connector key to "forward/_bare"
+// so it is treated as a variable key and participates in normalization. Fleet added an
+// output-ID suffix in 9.4.3 (kibana#270487) producing "forward/<outputId>" keys, which
+// already contain "/" and are normalized automatically. Only the bare case needs renaming
+// here; distinct "forward/<outputId>" keys are left intact so policies with multiple outputs
+// retain separate forward connectors.
+func preNormalizeBareConnectorKey(root map[string]any) {
+	connectors, ok := toMap(root["connectors"])
+	if !ok {
+		return
+	}
+	v, hasBare := connectors["forward"]
+	if !hasBare {
+		return
+	}
+	if _, taken := connectors["forward/_bare"]; !taken {
+		delete(connectors, "forward")
+		connectors["forward/_bare"] = v
+	}
+}
+
+// preNormalizeBareExtensionKeys renames bare extension map keys (those without "/") to
+// "<name>/_bare" so they participate in component-ID normalization. Fleet started suffixing
+// these with a component ID in 9.5.0, so older expected files may still use bare keys.
+// String references to these extensions are resolved later by resolveExtensionRefs.
+func preNormalizeBareExtensionKeys(root map[string]any) {
+	extensions, ok := toMap(root["extensions"])
+	if !ok {
+		return
+	}
+	renameBareKeys(extensions)
+}
+
+// preNormalizeBareServicePipelineKeys renames bare pipeline keys (e.g. "logs", "metrics")
+// to "<signal>/_bare" so they participate in normalization the same way suffixed keys do.
+// Fleet started suffixing these with the output ID in 9.4.3 (kibana#270487).
+func preNormalizeBareServicePipelineKeys(root map[string]any) {
+	service, ok := toMap(root["service"])
+	if !ok {
+		return
+	}
+	pipelines, ok := toMap(service["pipelines"])
+	if !ok {
+		return
+	}
+	renameBareKeys(pipelines)
+}
+
+// renameBareKeys renames entries in m that don't contain "/" to "<key>/_bare",
+// skipping the rename when the target already exists.
+func renameBareKeys(m map[string]any) {
+	for k, v := range m {
+		if strings.Contains(k, "/") {
+			continue
+		}
+		target := k + "/_bare"
+		if _, taken := m[target]; !taken {
+			delete(m, k)
+			m[target] = v
+		}
+	}
+}
+
+// preNormalizePipelineForwardRefs renames bare "forward" connector refs to "forward/_bare"
+// in pipeline receiver and exporter lists. Scoped to service.pipelines.*.{receivers,exporters}
+// to avoid incorrectly rewriting the string "forward" that appears as an arbitrary value in
+// component config lists (e.g. a filter processor body-match list).
+func preNormalizePipelineForwardRefs(root map[string]any) {
+	service, ok := toMap(root["service"])
+	if !ok {
+		return
+	}
+	pipelines, ok := toMap(service["pipelines"])
+	if !ok {
+		return
+	}
+	for _, p := range pipelines {
+		pipeline, ok := toMap(p)
+		if !ok {
+			continue
+		}
+		for _, field := range []string{"receivers", "exporters"} {
+			list, ok := pipeline[field].([]any)
+			if !ok {
+				continue
+			}
+			for i, v := range list {
+				if s, ok := v.(string); ok && s == "forward" {
+					list[i] = "forward/_bare"
+				}
+			}
+		}
+	}
 }
 
 // preNormalizeNode recursively walks the tree and strips conditional "where ... == nil"
