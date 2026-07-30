@@ -75,15 +75,21 @@ func (b *Builder) buildAgent(ctx context.Context, name string) (agent.Agent, err
 
 // ExecuteWorkflow runs the workflow with isolated agent contexts.
 // Each agent runs in its own session to prevent conversation history accumulation.
-func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.SectionContext) (*Result, error) {
+func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.SectionContext) (result *Result, err error) {
 	// Start workflow span for tracing
 	ctx, span := tracing.StartWorkflowSpanWithConfig(ctx, "workflow:section", b.config.MaxIterations)
 
-	result := &Result{}
+	result = &Result{}
+	spanResult := result
 	iterations := 0
 
 	defer func() {
-		tracing.RecordWorkflowResult(span, result.Approved, iterations, result.Content)
+		tracing.RecordWorkflowResult(span, spanResult.Approved, iterations, spanResult.Content)
+		if err != nil {
+			tracing.SetSpanError(span, err)
+		} else {
+			tracing.SetSpanOk(span)
+		}
 		span.End()
 	}()
 
@@ -209,8 +215,16 @@ func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgen
 	// Start agent span (container for the agent's work)
 	agentCtx, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, b.config.ModelID, b.config.Provider)
 	defer func() {
-		tracing.SetSpanOk(agentSpan)
+		if err != nil {
+			tracing.SetSpanError(agentSpan, err)
+		} else {
+			tracing.SetSpanOk(agentSpan)
+		}
 		agentSpan.End()
+	}()
+	toolSpans := tracing.NewToolSpanTracker(agentCtx)
+	defer func() {
+		toolSpans.EndPending(err)
 	}()
 
 	// Create isolated session service
@@ -261,6 +275,16 @@ func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgen
 			for _, part := range event.Content.Parts {
 				if part.Text != "" {
 					outputs = append(outputs, part.Text)
+				}
+				if part.FunctionCall != nil {
+					toolSpans.Start(part.FunctionCall.ID, part.FunctionCall.Name, part.FunctionCall.Args)
+				}
+				if part.FunctionResponse != nil {
+					_, _ = toolSpans.End(
+						part.FunctionResponse.ID,
+						part.FunctionResponse.Name,
+						part.FunctionResponse.Response,
+					)
 				}
 			}
 		}

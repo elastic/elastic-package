@@ -9,8 +9,11 @@ package tracing
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -21,6 +24,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/version"
@@ -40,6 +44,7 @@ const (
 const (
 	// Span kind attributes
 	AttrOpenInferenceSpanKind = "openinference.span.kind"
+	AttrOpenInferenceProject  = "openinference.project.name"
 
 	// Session attributes
 	AttrSessionID = "session.id"
@@ -134,14 +139,15 @@ func (st *SessionTokens) Total() int {
 }
 
 var (
-	globalTracer        trace.Tracer
-	globalProvider      *sdktrace.TracerProvider
-	initOnce            sync.Once
-	shutdownOnce        sync.Once
-	tracingEnabled      bool
-	tracingInitError    error
-	currentSessionID    string
-	currentSessionMutex sync.RWMutex
+	globalTracer         trace.Tracer
+	globalProvider       *sdktrace.TracerProvider
+	previousOTelProvider trace.TracerProvider
+	previousErrorHandler otel.ErrorHandler
+	initMutex            sync.Mutex
+	tracingInitialized   bool
+	tracingEnabled       atomic.Bool
+	currentSessionID     string
+	currentSessionMutex  sync.RWMutex
 )
 
 // suppressingErrorHandler logs trace export errors at debug level, and only once.
@@ -174,29 +180,46 @@ type Config struct {
 // InitWithConfig initializes the OpenTelemetry tracer with the provided configuration.
 // This function is safe to call multiple times; subsequent calls are no-ops.
 func InitWithConfig(ctx context.Context, cfg Config) error {
-	initOnce.Do(func() {
-		if !cfg.Enabled {
-			tracingEnabled = false
-			globalTracer = otel.Tracer(TracerName)
-			return
-		}
+	initMutex.Lock()
+	defer initMutex.Unlock()
 
-		// Apply defaults if not set
-		if cfg.Endpoint == "" {
-			cfg.Endpoint = DefaultEndpoint
-		}
-		if cfg.ProjectName == "" {
-			cfg.ProjectName = DefaultProjectName
-		}
+	if tracingInitialized {
+		return nil
+	}
+	if !cfg.Enabled {
+		tracingEnabled.Store(false)
+		globalTracer = noop.NewTracerProvider().Tracer(TracerName)
+		return nil
+	}
 
-		tracingEnabled = true
-		tracingInitError = initTracer(ctx, cfg)
-	})
+	// Apply defaults if not set
+	if cfg.Endpoint == "" {
+		cfg.Endpoint = DefaultEndpoint
+	}
+	if cfg.ProjectName == "" {
+		cfg.ProjectName = DefaultProjectName
+	}
 
-	return tracingInitError
+	if err := initTracer(ctx, cfg); err != nil {
+		tracingEnabled.Store(false)
+		globalTracer = noop.NewTracerProvider().Tracer(TracerName)
+		return err
+	}
+
+	tracingEnabled.Store(true)
+	tracingInitialized = true
+	return nil
 }
 
 func initTracer(ctx context.Context, cfg Config) error {
+	endpoint, err := url.ParseRequestURI(cfg.Endpoint)
+	if err != nil {
+		return fmt.Errorf("parsing OTLP trace endpoint %q: %w", cfg.Endpoint, err)
+	}
+	if endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
+		return fmt.Errorf("OTLP trace endpoint must be an HTTP(S) URL: %q", cfg.Endpoint)
+	}
+
 	// Configure OTLP exporter options
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpointURL(cfg.Endpoint),
@@ -217,20 +240,13 @@ func initTracer(ctx context.Context, cfg Config) error {
 	// Create OTLP exporter
 	exporter, err := otlptracehttp.New(ctx, opts...)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}
 
-	// Create resource with service info
-	res, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(cfg.ProjectName),
-			attribute.String("project.name", cfg.ProjectName),
-		),
-	)
+	res, err := newResource(cfg)
 	if err != nil {
-		return err
+		_ = exporter.Shutdown(ctx)
+		return fmt.Errorf("creating tracing resource: %w", err)
 	}
 
 	// Create tracer provider
@@ -240,46 +256,74 @@ func initTracer(ctx context.Context, cfg Config) error {
 	)
 
 	// Set custom error handler to suppress repeated trace export errors
+	previousErrorHandler = otel.GetErrorHandler()
 	otel.SetErrorHandler(&suppressingErrorHandler{})
 
 	// Set as global provider
+	previousOTelProvider = otel.GetTracerProvider()
 	otel.SetTracerProvider(globalProvider)
 	globalTracer = globalProvider.Tracer(TracerName)
 
 	return nil
 }
 
+func newResource(cfg Config) (*resource.Resource, error) {
+	return resource.Merge(
+		resource.Default(),
+		resource.NewSchemaless(
+			semconv.ServiceName(DefaultProjectName),
+			attribute.String(AttrOpenInferenceProject, cfg.ProjectName),
+		),
+	)
+}
+
 // Shutdown flushes and shuts down the tracer provider.
 // It should be called when the application exits.
 func Shutdown(ctx context.Context) error {
-	var err error
-	shutdownOnce.Do(func() {
-		if globalProvider != nil {
-			err = globalProvider.Shutdown(ctx)
-		}
-	})
+	initMutex.Lock()
+	defer initMutex.Unlock()
+
+	if globalProvider == nil {
+		return nil
+	}
+	err := globalProvider.Shutdown(ctx)
+	if previousOTelProvider != nil {
+		otel.SetTracerProvider(previousOTelProvider)
+	}
+	if previousErrorHandler != nil {
+		otel.SetErrorHandler(previousErrorHandler)
+	}
+	globalTracer = noop.NewTracerProvider().Tracer(TracerName)
+	globalProvider = nil
+	previousOTelProvider = nil
+	previousErrorHandler = nil
+	tracingInitialized = false
+	tracingEnabled.Store(false)
 	return err
 }
 
 // ForceFlush forces any pending spans to be exported.
 func ForceFlush(ctx context.Context) error {
-	if globalProvider != nil {
-		return globalProvider.ForceFlush(ctx)
+	initMutex.Lock()
+	provider := globalProvider
+	initMutex.Unlock()
+	if provider != nil {
+		return provider.ForceFlush(ctx)
 	}
 	return nil
 }
 
-// EndChainSpan flushes pending spans and ends the chain span. Use in defer after StartChainSpan.
+// EndChainSpan ends the chain span and flushes pending spans. Use in defer after StartChainSpan.
 func EndChainSpan(ctx context.Context, span trace.Span) {
-	if err := ForceFlush(ctx); err != nil {
-		logger.Debugf("Failed to flush traces before ending chain span: %v", err)
-	}
 	span.End()
+	if err := ForceFlush(ctx); err != nil {
+		logger.Debugf("Failed to flush traces after ending chain span: %v", err)
+	}
 }
 
 // IsEnabled returns true if tracing is enabled
 func IsEnabled() bool {
-	return tracingEnabled
+	return tracingEnabled.Load()
 }
 
 // Tracer returns the global tracer instance
@@ -370,7 +414,7 @@ func StartSessionSpan(ctx context.Context, sessionName string, modelID string, p
 	recordSpanID(span)
 
 	// Log trace info for debugging
-	if tracingEnabled {
+	if tracingEnabled.Load() {
 		sc := span.SpanContext()
 		logger.Debugf("Started session span: name=%s, traceID=%s, spanID=%s, sessionID=%s",
 			sessionName, sc.TraceID().String(), sc.SpanID().String(), sessionID)
@@ -401,39 +445,45 @@ func ClearSessionID() {
 	currentSessionID = ""
 }
 
-// EndSessionSpan records the final session output and token counts, then ends the span.
-// It flushes all pending spans before ending to ensure child spans are exported first.
+// EndSessionSpan records the final session output and token counts, ends the span,
+// and flushes all pending spans.
 func EndSessionSpan(ctx context.Context, span trace.Span, output string) {
-	_ = ForceFlush(ctx)
-
 	// Record output
 	if output != "" {
 		span.SetAttributes(attribute.String(AttrOutputValue, output))
 	}
 
-	// Record cumulative token counts from session
+	recordSessionTokenCounts(ctx, span)
+
+	span.SetStatus(codes.Ok, "")
+	span.End()
+	if err := ForceFlush(ctx); err != nil {
+		logger.Debugf("Failed to flush traces after ending session span: %v", err)
+	}
+}
+
+// EndSessionSpanWithError records an error, ends the session span, and flushes
+// all pending spans.
+func EndSessionSpanWithError(ctx context.Context, span trace.Span, err error) {
+	recordSessionTokenCounts(ctx, span)
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
+	span.End()
+	if flushErr := ForceFlush(ctx); flushErr != nil {
+		logger.Debugf("Failed to flush traces after ending failed session span: %v", flushErr)
+	}
+}
+
+func recordSessionTokenCounts(ctx context.Context, span trace.Span) {
 	if tokens := SessionTokensFromContext(ctx); tokens != nil {
 		tokens.mu.Lock()
+		defer tokens.mu.Unlock()
 		span.SetAttributes(
 			attribute.Int(AttrLLMTokenCountPrompt, tokens.PromptTokens),
 			attribute.Int(AttrLLMTokenCountCompletion, tokens.CompletionTokens),
 			attribute.Int(AttrLLMTokenCountTotal, tokens.PromptTokens+tokens.CompletionTokens),
 		)
-		tokens.mu.Unlock()
 	}
-
-	span.SetStatus(codes.Ok, "")
-	span.End()
-}
-
-// EndSessionSpanWithError records an error and ends the session span.
-// It flushes all pending spans before ending to ensure child spans are exported first.
-func EndSessionSpanWithError(ctx context.Context, span trace.Span, err error) {
-	_ = ForceFlush(ctx)
-
-	span.RecordError(err)
-	span.SetStatus(codes.Error, err.Error())
-	span.End()
 }
 
 // RecordSessionInput records the input value on a session span.
@@ -541,7 +591,7 @@ func StartToolSpan(ctx context.Context, toolName string, parameters map[string]a
 		}
 	}
 
-	ctx, span := Tracer().Start(ctx, "execute_tool "+toolName, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, "tool:"+toolName, trace.WithAttributes(attrs...))
 	recordSpanID(span)
 	return ctx, span
 }
@@ -580,7 +630,7 @@ func recordSpanID(span trace.Span) {
 
 // logSpanCreated logs span hierarchy at debug level when tracing is enabled.
 func logSpanCreated(kind, name string, span trace.Span, ctx context.Context) {
-	if !tracingEnabled {
+	if !tracingEnabled.Load() {
 		return
 	}
 	sc := span.SpanContext()
@@ -644,7 +694,7 @@ func RecordWorkflowIteration(span trace.Span, iteration int) {
 	span.SetAttributes(attribute.Int(AttrWorkflowIteration, iteration))
 }
 
-// RecordWorkflowResult records the final workflow result on a span and sets status
+// RecordWorkflowResult records the final workflow result on a span.
 func RecordWorkflowResult(span trace.Span, approved bool, iterations int, content string) {
 	span.SetAttributes(
 		attribute.Bool("workflow.approved", approved),
@@ -653,7 +703,6 @@ func RecordWorkflowResult(span trace.Span, approved bool, iterations int, conten
 	if content != "" {
 		span.SetAttributes(attribute.String(AttrOutputValue, content))
 	}
-	span.SetStatus(codes.Ok, "")
 }
 
 // SetSpanOk marks a span as successfully completed

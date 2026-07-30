@@ -43,12 +43,15 @@
 # llm.gemini.model: "gemini-3.5-flash"
 
 ## LLM Tracing (OpenTelemetry/Phoenix)
-# Enable or disable LLM tracing (defaults to true)
+# Enable or disable LLM tracing (defaults to false)
 # llm.tracing.enabled: true
 # Tracing endpoint URL (defaults to http://localhost:6006/v1/traces)
 # llm.tracing.endpoint: "http://localhost:6006/v1/traces"
 # Tracing API key (optional, for authenticated endpoints)
 # llm.tracing.api_key: "your-tracing-api-key"
+# Additional OTLP HTTP headers (optional, for collector-specific authentication/routing)
+# llm.tracing.headers:
+#   Authorization: "Bearer your-token"
 # Project name for tracing (defaults to elastic-package)
 # llm.tracing.project_name: "elastic-package"
 

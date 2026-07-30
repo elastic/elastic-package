@@ -194,7 +194,7 @@ OpenTelemetry tracing for sessions, workflows, and spans; OTLP export (e.g. to P
 | File | Description |
 |------|-------------|
 | `tracing.go` | **Config**, **InitWithConfig**, **Shutdown**, **ForceFlush**; **StartSessionSpan**, **StartChainSpan**, **EndChainSpan**, **StartWorkflowSpanWithConfig**; **SessionIDFromContext**; **RecordSessionInput**, **RecordWorkflowResult**. |
-| `phoenix.go` | Phoenix (Arize) integration helpers. |
+| `tool_tracker.go` | **ToolSpanTracker**: pairs ADK function-call and function-response events so tool spans capture execution duration and failures. |
 
 ### `/ui`
 
@@ -312,7 +312,7 @@ elastic-package for-each --packages citrix_adc,nginx,apache -- update documentat
 
 ## Tracing
 
-Tracing is optional and controlled by profile config (**llm.tracing.enabled**, **llm.tracing.endpoint**, etc.). Spans follow session → chain → workflow/section. Use **SessionIDFromContext** and Phoenix to inspect runs.
+Tracing is optional and controlled by profile config (**llm.tracing.enabled**, **llm.tracing.endpoint**, etc.). Spans follow session → chain → workflow/section. Use **SessionIDFromContext** to correlate runs in the configured OTLP backend.
 
 ## Design Decisions
 

@@ -217,11 +217,15 @@ End your response with "CONFIRMED: I will follow all guidelines." if you underst
 
 // UpdateDocumentation runs the documentation update process using the shared generation + validation loop.
 // Uses section-based generation where each section has its own generate-validate loop.
-func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
+func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) (err error) {
 	genCfg := DefaultGenerationConfig()
 	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID(), d.executor.Provider())
 	var sessionOutput string
 	defer func() {
+		if err != nil {
+			tracing.EndSessionSpanWithError(ctx, sessionSpan, err)
+			return
+		}
 		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
 	}()
 
@@ -298,10 +302,14 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 }
 
 // ModifyDocumentation runs the documentation modification process for targeted changes using section-based approach
-func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInteractive bool, modifyPrompt string) error {
+func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInteractive bool, modifyPrompt string) (err error) {
 	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:modify", d.executor.ModelID(), d.executor.Provider())
 	var sessionOutput string
 	defer func() {
+		if err != nil {
+			tracing.EndSessionSpanWithError(ctx, sessionSpan, err)
+			return
+		}
 		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
 	}()
 
