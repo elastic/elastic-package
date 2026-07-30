@@ -5,14 +5,9 @@
 package policy
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
-
-	"github.com/elastic/elastic-package/internal/common"
 )
 
 func TestCleanPolicy(t *testing.T) {
@@ -196,201 +191,6 @@ service:
 			assert.Equal(t, c.expected, string(cleaned))
 		})
 	}
-}
-
-func TestNormalizePolicyToCanonical(t *testing.T) {
-	t.Run("rewrites OTel component IDs and references", func(t *testing.T) {
-		policy := `
-exporters:
-  elasticsearch/default:
-    endpoints:
-      - https://elasticsearch:9200
-receivers:
-  zipkin/otelcol-zipkinreceiver-uuid-here:
-    endpoint: 0.0.0.0:9411
-service:
-  pipelines:
-    traces/custom-pipeline:
-      receivers:
-        - zipkin/otelcol-zipkinreceiver-uuid-here
-      exporters:
-        - elasticsearch/default
-`
-		out, err := normalizePolicyToCanonical([]byte(policy))
-		assert.NoError(t, err)
-		t.Log(string(out))
-		assert.Contains(t, string(out), "elasticsearch/componentid-0")
-		assert.Contains(t, string(out), "zipkin/componentid-0")
-		assert.Contains(t, string(out), "traces/componentid-0")
-		// References should be updated
-		assert.Contains(t, string(out), "- zipkin/componentid-0")
-		assert.Contains(t, string(out), "- elasticsearch/componentid-0")
-	})
-
-	t.Run("order-independent: same components different key order normalize to same result", func(t *testing.T) {
-		policyA := `
-exporters:
-  elasticsearch/second:
-    endpoints: ["b"]
-  elasticsearch/first:
-    endpoints: ["a"]
-  elasticsearch/a5ae742d-5b47-4d5e-9511-969df92fcf3a:
-    endpoints: ["d"]
-`
-		policyB := `
-exporters:
-  elasticsearch/sixth:
-    endpoints: ["a"]
-  elasticsearch/fourth:
-    endpoints: ["b"]
-  elasticsearch/2577857f-918e-405d-b657-a4dbdbf02a2f:
-    endpoints: ["d"]
-`
-		outA, err := normalizePolicyToCanonical([]byte(policyA))
-		assert.NoError(t, err)
-		outB, err := normalizePolicyToCanonical([]byte(policyB))
-		assert.NoError(t, err)
-		assert.Equal(t, string(outA), string(outB), "equivalent policies with different key order should normalize to same YAML")
-	})
-
-	// Reproduces https://github.com/elastic/elastic-package/issues/3630:
-	// Fleet (since https://github.com/elastic/kibana/pull/270771) suffixes extension keys
-	// for cross-stream uniqueness, and references those extensions from service.extensions[]
-	// and from auth.authenticator inside receiver bodies.
-	t.Run("normalizes suffixed extension id referenced from service.extensions", func(t *testing.T) {
-		policy := `
-extensions:
-  apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f:
-    api_key: abc
-service:
-  extensions:
-    - apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
-`
-		out, err := normalizePolicyToCanonical([]byte(policy))
-		assert.NoError(t, err)
-		t.Log(string(out))
-		assert.Contains(t, string(out), "apikeyauth/componentid-0")
-		assert.Contains(t, string(out), "- apikeyauth/componentid-0")
-	})
-
-	t.Run("normalizes suffixed extension id referenced from auth.authenticator", func(t *testing.T) {
-		policy := `
-extensions:
-  apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f:
-    api_key: abc
-receivers:
-  elasticapmintakereceiver/2ad3f316-95ec-4749-955d-bb680ccb3a6f:
-    endpoint: localhost:8200
-    auth:
-      authenticator: apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
-`
-		out, err := normalizePolicyToCanonical([]byte(policy))
-		assert.NoError(t, err)
-		t.Log(string(out))
-		assert.Contains(t, string(out), "apikeyauth/componentid-0")
-		assert.Contains(t, string(out), "elasticapmintakereceiver/componentid-0")
-		assert.Contains(t, string(out), "authenticator: apikeyauth/componentid-0")
-	})
-
-	t.Run("normalizes suffixed extension id referenced from both service.extensions and auth.authenticator", func(t *testing.T) {
-		policy := `
-extensions:
-  apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f:
-    api_key: abc
-receivers:
-  elasticapmintakereceiver/2ad3f316-95ec-4749-955d-bb680ccb3a6f:
-    endpoint: localhost:8200
-    auth:
-      authenticator: apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
-service:
-  extensions:
-    - apikeyauth/otelcol-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f-otelcol-elasticapm_input_otel-elasticapmintakereceiver-2ad3f316-95ec-4749-955d-bb680ccb3a6f
-  pipelines:
-    traces/custom:
-      receivers:
-        - elasticapmintakereceiver/2ad3f316-95ec-4749-955d-bb680ccb3a6f
-`
-		out, err := normalizePolicyToCanonical([]byte(policy))
-		assert.NoError(t, err)
-		t.Log(string(out))
-		assert.Contains(t, string(out), "apikeyauth/componentid-0")
-		assert.Contains(t, string(out), "elasticapmintakereceiver/componentid-0")
-		assert.Contains(t, string(out), "- apikeyauth/componentid-0")
-		assert.Contains(t, string(out), "authenticator: apikeyauth/componentid-0")
-		assert.Contains(t, string(out), "traces/componentid-0")
-	})
-
-	t.Run("does not mix up references when there are two distinct apikeyauth extensions", func(t *testing.T) {
-		policy := `
-extensions:
-  apikeyauth/otelcol-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-otelcol-elasticapm_input_otel-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:
-    api_key: key-for-a
-  apikeyauth/otelcol-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb-otelcol-elasticapm_input_otel-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:
-    api_key: key-for-b
-receivers:
-  elasticapmintakereceiver/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:
-    endpoint: localhost:8200
-    auth:
-      authenticator: apikeyauth/otelcol-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-otelcol-elasticapm_input_otel-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-  elasticapmintakereceiver/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:
-    endpoint: localhost:8201
-    auth:
-      authenticator: apikeyauth/otelcol-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb-otelcol-elasticapm_input_otel-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
-service:
-  extensions:
-    - apikeyauth/otelcol-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa-otelcol-elasticapm_input_otel-receiverA-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-    - apikeyauth/otelcol-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb-otelcol-elasticapm_input_otel-receiverB-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
-`
-		out, err := normalizePolicyToCanonical([]byte(policy))
-		require.NoError(t, err)
-		t.Log(string(out))
-
-		var root map[string]any
-		require.NoError(t, yaml.Unmarshal(out, &root))
-
-		extensions, ok := root["extensions"].(map[string]any)
-		require.True(t, ok, "extensions should be a map")
-
-		// Identify each extension's canonical id by its distinguishing api_key,
-		// since buildSectionMapping's sort order is value-based and not fixed here.
-		var idForA, idForB string
-		for key, val := range extensions {
-			body, ok := val.(map[string]any)
-			require.True(t, ok)
-			switch body["api_key"] {
-			case "key-for-a":
-				idForA = key
-			case "key-for-b":
-				idForB = key
-			}
-		}
-		require.NotEmpty(t, idForA, "extension for receiver A should have been found")
-		require.NotEmpty(t, idForB, "extension for receiver B should have been found")
-		assert.NotEqual(t, idForA, idForB, "the two extensions must normalize to distinct component ids")
-
-		receivers, ok := root["receivers"].(map[string]any)
-		require.True(t, ok, "receivers should be a map")
-
-		var authForA, authForB string
-		for _, val := range receivers {
-			body, ok := val.(map[string]any)
-			require.True(t, ok)
-			auth, ok := body["auth"].(map[string]any)
-			require.True(t, ok)
-			authenticator, _ := auth["authenticator"].(string)
-			switch body["endpoint"] {
-			case "localhost:8200":
-				authForA = authenticator
-			case "localhost:8201":
-				authForB = authenticator
-			}
-		}
-		require.NotEmpty(t, authForA, "receiver A's authenticator should have been found")
-		require.NotEmpty(t, authForB, "receiver B's authenticator should have been found")
-
-		assert.Equal(t, idForA, authForA, "receiver A's authenticator must reference extension A's canonical id, not extension B's")
-		assert.Equal(t, idForB, authForB, "receiver B's authenticator must reference extension B's canonical id, not extension A's")
-	})
 }
 
 func TestComparePolicies(t *testing.T) {
@@ -1239,6 +1039,245 @@ service:
 `,
 			equal: true,
 		},
+		{
+			// Verifies the normalization does not hide genuine differences between policies
+			// that have matching extension IDs but different extension bodies. The expected
+			// file uses a bare extension ref (mixed state); the found policy uses the full
+			// component-ID form. Only the htpasswd file path differs — that must still be
+			// detected as a difference.
+			title: "different extension body is still detected as different after bare-ref normalization",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.other-htpasswd
+service:
+    extensions:
+        - basicauth/componentid-0
+`,
+			equal: false,
+		},
+		// --- end-to-end mixed-state positive: bare refs in expected, suffixed refs in found ---
+		{
+			// Reproduces the exact state of the otlp_input_otel expected files: extension map
+			// key already has the componentid suffix, but service.extensions and
+			// auth.authenticator still use the bare type name. Found policy (from 9.5.0+) has
+			// the suffix everywhere. Same body → should compare as equal.
+			title: "mixed-state expected (bare refs) equals fully-suffixed found with same body",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+            http:
+                auth:
+                    authenticator: basicauth
+service:
+    extensions:
+        - basicauth
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth/componentid-0
+            http:
+                auth:
+                    authenticator: basicauth/componentid-0
+service:
+    extensions:
+        - basicauth/componentid-0
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			equal: true,
+		},
+		{
+			// Multi-extension variant of the mixed-state scenario, matching the
+			// test-auth-multi.yml case: two extensions with different componentid suffixes
+			// in the map keys; expected file references both with bare type names.
+			title: "multi-extension mixed-state expected equals fully-suffixed found",
+			expected: `
+extensions:
+    basicauth/componentid-1:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-0:
+        token: mytoken
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+            http:
+                auth:
+                    authenticator: basicauth
+service:
+    extensions:
+        - basicauth
+        - bearertokenauth
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			found: `
+extensions:
+    basicauth/componentid-1:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-0:
+        token: mytoken
+receivers:
+    otlp/abc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth/componentid-1
+            http:
+                auth:
+                    authenticator: basicauth/componentid-1
+service:
+    extensions:
+        - basicauth/componentid-1
+        - bearertokenauth/componentid-0
+    pipelines:
+        traces/abc:
+            receivers:
+                - otlp/abc
+`,
+			equal: true,
+		},
+		// --- negatives: genuine differences must still be detected ---
+		{
+			// Different extension types must not be treated as equivalent even when both
+			// sides use bare names or componentid suffixes.
+			title: "different extension type is detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    bearertokenauth/componentid-0:
+        token: mytoken
+service:
+    extensions:
+        - bearertokenauth/componentid-0
+`,
+			equal: false,
+		},
+		{
+			// Found policy has an extra extension not present in the expected file.
+			title: "extra extension in found is detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+service:
+    extensions:
+        - basicauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+service:
+    extensions:
+        - basicauth/componentid-0
+        - bearertokenauth/componentid-1
+`,
+			equal: false,
+		},
+		{
+			// In a two-extension setup, if the authenticator assignments are swapped between
+			// receivers the difference must still be caught after normalization.
+			title: "swapped authenticator assignments between receivers are detected as different",
+			expected: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+receivers:
+    otlp/grpc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: basicauth
+    otlp/http:
+        protocols:
+            http:
+                auth:
+                    authenticator: bearertokenauth
+service:
+    extensions:
+        - basicauth
+        - bearertokenauth
+`,
+			found: `
+extensions:
+    basicauth/componentid-0:
+        htpasswd:
+            file: /etc/otel/.htpasswd
+    bearertokenauth/componentid-1:
+        token: mytoken
+receivers:
+    otlp/grpc:
+        protocols:
+            grpc:
+                auth:
+                    authenticator: bearertokenauth/componentid-1
+    otlp/http:
+        protocols:
+            http:
+                auth:
+                    authenticator: basicauth/componentid-0
+service:
+    extensions:
+        - basicauth/componentid-0
+        - bearertokenauth/componentid-1
+`,
+			equal: false,
+		},
 	}
 
 	for _, c := range cases {
@@ -1257,260 +1296,4 @@ service:
 			}
 		})
 	}
-}
-
-func TestReplaceMapStrValue(t *testing.T) {
-	t.Run("replaces existing scalar value", func(t *testing.T) {
-		m := common.MapStr{"key": "old"}
-		err := replaceMapStrValue(m, "key", "new")
-		require.NoError(t, err)
-		assert.Equal(t, "new", m["key"])
-	})
-
-	t.Run("replaces existing slice value", func(t *testing.T) {
-		m := common.MapStr{"key": []any{"a", "b"}}
-		err := replaceMapStrValue(m, "key", []any{"x"})
-		require.NoError(t, err)
-		assert.Equal(t, []any{"x"}, m["key"])
-	})
-
-	t.Run("sets a new key", func(t *testing.T) {
-		m := common.MapStr{}
-		err := replaceMapStrValue(m, "new_key", 42)
-		require.NoError(t, err)
-		assert.Equal(t, 42, m["new_key"])
-	})
-}
-
-func TestMapStringElemsInAnySlice(t *testing.T) {
-	t.Run("transforms all string elements", func(t *testing.T) {
-		in := []any{"hello", "world"}
-		out, err := mapStringElemsInAnySlice(in, func(s string) string { return s + "!" })
-		require.NoError(t, err)
-		assert.Equal(t, []any{"hello!", "world!"}, out)
-	})
-
-	t.Run("returns error on non-string element", func(t *testing.T) {
-		in := []any{"ok", 42}
-		_, err := mapStringElemsInAnySlice(in, func(s string) string { return s })
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expected string array element")
-	})
-
-	t.Run("empty slice returns empty slice", func(t *testing.T) {
-		out, err := mapStringElemsInAnySlice([]any{}, func(s string) string { return s })
-		require.NoError(t, err)
-		assert.Empty(t, out)
-	})
-}
-
-func TestFilterStringElemsInAnySlice(t *testing.T) {
-	t.Run("keeps only elements matching predicate", func(t *testing.T) {
-		in := []any{"keep", "drop", "keep2"}
-		out, err := filterStringElemsInAnySlice(in, func(s string) bool { return s != "drop" })
-		require.NoError(t, err)
-		assert.Equal(t, []any{"keep", "keep2"}, out)
-	})
-
-	t.Run("returns error on non-string element", func(t *testing.T) {
-		in := []any{"ok", 123}
-		_, err := filterStringElemsInAnySlice(in, func(s string) bool { return true })
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expected string array element")
-	})
-
-	t.Run("returns empty when all filtered out", func(t *testing.T) {
-		in := []any{"a", "b"}
-		out, err := filterStringElemsInAnySlice(in, func(s string) bool { return false })
-		require.NoError(t, err)
-		assert.Empty(t, out)
-	})
-}
-
-func TestApplyElementsEntriesCleaning(t *testing.T) {
-	t.Run("removes the named field from each list element", func(t *testing.T) {
-		m := common.MapStr{
-			"items": []any{
-				common.MapStr{"id": "abc", "name": "foo"},
-				common.MapStr{"id": "def", "name": "bar"},
-			},
-		}
-		v, _ := m.GetValue("items")
-		err := applyElementsEntriesCleaning(m, "items", v, []policyEntryFilter{{name: "id"}})
-		require.NoError(t, err)
-
-		items, err := common.ToMapStrSlice(m["items"])
-		require.NoError(t, err)
-		for _, item := range items {
-			_, hasID := item["id"]
-			assert.False(t, hasID, "id should have been removed")
-			_, hasName := item["name"]
-			assert.True(t, hasName, "name should be preserved")
-		}
-	})
-
-	t.Run("returns error when value is not a slice of maps", func(t *testing.T) {
-		m := common.MapStr{"items": "not-a-list"}
-		err := applyElementsEntriesCleaning(m, "items", "not-a-list", []policyEntryFilter{{name: "id"}})
-		require.Error(t, err)
-	})
-}
-
-func TestApplyMapValuesCleaning(t *testing.T) {
-	t.Run("removes filtered field from each nested map value", func(t *testing.T) {
-		m := common.MapStr{
-			"section": common.MapStr{
-				"alpha": common.MapStr{"auth": "secret", "url": "http://example.com"},
-				"beta":  common.MapStr{"auth": "secret2", "url": "http://other.com"},
-			},
-		}
-		v, _ := m.GetValue("section")
-		err := applyMapValuesCleaning(v, []policyEntryFilter{{name: "auth"}})
-		require.NoError(t, err)
-
-		section, err := common.ToMapStr(m["section"])
-		require.NoError(t, err)
-		for _, child := range section {
-			childMap, err := common.ToMapStr(child)
-			require.NoError(t, err)
-			_, hasAuth := childMap["auth"]
-			assert.False(t, hasAuth, "auth should have been removed")
-			_, hasURL := childMap["url"]
-			assert.True(t, hasURL, "url should be preserved")
-		}
-	})
-
-	t.Run("returns error when value is not a map", func(t *testing.T) {
-		err := applyMapValuesCleaning("not-a-map", []policyEntryFilter{{name: "id"}})
-		require.Error(t, err)
-	})
-}
-
-func TestApplyMemberReplace(t *testing.T) {
-	re := &policyEntryReplace{
-		regexp:  regexp.MustCompile(`^uuid-.*$`),
-		replace: "normalized",
-	}
-
-	t.Run("replaces matching keys in a MapStr", func(t *testing.T) {
-		m := common.MapStr{
-			"perms": common.MapStr{
-				"uuid-abc-123": "value1",
-				"_keep":        "value2",
-			},
-		}
-		v, _ := m.GetValue("perms")
-		err := applyMemberReplace(m, "perms", v, re)
-		require.NoError(t, err)
-
-		perms, err := common.ToMapStr(m["perms"])
-		require.NoError(t, err)
-		_, hasOld := perms["uuid-abc-123"]
-		assert.False(t, hasOld, "original key should be gone")
-		_, hasNew := perms["normalized"]
-		assert.True(t, hasNew, "replacement key should exist")
-		_, hasKept := perms["_keep"]
-		assert.True(t, hasKept, "non-matching key should be preserved")
-	})
-
-	t.Run("replaces matching string elements in a []any", func(t *testing.T) {
-		m := common.MapStr{
-			"refs": []any{"uuid-abc-123", "keep-me"},
-		}
-		v := m["refs"]
-		err := applyMemberReplace(m, "refs", v, re)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"normalized", "keep-me"}, m["refs"])
-	})
-
-	t.Run("returns error on non-string element in []any", func(t *testing.T) {
-		m := common.MapStr{"refs": []any{42}}
-		err := applyMemberReplace(m, "refs", m["refs"], re)
-		require.Error(t, err)
-	})
-
-	t.Run("returns error on unexpected value type", func(t *testing.T) {
-		m := common.MapStr{"refs": "a plain string"}
-		err := applyMemberReplace(m, "refs", m["refs"], re)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expected map or array for memberReplace")
-	})
-}
-
-func TestApplyStringValueReplace(t *testing.T) {
-	re := &policyEntryReplace{
-		regexp:  regexp.MustCompile(`^(.+)-[0-9]+$`),
-		replace: "$1",
-	}
-
-	t.Run("strips numeric suffix from matching string", func(t *testing.T) {
-		m := common.MapStr{"name": "my-input-42"}
-		err := applyStringValueReplace(m, "name", m["name"], re)
-		require.NoError(t, err)
-		assert.Equal(t, "my-input", m["name"])
-	})
-
-	t.Run("leaves non-matching string unchanged", func(t *testing.T) {
-		m := common.MapStr{"name": "my-input"}
-		err := applyStringValueReplace(m, "name", m["name"], re)
-		require.NoError(t, err)
-		assert.Equal(t, "my-input", m["name"])
-	})
-
-	t.Run("returns error when value is not a string", func(t *testing.T) {
-		m := common.MapStr{"name": 99}
-		err := applyStringValueReplace(m, "name", m["name"], re)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expected string")
-	})
-}
-
-func TestApplyDeletePattern(t *testing.T) {
-	pat := regexp.MustCompile(`^beatsauth/`)
-
-	t.Run("removes matching keys from a MapStr", func(t *testing.T) {
-		m := common.MapStr{
-			"extensions": common.MapStr{
-				"beatsauth/default": common.MapStr{},
-				"health_check/abc":  common.MapStr{},
-			},
-		}
-		v, _ := m.GetValue("extensions")
-		err := applyDeletePattern(m, "extensions", v, pat)
-		require.NoError(t, err)
-
-		ext, err := common.ToMapStr(m["extensions"])
-		require.NoError(t, err)
-		_, hasBeats := ext["beatsauth/default"]
-		assert.False(t, hasBeats, "beatsauth key should be removed")
-		_, hasHealth := ext["health_check/abc"]
-		assert.True(t, hasHealth, "non-matching key should remain")
-	})
-
-	t.Run("filters matching string elements from []any", func(t *testing.T) {
-		m := common.MapStr{
-			"service": common.MapStr{
-				"extensions": []any{"beatsauth/default", "health_check/abc"},
-			},
-		}
-		v, _ := m.GetValue("service.extensions")
-		err := applyDeletePattern(m, "service.extensions", v, pat)
-		require.NoError(t, err)
-		got, err := m.GetValue("service.extensions")
-		require.NoError(t, err)
-		assert.Equal(t, []any{"health_check/abc"}, got)
-	})
-
-	t.Run("returns error on non-string element in []any", func(t *testing.T) {
-		m := common.MapStr{"list": []any{123}}
-		err := applyDeletePattern(m, "list", m["list"], pat)
-		require.Error(t, err)
-	})
-
-	t.Run("returns error on unexpected value type", func(t *testing.T) {
-		m := common.MapStr{"field": "scalar"}
-		err := applyDeletePattern(m, "field", m["field"], pat)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expected map or array for deletePattern")
-	})
 }
