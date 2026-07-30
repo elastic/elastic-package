@@ -272,7 +272,6 @@ func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgen
 
 	output = strings.TrimSpace(strings.Join(outputs, ""))
 
-	// Create a proper LLM span with token counts for Phoenix cost calculation
 	if promptTokens > 0 || completionTokens > 0 {
 		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, b.config.ModelID, b.config.Provider, inputMessages)
 		outputMessages := []tracing.Message{{Role: "assistant", Content: output}}

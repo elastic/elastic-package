@@ -29,7 +29,7 @@ type EvaluationConfig struct {
 	// MaxIterations limits retries per section generation
 	MaxIterations uint
 
-	// EnableTracing enables Phoenix tracing
+	// EnableTracing enables OTel tracing
 	EnableTracing bool
 
 	// ModelID is the LLM model to use
@@ -74,10 +74,10 @@ type EvaluationResult struct {
 	// Error contains any error message
 	Error string `json:"error,omitempty"`
 
-	// TraceSessionID is the Phoenix session ID for this run
+	// TraceSessionID is the OTel session ID for this run
 	TraceSessionID string `json:"trace_session_id,omitempty"`
 
-	// TraceSummary holds aggregated trace data from Phoenix (if tracing enabled)
+	// TraceSummary holds aggregated trace data (if tracing enabled)
 	TraceSummary *tracing.TraceSummary `json:"trace_summary,omitempty"`
 }
 
@@ -223,7 +223,7 @@ func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cf
 
 	result.Duration = time.Since(startTime)
 
-	// Fetch trace summary from Phoenix if tracing was enabled
+	// Fetch trace summary if tracing was enabled
 	if cfg.EnableTracing && result.TraceSessionID != "" {
 		// End the session span BEFORE flushing so it gets included in the export
 		if sessionSpan != nil {
@@ -231,16 +231,14 @@ func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cf
 			sessionSpan = nil // Mark as ended so defer doesn't double-end
 		}
 
-		// Force flush pending traces to Phoenix before fetching
 		if err := tracing.ForceFlush(ctx); err != nil {
 			logger.Debugf("Failed to flush traces: %v", err)
 		}
 
-		// Give Phoenix time to ingest the traces
-		fmt.Printf("🔍 Fetching trace summary from Phoenix...\n")
+		fmt.Printf("🔍 Fetching trace summary...\n")
 		time.Sleep(2 * time.Second)
 
-		traceSummary, err := fetchTraceSummaryFromPhoenix(ctx, result.TraceSessionID)
+		traceSummary, err := fetchTraceSummary(ctx, result.TraceSessionID)
 		if err != nil {
 			logger.Debugf("Failed to fetch trace summary: %v", err)
 		} else if traceSummary != nil {
@@ -342,13 +340,12 @@ func validateFinalDocument(ctx context.Context, content string, pkgCtx *validato
 	return stageResults, approved
 }
 
-// fetchTraceSummaryFromPhoenix fetches trace data from Phoenix
-func fetchTraceSummaryFromPhoenix(ctx context.Context, sessionID string) (*tracing.TraceSummary, error) {
-	client := tracing.NewPhoenixClient(tracing.DefaultEndpoint)
+// fetchTraceSummary fetches trace data from the configured OTel collector
+func fetchTraceSummary(ctx context.Context, sessionID string) (*tracing.TraceSummary, error) {
+	client := tracing.NewTraceQueryClient(tracing.DefaultEndpoint)
 
-	// Check if Phoenix is available
-	if !client.IsPhoenixAvailable(ctx) {
-		logger.Debugf("Phoenix not available at %s", tracing.DefaultEndpoint)
+	if !client.IsAvailable(ctx) {
+		logger.Debugf("OTel collector not available at %s", tracing.DefaultEndpoint)
 		return nil, nil
 	}
 
