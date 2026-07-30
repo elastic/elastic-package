@@ -57,11 +57,16 @@ func adjustObjectReferences(ctx *transformationContext, references []interface{}
 func standardizeObjectProperties(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	for key, value := range object {
 		if key == "title" {
-			_, err := object.Put(key, adjustTitleProperty(value.(string)))
-			if err != nil {
-				return nil, fmt.Errorf("can't update field (key: %s): %w", key, err)
+			// "title" is not always a string — e.g. in axis config objects it is a map
+			// like {"visible": false}. Skip the string transformation in those cases and
+			// fall through to the general map/array handling below.
+			if strVal, ok := value.(string); ok {
+				_, err := object.Put(key, adjustTitleProperty(strVal))
+				if err != nil {
+					return nil, fmt.Errorf("can't update field (key: %s): %w", key, err)
+				}
+				continue
 			}
-			continue
 		}
 
 		if key == "markdown" {
