@@ -7,6 +7,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -87,14 +88,14 @@ func Load(p *profile.Profile) LLMConfig {
 }
 
 // TracingConfig reads LLM tracing settings from the profile.
-func TracingConfig(p *profile.Profile) tracing.Config {
+func TracingConfig(p *profile.Profile) (tracing.Config, error) {
 	cfg := tracing.Config{
 		Enabled:     false,
 		Endpoint:    tracing.DefaultEndpoint,
 		ProjectName: tracing.DefaultProjectName,
 	}
 	if p == nil {
-		return cfg
+		return cfg, nil
 	}
 	enabledStr := p.Config("llm.tracing.enabled", "false")
 	cfg.Enabled = enabledStr == "true" || enabledStr == "1"
@@ -105,5 +106,8 @@ func TracingConfig(p *profile.Profile) tracing.Config {
 	if projectName := p.Config("llm.tracing.project_name", ""); projectName != "" {
 		cfg.ProjectName = projectName
 	}
-	return cfg
+	if err := p.Decode("llm.tracing.headers", &cfg.Headers); err != nil {
+		return cfg, fmt.Errorf("decoding llm.tracing.headers: %w", err)
+	}
+	return cfg, nil
 }

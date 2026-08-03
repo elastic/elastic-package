@@ -29,7 +29,7 @@ type EvaluationConfig struct {
 	// MaxIterations limits retries per section generation
 	MaxIterations uint
 
-	// EnableTracing enables Phoenix tracing
+	// EnableTracing enables OTel tracing
 	EnableTracing bool
 
 	// ModelID is the LLM model to use
@@ -74,11 +74,8 @@ type EvaluationResult struct {
 	// Error contains any error message
 	Error string `json:"error,omitempty"`
 
-	// TraceSessionID is the Phoenix session ID for this run
+	// TraceSessionID is the OTel session ID for this run
 	TraceSessionID string `json:"trace_session_id,omitempty"`
-
-	// TraceSummary holds aggregated trace data from Phoenix (if tracing enabled)
-	TraceSummary *tracing.TraceSummary `json:"trace_summary,omitempty"`
 }
 
 // ValidationSummary provides a quick overview of validation results
@@ -131,11 +128,11 @@ type ValidationIssueDetail struct {
 
 // EvaluatePackage runs documentation generation in evaluation mode.
 // It uses the same generation logic as the standard update mode via the agent.
-func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cfg EvaluationConfig) (*EvaluationResult, error) {
+func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cfg EvaluationConfig) (result *EvaluationResult, err error) {
 	startTime := time.Now()
 	runID := fmt.Sprintf("%s_%s", agent.Manifest().Name, startTime.Format("20060102_150405"))
 
-	result := &EvaluationResult{
+	result = &EvaluationResult{
 		PackageName: agent.Manifest().Name,
 		PackagePath: agent.PackageRoot(),
 		RunID:       runID,
@@ -143,13 +140,16 @@ func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cf
 		Config:      cfg,
 	}
 
-	// Initialize tracing - track span so we can end it before flushing
+	// Track the evaluation as one root tracing span.
 	var sessionSpan trace.Span
 	if cfg.EnableTracing {
 		ctx, sessionSpan = tracing.StartSessionSpan(ctx, "doc:evaluate", agent.ModelID(), agent.Provider())
-		// Note: We'll end the span explicitly before flushing, but keep defer as safety net
 		defer func() {
 			if sessionSpan != nil && sessionSpan.IsRecording() {
+				if err != nil {
+					tracing.EndSessionSpanWithError(ctx, sessionSpan, err)
+					return
+				}
 				tracing.EndSessionSpan(ctx, sessionSpan, result.GeneratedContent)
 			}
 		}()
@@ -223,30 +223,11 @@ func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cf
 
 	result.Duration = time.Since(startTime)
 
-	// Fetch trace summary from Phoenix if tracing was enabled
+	// End and export the root span when tracing was enabled.
 	if cfg.EnableTracing && result.TraceSessionID != "" {
-		// End the session span BEFORE flushing so it gets included in the export
 		if sessionSpan != nil {
 			tracing.EndSessionSpan(ctx, sessionSpan, result.GeneratedContent)
-			sessionSpan = nil // Mark as ended so defer doesn't double-end
-		}
-
-		// Force flush pending traces to Phoenix before fetching
-		if err := tracing.ForceFlush(ctx); err != nil {
-			logger.Debugf("Failed to flush traces: %v", err)
-		}
-
-		// Give Phoenix time to ingest the traces
-		fmt.Printf("🔍 Fetching trace summary from Phoenix...\n")
-		time.Sleep(2 * time.Second)
-
-		traceSummary, err := fetchTraceSummaryFromPhoenix(ctx, result.TraceSessionID)
-		if err != nil {
-			logger.Debugf("Failed to fetch trace summary: %v", err)
-		} else if traceSummary != nil {
-			result.TraceSummary = traceSummary
-			fmt.Printf("📊 Trace summary: %d spans, %d LLM calls, %d total tokens\n",
-				traceSummary.TotalSpans, traceSummary.LLMCalls, traceSummary.TotalTokens)
+			sessionSpan = nil
 		}
 	}
 
@@ -340,29 +321,6 @@ func validateFinalDocument(ctx context.Context, content string, pkgCtx *validato
 	}
 
 	return stageResults, approved
-}
-
-// fetchTraceSummaryFromPhoenix fetches trace data from Phoenix
-func fetchTraceSummaryFromPhoenix(ctx context.Context, sessionID string) (*tracing.TraceSummary, error) {
-	client := tracing.NewPhoenixClient(tracing.DefaultEndpoint)
-
-	// Check if Phoenix is available
-	if !client.IsPhoenixAvailable(ctx) {
-		logger.Debugf("Phoenix not available at %s", tracing.DefaultEndpoint)
-		return nil, nil
-	}
-
-	// Fetch traces
-	traces, err := client.FetchSessionTraces(ctx, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch traces: %w", err)
-	}
-
-	if traces == nil || traces.Summary == nil {
-		return nil, nil
-	}
-
-	return traces.Summary, nil
 }
 
 // buildValidationSummary creates a summary of validation results

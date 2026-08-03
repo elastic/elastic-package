@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -217,7 +219,15 @@ func runDocumentationUpdate(cmd *cobra.Command, docAgent *docagent.Documentation
 	return nil
 }
 
-func updateDocumentationCommandAction(cmd *cobra.Command, _ []string) error {
+func updateDocumentationCommandAction(cmd *cobra.Command, _ []string) (err error) {
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if shutdownErr := tracing.Shutdown(shutdownCtx); shutdownErr != nil {
+			err = errors.Join(err, fmt.Errorf("shutting down LLM tracing: %w", shutdownErr))
+		}
+	}()
+
 	evaluateMode, err := cmd.Flags().GetBool("evaluate")
 	if err != nil {
 		return fmt.Errorf("failed to get evaluate flag: %w", err)
@@ -274,7 +284,10 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 	}
 	defer repositoryRoot.Close()
 
-	tracingConfig := llmconfig.TracingConfig(p)
+	tracingConfig, err := llmconfig.TracingConfig(p)
+	if err != nil {
+		return fmt.Errorf("loading LLM tracing configuration: %w", err)
+	}
 
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
 		Provider:       cfg.Provider,
@@ -389,11 +402,9 @@ func handleEvaluationMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.
 		return err
 	}
 
-	tracingConfig := llmconfig.TracingConfig(p)
-	if tracingConfig.Enabled {
-		if err := tracing.InitWithConfig(cmd.Context(), tracingConfig); err != nil {
-			cmd.Printf("Warning: failed to initialize tracing: %v\n", err)
-		}
+	tracingConfig, err := llmconfig.TracingConfig(p)
+	if err != nil {
+		return fmt.Errorf("loading LLM tracing configuration: %w", err)
 	}
 
 	cmd.Printf("📊 Running documentation evaluation with model: %s\n", cfg.ModelID)

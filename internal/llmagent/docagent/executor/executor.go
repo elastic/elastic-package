@@ -7,7 +7,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -92,7 +91,7 @@ func NewWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolset
 
 	// Initialize LLM tracing with provided config
 	if err := tracing.InitWithConfig(ctx, cfg.TracingConfig); err != nil {
-		logger.Debugf("Failed to initialize LLM tracing: %v", err)
+		return nil, fmt.Errorf("initializing LLM tracing: %w", err)
 	}
 
 	provider := cfg.Provider
@@ -227,6 +226,10 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 
 	// Track input messages for LLM spans
 	inputMessages := []tracing.Message{{Role: "user", Content: prompt}}
+	toolSpans := tracing.NewToolSpanTracker(ctx)
+	defer func() {
+		toolSpans.EndPending(err)
+	}()
 
 	for event, err := range r.Run(ctx, defaultUserID, sessionResp.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
@@ -273,6 +276,8 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 				if part.FunctionCall != nil {
 					logger.Debugf("Function call: %s", part.FunctionCall.Name)
 
+					toolSpans.Start(part.FunctionCall.ID, part.FunctionCall.Name, part.FunctionCall.Args)
+
 					conversation = append(conversation, ConversationEntry{
 						Type:    "tool_result",
 						Content: fmt.Sprintf("Called: %s", part.FunctionCall.Name),
@@ -283,27 +288,19 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 				if part.FunctionResponse != nil {
 					logger.Debugf("Function response for: %s", part.FunctionResponse.Name)
 
-					// Create tool response span
-					_, toolSpan := tracing.StartToolSpan(ctx, part.FunctionResponse.Name+"_response", nil)
+					responseContent, toolErr := toolSpans.End(
+						part.FunctionResponse.ID,
+						part.FunctionResponse.Name,
+						part.FunctionResponse.Response,
+					)
 
-					// Format the response content
-					var responseContent string
-					if content, exists := part.FunctionResponse.Response["content"]; exists {
-						responseContent = fmt.Sprintf("%v", content)
-					} else if errContent, exists := part.FunctionResponse.Response["error"]; exists {
-						responseContent = fmt.Sprintf("Error: %v", errContent)
-					} else {
-						// Marshal the entire response
-						if respJSON, err := json.Marshal(part.FunctionResponse.Response); err == nil {
-							responseContent = string(respJSON)
-						}
+					status := "✅ SUCCESS"
+					if toolErr != nil {
+						status = "❌ ERROR"
 					}
-
-					tracing.EndToolSpan(toolSpan, responseContent, nil)
-
 					conversation = append(conversation, ConversationEntry{
 						Type:    "tool_result",
-						Content: fmt.Sprintf("✅ SUCCESS: %s completed.\nResult: %s", part.FunctionResponse.Name, responseContent),
+						Content: fmt.Sprintf("%s: %s completed.\nResult: %s", status, part.FunctionResponse.Name, responseContent),
 					})
 				}
 			}
