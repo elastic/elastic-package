@@ -13,6 +13,10 @@ updates:
         patterns:
           - "k8s.io/*"
           - "sigs.k8s.io/*"
+    cooldown:
+      default-days: 3
+      exclude:
+        - github.com/elastic/package-spec/v3
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
