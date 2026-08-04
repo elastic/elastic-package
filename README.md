@@ -33,6 +33,23 @@ curl -fsSL https://raw.githubusercontent.com/elastic/elastic-package/main/script
 The script supports macOS (darwin) and Linux on `amd64`, `arm64`, and `386` architectures.
 On macOS it automatically removes the quarantine attribute so the binary can run without Gatekeeper warnings.
 
+On **Windows**, use the PowerShell script instead:
+
+```powershell
+irm https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.ps1 | iex
+```
+
+To install to a custom directory on Windows:
+
+```powershell
+$env:INSTALL_DIR = "$env:USERPROFILE\.local\bin"
+irm https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.ps1 | iex
+```
+
+The PowerShell script defaults to `%LOCALAPPDATA%\Programs\elastic-package` and adds that directory to
+your user `PATH` automatically. It supports `amd64`, `arm64`, and `386` architectures.
+Both scripts skip the download if the installed version is already up to date.
+
 ### Manual download
 
 Download the latest release directly from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.

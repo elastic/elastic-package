@@ -15,8 +15,9 @@ case "$OS" in
   Darwin) OS="darwin" ;;
   Linux)  OS="linux" ;;
   MINGW*|MSYS*|CYGWIN*)
-    echo "Windows is not supported by this install script." >&2
-    echo "Please download the binary manually from https://github.com/${REPO}/releases/latest" >&2
+    echo "Windows is not supported by this script." >&2
+    echo "Use the PowerShell script instead:" >&2
+    echo "  irm https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.ps1 | iex" >&2
     exit 1
     ;;
   *)
