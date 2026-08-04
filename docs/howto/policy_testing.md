@@ -55,6 +55,8 @@ policy:
     - source: "../path/to/input_pkg"   # local directory or .zip (relative to package root)
     - package: sql_input               # registry-based; requires version
       version: "0.2.0"
+  ignore_fields:
+    - state.user_agent                 # strip this field from comparison
 ```
 
 The `skip` key skips all policy tests with a mandatory reason and optional issue link.
@@ -68,6 +70,13 @@ configured package registry.
 - Use `source` when the input package is not yet published to the registry (local development).
 - Use `package` + `version` to pin a specific registry version.
 - `source` and `package`/`version` are mutually exclusive in the same entry.
+
+The `ignore_fields` key lists stream-level field paths to strip from both sides before
+comparing the actual policy against the expected file. Paths use dot notation scoped to the
+stream level. For example, `state.user_agent` removes `inputs[].streams[].state.user_agent`
+from comparison. This is useful when a rendered field contains a dynamic value (such as the
+package version embedded in a User-Agent header) that changes across versions but does not
+need to be asserted exactly.
 
 For full details on integrations with requires and source overrides, see
 [HOWTO: Enable dependency management](./dependency_management.md#testing-integrations-with-requires-using-source-overrides).

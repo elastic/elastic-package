@@ -31,7 +31,7 @@ type runner struct {
 	dataStreams        []string
 	failOnMissingTests bool
 	generateTestResult bool
-	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	globalTestConfig   testrunner.PolicyRunnerTestConfig
 	withCoverage       bool
 	coverageType       string
 
@@ -53,7 +53,7 @@ type PolicyTestRunnerOptions struct {
 	DataStreams            []string
 	FailOnMissingTests     bool
 	GenerateTestResult     bool
-	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
+	GlobalTestConfig       testrunner.PolicyRunnerTestConfig
 	WithCoverage           bool
 	CoverageType           string
 	RepositoryRoot         *os.Root
@@ -184,8 +184,8 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 
 	cleanup = func(ctx context.Context) error {
 		packageResource.Absent = true
-		_, err := manager.ApplyCtx(ctx, setupResources)
-		return err
+		_, uninstallErr := manager.ApplyCtx(ctx, setupResources)
+		return uninstallErr
 	}
 
 	logger.Debugf("Installing package...")

@@ -20,7 +20,7 @@ import (
 type globalTestConfig struct {
 	Asset    GlobalRunnerTestConfig `config:"asset"`
 	Pipeline GlobalRunnerTestConfig `config:"pipeline"`
-	Policy   GlobalRunnerTestConfig `config:"policy"`
+	Policy   PolicyRunnerTestConfig `config:"policy"`
 	Static   GlobalRunnerTestConfig `config:"static"`
 	System   GlobalRunnerTestConfig `config:"system"`
 }
@@ -49,7 +49,7 @@ func (c *globalTestConfig) MergedRequiresSourceOverrides(packageRoot string) (ma
 		cfg   GlobalRunnerTestConfig
 	}{
 		{"system", c.System},
-		{"policy", c.Policy},
+		{"policy", c.Policy.GlobalRunnerTestConfig},
 		{"pipeline", c.Pipeline},
 		{"static", c.Static},
 		{"asset", c.Asset},
@@ -82,6 +82,18 @@ type GlobalRunnerTestConfig struct {
 	Parallel        bool                     `config:"parallel"`
 	Requires        []PackageTestRequirement `config:"requires"`
 	SkippableConfig `config:",inline"`
+}
+
+// PolicyRunnerTestConfig extends GlobalRunnerTestConfig with fields specific
+// to the policy test runner.
+type PolicyRunnerTestConfig struct {
+	GlobalRunnerTestConfig `config:",inline"`
+
+	// IgnoreFields lists rendered stream fields to strip before comparing
+	// the actual policy against the expected file. Paths use dot notation
+	// scoped to the stream level (e.g. "state.user_agent" strips
+	// inputs[].streams[].state.user_agent).
+	IgnoreFields []string `config:"ignore_fields"`
 }
 
 func ReadGlobalTestConfig(packageRoot string) (*globalTestConfig, error) {

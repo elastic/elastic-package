@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCleanPolicy(t *testing.T) {
@@ -1282,7 +1283,7 @@ service:
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			diff, err := comparePolicies([]byte(c.expected), []byte(c.found))
+			diff, err := comparePolicies([]byte(c.expected), []byte(c.found), policyEntryFilters)
 			if c.fail {
 				assert.Error(t, err)
 				return
@@ -1296,4 +1297,82 @@ service:
 			}
 		})
 	}
+}
+
+func TestFiltersWithIgnoreFields(t *testing.T) {
+	t.Run("nil ignore fields returns base unchanged", func(t *testing.T) {
+		base := policyEntryFilters
+		got := filtersWithIgnoreFields(base, nil)
+		assert.Equal(t, base, got)
+	})
+
+	t.Run("empty ignore fields returns base unchanged", func(t *testing.T) {
+		base := policyEntryFilters
+		got := filtersWithIgnoreFields(base, []string{})
+		assert.Equal(t, base, got)
+	})
+
+	t.Run("strips configured stream fields from policy", func(t *testing.T) {
+		policy := `
+inputs:
+    - name: test-input
+      streams:
+        - data_stream:
+            dataset: test.logs
+          state:
+            user_agent: Elastic-test/1.2.3
+            batch_size: 100
+          program: "true"
+      type: cel
+`
+		filters := filtersWithIgnoreFields(policyEntryFilters, []string{"state.user_agent"})
+		diff, err := comparePolicies([]byte(policy), []byte(policy), filters)
+		require.NoError(t, err)
+		assert.Empty(t, diff)
+
+		// Verify the field is actually stripped: compare two policies that
+		// differ only in the ignored field — they should be equal.
+		policyAlt := `
+inputs:
+    - name: test-input
+      streams:
+        - data_stream:
+            dataset: test.logs
+          state:
+            user_agent: Elastic-test/9.9.9
+            batch_size: 100
+          program: "true"
+      type: cel
+`
+		diff, err = comparePolicies([]byte(policy), []byte(policyAlt), filters)
+		require.NoError(t, err)
+		assert.Empty(t, diff, "policies differing only in ignored field should compare equal")
+	})
+
+	t.Run("does not strip fields not in ignore list", func(t *testing.T) {
+		policy1 := `
+inputs:
+    - name: test-input
+      streams:
+        - data_stream:
+            dataset: test.logs
+          state:
+            batch_size: 100
+      type: cel
+`
+		policy2 := `
+inputs:
+    - name: test-input
+      streams:
+        - data_stream:
+            dataset: test.logs
+          state:
+            batch_size: 200
+      type: cel
+`
+		filters := filtersWithIgnoreFields(policyEntryFilters, []string{"state.user_agent"})
+		diff, err := comparePolicies([]byte(policy1), []byte(policy2), filters)
+		require.NoError(t, err)
+		assert.NotEmpty(t, diff, "policies differing in non-ignored field should not compare equal")
+	})
 }

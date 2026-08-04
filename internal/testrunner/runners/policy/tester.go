@@ -25,7 +25,7 @@ type tester struct {
 	kibanaClient       *kibana.Client
 	testPath           string
 	generateTestResult bool
-	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	globalTestConfig   testrunner.PolicyRunnerTestConfig
 	withCoverage       bool
 	coverageType       string
 
@@ -41,7 +41,7 @@ type PolicyTesterOptions struct {
 	KibanaClient       *kibana.Client
 	PackageRoot        string
 	GenerateTestResult bool
-	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	GlobalTestConfig   testrunner.PolicyRunnerTestConfig
 	WithCoverage       bool
 	CoverageType       string
 }
@@ -132,7 +132,7 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		if r.generateTestResult {
 			testErr = dumpExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
 		} else {
-			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
+			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID, r.globalTestConfig.IgnoreFields)
 		}
 	}
 
