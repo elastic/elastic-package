@@ -1,13 +1,37 @@
 #!/bin/bash
-# Install the latest release of elastic-package for the current platform.
+# Install a release of elastic-package for the current platform.
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.sh | bash -s -- --version 0.125.0
 #   INSTALL_DIR=$HOME/.local/bin bash install.sh
 
 set -euo pipefail
 
 REPO="elastic/elastic-package"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+
+# Parse arguments
+REQUESTED_VERSION=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --version|-v)
+      REQUESTED_VERSION="${2:-}"
+      if [ -z "$REQUESTED_VERSION" ]; then
+        echo "Error: --version requires a value." >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Usage: install.sh [--version <version>]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Strip leading 'v' from version if provided (accept both v0.125.0 and 0.125.0)
+REQUESTED_VERSION="${REQUESTED_VERSION#v}"
 
 # Detect OS
 OS="$(uname -s)"
@@ -49,18 +73,22 @@ case "$ARCH" in
     ;;
 esac
 
-# Resolve latest release version
-echo "Fetching latest elastic-package release..."
-VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep '"tag_name"' \
-  | sed 's/.*"tag_name": *"v\([^"]*\)".*/\1/')
+# Resolve target version: use requested version or fetch latest
+if [ -n "$REQUESTED_VERSION" ]; then
+  VERSION="$REQUESTED_VERSION"
+else
+  echo "Fetching latest elastic-package release..."
+  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+    | grep '"tag_name"' \
+    | sed 's/.*"tag_name": *"v\([^"]*\)".*/\1/')
 
-if [ -z "$VERSION" ]; then
-  echo "Failed to determine the latest release version." >&2
-  exit 1
+  if [ -z "$VERSION" ]; then
+    echo "Failed to determine the latest release version." >&2
+    exit 1
+  fi
 fi
 
-# Check currently installed version, skip if already up to date
+# Check currently installed version, skip if already at the target version
 CURRENT_VERSION=""
 if command -v elastic-package >/dev/null 2>&1; then
   CURRENT_VERSION=$(elastic-package version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)

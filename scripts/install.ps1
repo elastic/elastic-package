@@ -1,16 +1,26 @@
 #Requires -Version 5.1
-# Install the latest release of elastic-package for Windows.
+# Install a release of elastic-package for Windows.
 # Usage (PowerShell):
 #   irm https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.ps1 | iex
+#
+# To install a specific version:
+#   & ([scriptblock]::Create((irm 'https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.ps1'))) -Version 0.125.0
 #
 # To install to a custom directory, set INSTALL_DIR before piping:
 #   $env:INSTALL_DIR = "$env:USERPROFILE\.local\bin"
 #   irm https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/install.ps1 | iex
 
+param(
+    [string]$Version = ''
+)
+
 $ErrorActionPreference = 'Stop'
 
 $Repo       = 'elastic/elastic-package'
 $InstallDir = if ($env:INSTALL_DIR) { $env:INSTALL_DIR } else { "$env:LOCALAPPDATA\Programs\elastic-package" }
+
+# Strip leading 'v' from version if provided (accept both v0.125.0 and 0.125.0)
+if ($Version) { $Version = $Version -replace '^v', '' }
 
 # Detect true OS architecture.
 # $env:PROCESSOR_ARCHITEW6432 is only set when running a 32-bit process on a 64-bit OS,
@@ -26,17 +36,19 @@ $Arch = switch ($OsArch) {
     }
 }
 
-# Fetch latest release version from GitHub API
-Write-Host "Fetching latest elastic-package release..."
-$Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
-$Version = $Release.tag_name -replace '^v', ''
-
+# Resolve target version: use -Version argument or fetch latest
 if (-not $Version) {
-    Write-Error "Failed to determine the latest release version."
-    exit 1
+    Write-Host "Fetching latest elastic-package release..."
+    $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
+    $Version = $Release.tag_name -replace '^v', ''
+
+    if (-not $Version) {
+        Write-Error "Failed to determine the latest release version."
+        exit 1
+    }
 }
 
-# Check currently installed version, skip if already up to date
+# Check currently installed version, skip if already at the target version
 $CurrentVersion = ''
 $ExistingBinary = Join-Path $InstallDir 'elastic-package.exe'
 if (Test-Path $ExistingBinary) {
