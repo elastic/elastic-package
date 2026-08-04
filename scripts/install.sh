@@ -107,12 +107,37 @@ fi
 
 FILENAME="elastic-package_${VERSION}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/v${VERSION}/${FILENAME}"
+CHECKSUMS_URL="https://github.com/${REPO}/releases/download/v${VERSION}/elastic-package_${VERSION}_checksums.txt"
 
+# mktemp -d creates a 0700 directory — only the current user can read it
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-# Download and extract
-curl -fsSL "$URL" | tar -xz -C "$TMP_DIR"
+# Download archive to disk (needed for checksum verification before extraction)
+ARCHIVE="${TMP_DIR}/${FILENAME}"
+curl -fsSL "$URL" -o "$ARCHIVE"
+
+# Verify checksum against the release checksums file
+CHECKSUMS_FILE="${TMP_DIR}/checksums.txt"
+curl -fsSL "$CHECKSUMS_URL" -o "$CHECKSUMS_FILE"
+
+EXPECTED_HASH=$(grep "  ${FILENAME}$" "$CHECKSUMS_FILE" | awk '{print $1}')
+if [ -z "$EXPECTED_HASH" ]; then
+  echo "Checksum not found for ${FILENAME} in checksums file." >&2
+  exit 1
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+  echo "${EXPECTED_HASH}  ${ARCHIVE}" | sha256sum -c - >/dev/null
+elif command -v shasum >/dev/null 2>&1; then
+  echo "${EXPECTED_HASH}  ${ARCHIVE}" | shasum -a 256 -c - >/dev/null
+else
+  echo "Warning: cannot verify checksum (neither sha256sum nor shasum found)." >&2
+fi
+echo "Checksum verified."
+
+# Extract archive
+tar -xz -C "$TMP_DIR" -f "$ARCHIVE"
 
 BINARY="${TMP_DIR}/elastic-package"
 
@@ -126,10 +151,10 @@ if [ "$OS" = "darwin" ]; then
   xattr -r -d com.apple.quarantine "$BINARY" 2>/dev/null || true
 fi
 
-# Ensure the install directory exists
+# Ensure the install directory exists; fall back to sudo if the parent is root-owned
 if [ ! -d "$INSTALL_DIR" ]; then
   echo "Creating install directory ${INSTALL_DIR}..."
-  mkdir -p "$INSTALL_DIR"
+  mkdir -p "$INSTALL_DIR" 2>/dev/null || sudo mkdir -p "$INSTALL_DIR"
 fi
 
 # Install the binary

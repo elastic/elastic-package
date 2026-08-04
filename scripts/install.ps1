@@ -70,15 +70,36 @@ if ($CurrentVersion) {
     Write-Host "Installing elastic-package v$Version (windows/$Arch)..."
 }
 
-$Filename = "elastic-package_${Version}_windows_${Arch}.zip"
-$Url      = "https://github.com/$Repo/releases/download/v$Version/$Filename"
+$Filename      = "elastic-package_${Version}_windows_${Arch}.zip"
+$Url           = "https://github.com/$Repo/releases/download/v$Version/$Filename"
+$ChecksumsUrl  = "https://github.com/$Repo/releases/download/v$Version/elastic-package_${Version}_checksums.txt"
 
+# %TEMP%\<random> is user-private temp space
 $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $TmpDir | Out-Null
 
 try {
-    $ZipPath = Join-Path $TmpDir $Filename
-    Invoke-WebRequest -Uri $Url -OutFile $ZipPath -UseBasicParsing
+    $ZipPath      = Join-Path $TmpDir $Filename
+    $ChecksumsFile = Join-Path $TmpDir 'checksums.txt'
+
+    Invoke-WebRequest -Uri $Url          -OutFile $ZipPath       -UseBasicParsing
+    Invoke-WebRequest -Uri $ChecksumsUrl -OutFile $ChecksumsFile  -UseBasicParsing
+
+    # Verify SHA-256 checksum against the release checksums file
+    $ChecksumLine = Get-Content $ChecksumsFile | Where-Object { $_ -match "  $([regex]::Escape($Filename))$" }
+    if (-not $ChecksumLine) {
+        Write-Error "Checksum not found for $Filename in checksums file."
+        exit 1
+    }
+    $ExpectedHash = ($ChecksumLine -split '\s+')[0]
+    $ActualHash   = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash
+
+    if ($ActualHash.ToLower() -ne $ExpectedHash.ToLower()) {
+        Write-Error "Checksum verification failed for $Filename.`nExpected: $ExpectedHash`nGot:      $ActualHash"
+        exit 1
+    }
+    Write-Host "Checksum verified."
+
     Expand-Archive -Path $ZipPath -DestinationPath $TmpDir -Force
 
     $Binary = Join-Path $TmpDir 'elastic-package.exe'
@@ -95,10 +116,13 @@ try {
 
     Copy-Item -Path $Binary -Destination $InstallDir -Force
 
-    # Add install directory to the user PATH if not already present
-    $UserPath = [System.Environment]::GetEnvironmentVariable('PATH', 'User')
-    if ($UserPath -notlike "*$InstallDir*") {
-        [System.Environment]::SetEnvironmentVariable('PATH', "$UserPath;$InstallDir", 'User')
+    # Add install directory to the user PATH if not already present.
+    # Split on ';' for exact matching — avoids wildcard misfires from -like/*notlike*.
+    $UserPath     = [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+    $PathEntries  = if ($UserPath) { $UserPath.Split(';') } else { @() }
+    if ($PathEntries -notcontains $InstallDir) {
+        $NewPath = if ($UserPath) { "$UserPath;$InstallDir" } else { $InstallDir }
+        [System.Environment]::SetEnvironmentVariable('PATH', $NewPath, 'User')
         Write-Host "Added $InstallDir to your PATH (restart your shell for this to take effect)."
     }
 
