@@ -56,16 +56,7 @@ ARCH="$(uname -m)"
 case "$ARCH" in
   x86_64)        ARCH="amd64" ;;
   aarch64|arm64) ARCH="arm64" ;;
-  i386|i686)
-    # darwin/386 was never released; only map 386 on Linux
-    if [ "$OS" = "linux" ]; then
-      ARCH="386"
-    else
-      echo "32-bit macOS is not supported." >&2
-      echo "Please download the binary manually from https://github.com/${REPO}/releases/latest" >&2
-      exit 1
-    fi
-    ;;
+  i386|i686) ARCH="386" ;;
   *)
     echo "Unsupported architecture: $ARCH" >&2
     echo "Please download the binary manually from https://github.com/${REPO}/releases/latest" >&2
