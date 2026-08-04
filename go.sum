@@ -105,8 +105,8 @@ github.com/elastic/gojsonschema v1.2.2 h1:d1/NJKMr8vr9sEuxRTVOj+QFJi5Utd8PnvRqJJ
 github.com/elastic/gojsonschema v1.2.2/go.mod h1:TauCTd1z3UuJAMOWitMEYPgxFAH7f+1smAcr82AVmgY=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
 github.com/elastic/kbncontent v0.1.4/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.6.5 h1:44IUkxHKNQI7nPP2HsjpmLbuAMbA4MqYVlf6i4cYkpU=
-github.com/elastic/package-spec/v3 v3.6.5/go.mod h1:KHr89khPkoZdwwxNFCWpOd8EUrxa3l4DM5bVVpDirRU=
+github.com/elastic/package-spec/v3 v3.6.6 h1:sTpK7Jne0LD1a+zDn9mQrz927bdyRkUyKtXQtTDX3Vw=
+github.com/elastic/package-spec/v3 v3.6.6/go.mod h1:esJ8NZzyT/wYUYGrMWl4AZIPvlhLc4sJn6gLLd2iV/I=
 github.com/emicklei/go-restful/v3 v3.13.0 h1:C4Bl2xDndpU6nJ4bc1jXd+uTmYPVUwkD6bFY/oTyCes=
 github.com/emicklei/go-restful/v3 v3.13.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=
@@ -377,8 +377,8 @@ github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavM
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e/go.mod h1:RbqR21r5mrJuqunuUZ/Dhy/avygyECGrLceyNeo4LiM=
 github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7JulP+udvsHwJoVG1YGAP6VLg4y9I5dyZdqmA=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/yuin/goldmark v1.8.2 h1:kEGpgqJXdgbkhcOgBxkC0X0PmoPG1ZyoZ117rDVp4zE=
-github.com/yuin/goldmark v1.8.2/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
+github.com/yuin/goldmark v1.8.5 h1:r6N5afV5qj/5S4UTch8agZHJ8UxNCMwX7WjkkJam2NA=
+github.com/yuin/goldmark v1.8.5/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.mongodb.org/mongo-driver v1.10.0/go.mod h1:wsihk0Kdgv8Kqu1Anit4sfK+22vSFbUrAVEYRhCXrA8=
