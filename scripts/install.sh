@@ -64,14 +64,16 @@ case "$ARCH" in
     ;;
 esac
 
-# Resolve target version: use requested version or fetch latest
+# Resolve target version: use requested version or follow the GitHub
+# /releases/latest redirect (avoids JSON parsing and API rate limits).
 if [ -n "$REQUESTED_VERSION" ]; then
   VERSION="$REQUESTED_VERSION"
 else
   echo "Fetching latest elastic-package release..."
-  VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"tag_name"' \
-    | sed 's/.*"tag_name": *"v\([^"]*\)".*/\1/')
+  LATEST_URL=$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+    "https://github.com/${REPO}/releases/latest")
+  VERSION="${LATEST_URL##*/}"
+  VERSION="${VERSION#v}"
 
   if [ -z "$VERSION" ]; then
     echo "Failed to determine the latest release version." >&2
