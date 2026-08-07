@@ -13,6 +13,9 @@ updates:
         patterns:
           - "k8s.io/*"
           - "sigs.k8s.io/*"
+      opentelemetry:
+        patterns:
+          - "go.opentelemetry.io/*"
     cooldown:
       default-days: 3
       exclude:
