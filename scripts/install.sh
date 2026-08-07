@@ -56,7 +56,7 @@ ARCH="$(uname -m)"
 case "$ARCH" in
   x86_64)        ARCH="amd64" ;;
   aarch64|arm64) ARCH="arm64" ;;
-  i386|i686) ARCH="386" ;;
+  i386|i686)     ARCH="386" ;;
   *)
     echo "Unsupported architecture: $ARCH" >&2
     echo "Please download the binary manually from https://github.com/${REPO}/releases/latest" >&2
@@ -79,9 +79,13 @@ else
   fi
 fi
 
-# Check currently installed version, skip if already at the target version
+# Check currently installed version, skip if already at the target version.
+# Prefer the binary in INSTALL_DIR (matches install.ps1), then fall back to PATH.
 CURRENT_VERSION=""
-if command -v elastic-package >/dev/null 2>&1; then
+EXISTING_BINARY="${INSTALL_DIR}/elastic-package"
+if [ -x "$EXISTING_BINARY" ]; then
+  CURRENT_VERSION=$("$EXISTING_BINARY" version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+elif command -v elastic-package >/dev/null 2>&1; then
   CURRENT_VERSION=$(elastic-package version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
 fi
 
@@ -120,12 +124,13 @@ fi
 
 if command -v sha256sum >/dev/null 2>&1; then
   echo "${EXPECTED_HASH}  ${ARCHIVE}" | sha256sum -c - >/dev/null
+  echo "Checksum verified."
 elif command -v shasum >/dev/null 2>&1; then
   echo "${EXPECTED_HASH}  ${ARCHIVE}" | shasum -a 256 -c - >/dev/null
+  echo "Checksum verified."
 else
   echo "Warning: cannot verify checksum (neither sha256sum nor shasum found)." >&2
 fi
-echo "Checksum verified."
 
 # Extract archive
 tar -xz -C "$TMP_DIR" -f "$ARCHIVE"
@@ -136,6 +141,8 @@ if [ ! -f "$BINARY" ]; then
   echo "Extraction failed: elastic-package binary not found in archive." >&2
   exit 1
 fi
+
+chmod +x "$BINARY"
 
 # Remove quarantine attribute on macOS to allow the binary to run
 if [ "$OS" = "darwin" ]; then
