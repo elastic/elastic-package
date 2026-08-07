@@ -65,7 +65,7 @@ if ($CurrentVersion -eq $Version) {
 }
 
 if ($CurrentVersion) {
-    Write-Host "Upgrading elastic-package v$CurrentVersion -> v$Version (windows/$Arch)..."
+    Write-Host "Updating elastic-package v$CurrentVersion -> v$Version (windows/$Arch)..."
 } else {
     Write-Host "Installing elastic-package v$Version (windows/$Arch)..."
 }

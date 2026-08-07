@@ -97,7 +97,7 @@ if [ -n "$CURRENT_VERSION" ] && [ "$CURRENT_VERSION" = "$VERSION" ]; then
 fi
 
 if [ -n "$CURRENT_VERSION" ]; then
-  echo "Upgrading elastic-package v${CURRENT_VERSION} -> v${VERSION} (${OS}/${ARCH})..."
+  echo "Updating elastic-package v${CURRENT_VERSION} -> v${VERSION} (${OS}/${ARCH})..."
 else
   echo "Installing elastic-package v${VERSION} (${OS}/${ARCH})..."
 fi
