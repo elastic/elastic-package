@@ -1,0 +1,37 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Sample canonical base blueprint. Replace with the real IaC template for this provider/trust-model/scope.",
+    "Parameters": {
+        "ElasticResourceId": {
+            "Type": "String",
+            "Description": "Elastic resource ID used to construct trust conditions."
+        }
+    },
+    "Resources": {
+        "ElasticFederatedIdentityRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": {
+                    "Fn::Sub": "ElasticFederatedIdentity-${AWS::StackName}"
+                },
+                "Path": "/",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": []
+                },
+                "ManagedPolicyArns": []
+            }
+        }
+    },
+    "Outputs": {
+        "RoleArn": {
+            "Description": "ARN of the Elastic Federated Identity role.",
+            "Value": {
+                "Fn::GetAtt": [
+                    "ElasticFederatedIdentityRole",
+                    "Arn"
+                ]
+            }
+        }
+    }
+}

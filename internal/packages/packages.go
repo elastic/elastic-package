@@ -40,8 +40,9 @@ const (
 	dataStreamTypeTraces     = "traces"
 )
 
-// AllowedPackageTypes lists the valid package types accepted by the create wizard.
-var AllowedPackageTypes = []string{"input", "integration", "content"}
+// AllowedPackageTypes lists the valid package types accepted by package root
+// detection and the create wizard.
+var AllowedPackageTypes = []string{"input", "integration", "content", "blueprint"}
 
 // AllowedDataStreamTypes lists the data stream types accepted by the create wizard.
 var AllowedDataStreamTypes = []string{"logs", "metrics"}
