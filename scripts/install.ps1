@@ -36,11 +36,18 @@ $Arch = switch ($OsArch) {
     }
 }
 
-# Resolve target version: use -Version argument or fetch latest
+# Resolve target version: use -Version argument or follow the GitHub
+# /releases/latest redirect (avoids JSON parsing and API rate limits).
 if (-not $Version) {
     Write-Host "Fetching latest elastic-package release..."
-    $Release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -UseBasicParsing
-    $Version = $Release.tag_name -replace '^v', ''
+    $LatestResponse = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -UseBasicParsing
+    # PS 5.1 (HttpWebResponse) exposes ResponseUri; PS 7 (HttpResponseMessage) uses RequestMessage.RequestUri
+    $FinalUri = if ($LatestResponse.BaseResponse -is [System.Net.HttpWebResponse]) {
+        $LatestResponse.BaseResponse.ResponseUri
+    } else {
+        $LatestResponse.BaseResponse.RequestMessage.RequestUri
+    }
+    $Version = $FinalUri.Segments[-1] -replace '^v', ''
 
     if (-not $Version) {
         Write-Error "Failed to determine the latest release version."
