@@ -748,8 +748,10 @@ func TestComparingMappings(t *testing.T) {
 			},
 			exceptionFields: []string{},
 			schema:          []FieldDefinition{},
+			// foo.bar is not defined in the schema and has no matching dynamic template,
+			// so it must be reported as undefined rather than silently accepted.
 			expectedErrors: []string{
-				`undefined field mappings found in path: "foo"`,
+				`field "foo.bar" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -844,6 +846,208 @@ func TestComparingMappings(t *testing.T) {
 				// Should it be considered this error in "foa" "missing time_series_metric bar"?
 				// "fob" is failing because it does not have the expected value for the "time_series_metric" field
 				`field "fob" is undefined: field definition not found`,
+			},
+		},
+		{
+			// Reproducer for https://github.com/elastic/elastic-package/issues/3639:
+			// a package defines a nested ECS parent field and Elasticsearch dynamically
+			// adds child mappings while ingesting documents.  The children all exist in
+			// the ECS schema, so validation must pass.
+			title: "dynamic child mappings under a nested ECS parent defined in preview",
+			preview: map[string]any{
+				"email": map[string]any{
+					"properties": map[string]any{
+						"attachments": map[string]any{
+							"type": "nested",
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"email": map[string]any{
+					"properties": map[string]any{
+						"attachments": map[string]any{
+							"type": "nested",
+							"properties": map[string]any{
+								"file": map[string]any{
+									"properties": map[string]any{
+										"size": map[string]any{
+											"type": "long",
+										},
+										"name": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			schema: []FieldDefinition{
+				{
+					Name:     "email.attachments",
+					Type:     "nested",
+					External: "ecs",
+				},
+				{
+					Name:     "email.attachments.file.size",
+					Type:     "long",
+					External: "ecs",
+				},
+				{
+					Name:     "email.attachments.file.name",
+					Type:     "keyword",
+					External: "ecs",
+				},
+			},
+			exceptionFields: []string{},
+			expectedErrors:  []string{},
+		},
+		{
+			// Same as above but with one extra child that is NOT in ECS.
+			// Only the non-ECS child must be reported as undefined.
+			title: "dynamic child mappings under a nested ECS parent — mixed ECS and non-ECS children",
+			preview: map[string]any{
+				"email": map[string]any{
+					"properties": map[string]any{
+						"attachments": map[string]any{
+							"type": "nested",
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"email": map[string]any{
+					"properties": map[string]any{
+						"attachments": map[string]any{
+							"type": "nested",
+							"properties": map[string]any{
+								"file": map[string]any{
+									"properties": map[string]any{
+										"name": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+								"foo": map[string]any{
+									"type": "keyword",
+								},
+							},
+						},
+					},
+				},
+			},
+			schema: []FieldDefinition{
+				{
+					Name:     "email.attachments",
+					Type:     "nested",
+					External: "ecs",
+				},
+				{
+					Name:     "email.attachments.file.name",
+					Type:     "keyword",
+					External: "ecs",
+				},
+			},
+			exceptionFields: []string{},
+			expectedErrors: []string{
+				`field "email.attachments.foo" is undefined: field definition not found`,
+			},
+		},
+		{
+			// The children under the nested parent are not in ECS but they match a
+			// package-defined dynamic template, so validation must pass.
+			title: "dynamic child mappings under a nested parent matched by a dynamic template",
+			preview: map[string]any{
+				"threat": map[string]any{
+					"properties": map[string]any{
+						"enrichments": map[string]any{
+							"type": "nested",
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"threat": map[string]any{
+					"properties": map[string]any{
+						"enrichments": map[string]any{
+							"type": "nested",
+							"properties": map[string]any{
+								"matched": map[string]any{
+									"properties": map[string]any{
+										"id": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			dynamicTemplates: []map[string]any{
+				{
+					"threat_enrichments_keyword": map[string]any{
+						"path_match": "threat.enrichments.*",
+						"mapping": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+			},
+			schema:          []FieldDefinition{},
+			exceptionFields: []string{},
+			expectedErrors:  []string{},
+		},
+		{
+			// Preview says nested but actual dropped the type (became a plain object).
+			// The type changed, so this should still be reported as an error.
+			title: "nested parent in preview becomes a plain object in actual (type drift)",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"type": "nested",
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					// "type" is absent: Elasticsearch reports object without type once it has properties
+					"properties": map[string]any{
+						"bar": map[string]any{
+							"type": "long",
+						},
+					},
+				},
+			},
+			schema:          []FieldDefinition{},
+			exceptionFields: []string{},
+			expectedErrors: []string{
+				`undefined field mappings found in path: "foo"`,
+			},
+		},
+		{
+			// A plain object parent in the preview (no dynamic:true) acquires properties
+			// in the actual mapping.  Scope of this fix is nested only; this case must
+			// continue to produce an error so the boundary is explicitly documented.
+			title: "object parent (not nested) with dynamic children is out of scope",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"type": "object",
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"bar": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+			},
+			schema:          []FieldDefinition{},
+			exceptionFields: []string{},
+			expectedErrors: []string{
+				`undefined field mappings found in path: "foo"`,
 			},
 		},
 	}

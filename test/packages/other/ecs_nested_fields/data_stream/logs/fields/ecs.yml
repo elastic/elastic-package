@@ -1,0 +1,6 @@
+# Only the nested parent is declared here.  Child fields (e.g. email.attachments.file.name)
+# are intentionally omitted so that Elasticsearch creates them dynamically during ingest.
+# The mapping validator must accept those children when they are valid ECS fields.
+# See https://github.com/elastic/elastic-package/issues/3639.
+- name: email.attachments
+  external: ecs
