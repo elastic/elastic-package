@@ -59,7 +59,8 @@ irm https://raw.githubusercontent.com/elastic/elastic-package/main/scripts/insta
 ```
 
 The PowerShell script defaults to `%LOCALAPPDATA%\Programs\elastic-package` and adds that directory to
-your user `PATH` automatically. It supports `amd64`, `arm64`, and `386` architectures.
+your user `PATH` automatically. It supports `amd64`, `arm64`, and `386` architectures, and requires
+PowerShell 5.1 or later (included with Windows 10 and later).
 Both scripts skip the download if the installed version is already up to date.
 
 ### Manual download
