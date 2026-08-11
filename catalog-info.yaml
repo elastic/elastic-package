@@ -13,7 +13,7 @@ metadata:
 
 spec:
   type: tool
-  owner: group:Streams
+  owner: group:streams
   system: platform-ingest
   lifecycle: production
 
@@ -30,7 +30,7 @@ metadata:
 
 spec:
   type: buildkite-pipeline
-  owner: group:Streams
+  owner: group:streams
   system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
@@ -58,7 +58,7 @@ spec:
       teams:
         ecosystem:
           access_level: MANAGE_BUILD_AND_READ
-        Streams:
+        streams:
           access_level: MANAGE_BUILD_AND_READ
         observablt-ci:
           access_level: MANAGE_BUILD_AND_READ
@@ -90,7 +90,7 @@ metadata:
 
 spec:
   type: buildkite-pipeline
-  owner: group:Streams
+  owner: group:streams
   system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
@@ -118,7 +118,7 @@ spec:
       teams:
         ecosystem:
           access_level: MANAGE_BUILD_AND_READ
-        Streams:
+        streams:
           access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: READ_ONLY
@@ -136,7 +136,7 @@ metadata:
 
 spec:
   type: buildkite-pipeline
-  owner: group:Streams
+  owner: group:streams
   system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
@@ -164,7 +164,7 @@ spec:
           cronline: "00 1 * * *"
           message: Daily Cloud cleanup
       teams:
-        Streams:
+        streams:
           access_level: MANAGE_BUILD_AND_READ
         observablt-ci:
           access_level: MANAGE_BUILD_AND_READ
@@ -184,7 +184,7 @@ metadata:
 
 spec:
   type: buildkite-pipeline
-  owner: group:Streams
+  owner: group:streams
   system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
@@ -217,10 +217,9 @@ spec:
           env:
             SERVERLESS_PROJECT: observability
       teams:
-        Streams:
+        streams:
           access_level: MANAGE_BUILD_AND_READ
         observablt-ci:
           access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: BUILD_AND_READ
-
