@@ -135,22 +135,30 @@ func renderILMPaths(packageRoot string, args []string) (string, error) {
 }
 
 // findILMPaths scans a given package path for data streams that have ILM policies
-// and returns a list of all data stream names that have ILM policies defined.
+// or a lifecycle.yml file, and returns a sorted, deduplicated list of data stream names.
 func findILMPaths(packageRoot string) ([]string, error) {
-	// look for ilm/ from the packageRoot/data_stream/<data_stream_name>/elasticsearch/ilm/
-	// add the data_stream_name to the list
+	seen := make(map[string]struct{})
+
 	ilmPaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", "elasticsearch", "ilm"))
 	if err != nil {
 		return nil, fmt.Errorf("finding ILM paths failed: %w", err)
 	}
-
-	result := make([]string, 0, len(ilmPaths))
-
-	// return the list of globbed paths
 	for _, ilmPath := range ilmPaths {
-		// get the data_stream_name from the ilmPath
-		dataStreamName := filepath.Base(filepath.Dir(filepath.Dir(ilmPath)))
-		result = append(result, dataStreamName)
+		seen[filepath.Base(filepath.Dir(filepath.Dir(ilmPath)))] = struct{}{}
 	}
+
+	lifecyclePaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", "lifecycle.yml"))
+	if err != nil {
+		return nil, fmt.Errorf("finding lifecycle paths failed: %w", err)
+	}
+	for _, lifecyclePath := range lifecyclePaths {
+		seen[filepath.Base(filepath.Dir(lifecyclePath))] = struct{}{}
+	}
+
+	result := make([]string, 0, len(seen))
+	for name := range seen {
+		result = append(result, name)
+	}
+	sort.Strings(result)
 	return result, nil
 }

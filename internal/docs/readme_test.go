@@ -470,6 +470,17 @@ Introduction to the package
 	},
 }
 
+func TestRenderILMPathsLifecycleYMLDiscovered(t *testing.T) {
+	packageRoot := t.TempDir()
+
+	createILMFileYML(t, packageRoot, "mystream")
+
+	rendered, err := renderILMPaths(packageRoot, nil)
+	require.NoError(t, err)
+	assert.Contains(t, rendered, "### Data streams using ILM policies")
+	assert.Contains(t, rendered, "#### mystream Policy")
+}
+
 func TestRenderILMPathsEmpty(t *testing.T) {
 	packageRoot := t.TempDir()
 
