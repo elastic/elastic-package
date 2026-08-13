@@ -378,10 +378,6 @@ For integrations using `streams[].package`, generated READMEs may leave the **In
 This integration uses the [Prometheus input](https://www.elastic.co/docs/reference/integrations/prometheus_input) to collect metrics from the `/metrics` endpoint...
 ```
 
-### Empty ILM section in generated docs
-
-Packages without ILM policies may still get an empty **ILM Policies** section in built READMEs ([`internal/docs/ilm.go`](../../internal/docs/ilm.go) lacks the empty-check used for transforms). Cosmetic only; tracked separately from this migration.
-
 ## Known platform gaps and follow-up issues
 
 | Gap | Impact | Tracking |

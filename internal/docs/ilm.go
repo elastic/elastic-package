@@ -96,9 +96,6 @@ func getILMPolicyFilePath(packageRoot, dataStreamName string) (string, error) {
 }
 
 func renderILMPaths(packageRoot string, args []string) (string, error) {
-	// gather the list of data streams that have ILM policies defined
-	// if the list is empty, return ""
-	// if the list is not empty, format the list as a markdown list
 	var dataStreamNames []string
 	var err error
 	if len(args) > 0 {
@@ -109,6 +106,9 @@ func renderILMPaths(packageRoot string, args []string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("finding ILM paths failed: %w", err)
 		}
+	}
+	if len(dataStreamNames) == 0 {
+		return "", nil
 	}
 
 	var renderedDocs strings.Builder

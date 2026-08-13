@@ -124,6 +124,39 @@ List of placeholders that can be used in the Markdown templates:
       ```
     - Requirements:
         - It is needed to define a file with the links definitions. More information [in this section](#requirements)
+- `ilm [data_stream...]`: this placeholder renders ILM policies defined under
+  `data_stream/<name>/elasticsearch/ilm/`.
+    - Example of usage (all data streams with ILM policies):
+      ```
+      {{ ilm }}
+      ```
+    - Example of usage (specific data streams):
+      ```
+      {{ ilm "metrics" }}
+      ```
+    - When no data stream arguments are given, `elastic-package` discovers data streams
+      that have an `elasticsearch/ilm/` directory and documents each policy as a
+      flattened key/value table.
+    - If there are no ILM policies to document (or discovery finds none), the placeholder
+      renders as an empty string: no heading and no empty section are written.
+    - Example of the rendered output when policies exist:
+      ```
+      ### Data streams using ILM policies
+
+      #### metrics Policy
+      | Key | Value |
+      |---|---|
+      | policy.phases.delete.min_age | 30d |
+      | policy.phases.hot.actions.rollover.max_age | 30d |
+      ...
+      ```
+- `transform`: this placeholder renders transforms defined under `elasticsearch/transform/`.
+    - Example of usage:
+      ```
+      {{ transform }}
+      ```
+    - If there are no transforms defined, the placeholder renders as an empty string
+      (no heading is written), same as `ilm`.
 
 ## Requirements
 

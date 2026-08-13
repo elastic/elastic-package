@@ -470,6 +470,54 @@ Introduction to the package
 	},
 }
 
+func TestRenderILMPathsEmpty(t *testing.T) {
+	packageRoot := t.TempDir()
+
+	rendered, err := renderILMPaths(packageRoot, nil)
+	require.NoError(t, err)
+	assert.Empty(t, rendered)
+
+	rendered, err = renderILMPaths(packageRoot, []string{})
+	require.NoError(t, err)
+	assert.Empty(t, rendered)
+}
+
+func TestRenderReadmeWithNoILMPolicies(t *testing.T) {
+	linksMap := newEmptyLinkMap()
+	urls := fields.NewSchemaURLs()
+	packageRoot := t.TempDir()
+
+	const template = `# README
+Introduction to the package
+{{ fields "example" }}
+
+{{ ilm }}
+`
+	const expectedFields = `**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| data_stream.type | Data stream type. | constant_keyword |
+`
+	createManifestFile(t, packageRoot)
+	createBuildFile(t, packageRoot)
+	createReadmeTemplateFile(t, packageRoot, template)
+	createFieldsFile(t, packageRoot, "example", `
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.`)
+
+	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", "README.md")
+	root, err := os.OpenRoot(packageRoot)
+	require.NoError(t, err)
+	t.Cleanup(func() { root.Close() })
+
+	rendered, err := renderReadme(root, "README.md", packageRoot, templatePath, linksMap, urls)
+	require.NoError(t, err)
+	assert.Contains(t, string(rendered), expectedFields)
+	assert.NotContains(t, string(rendered), "### Data streams using ILM policies")
+}
+
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
 	urls := fields.NewSchemaURLs()
