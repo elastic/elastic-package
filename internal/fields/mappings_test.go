@@ -1026,6 +1026,65 @@ func TestComparingMappings(t *testing.T) {
 			},
 		},
 		{
+			// Regression test for the return nil / continue bug in validateMappingsNotInPreview.
+			// The nested parent causes validateMappingsNotInPreview to be called with two
+			// children in the flattened map: one exception field and one undefined field.
+			// Go map iteration order is random, so either field may be visited first, but
+			// return nil at the exception-field branch always causes the function to exit
+			// without reporting any errors — discarding accumulated errors when the undefined
+			// field comes first, or never checking it when the exception field comes first.
+			// With continue the undefined field is always reported regardless of visit order.
+			title: "exception field among dynamic children of nested parent must not suppress errors for siblings",
+			preview: map[string]any{
+				"email": map[string]any{
+					"properties": map[string]any{
+						"attachments": map[string]any{
+							"type": "nested",
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"email": map[string]any{
+					"properties": map[string]any{
+						"attachments": map[string]any{
+							"type": "nested",
+							"properties": map[string]any{
+								// ECS field, also listed in exceptionFields
+								"file": map[string]any{
+									"properties": map[string]any{
+										"name": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+								// Not in ECS, not an exception — must be reported
+								"non_ecs_child": map[string]any{
+									"type": "keyword",
+								},
+							},
+						},
+					},
+				},
+			},
+			schema: []FieldDefinition{
+				{
+					Name:     "email.attachments",
+					Type:     "nested",
+					External: "ecs",
+				},
+				{
+					Name:     "email.attachments.file.name",
+					Type:     "keyword",
+					External: "ecs",
+				},
+			},
+			exceptionFields: []string{"email.attachments.file.name"},
+			expectedErrors: []string{
+				`field "email.attachments.non_ecs_child" is undefined: field definition not found`,
+			},
+		},
+		{
 			// A plain object parent in the preview (no dynamic:true) acquires properties
 			// in the actual mapping.  Scope of this fix is nested only; this case must
 			// continue to produce an error so the boundary is explicitly documented.
