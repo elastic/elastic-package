@@ -1,0 +1,13 @@
+title: ECS nested fields logs
+type: logs
+streams:
+  - input: logfile
+    title: Collect logs from file
+    description: Collecting sample logs
+    vars:
+      - name: paths
+        title: Paths
+        type: text
+        required: true
+        multi: true
+        show_user: true

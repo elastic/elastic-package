@@ -1,0 +1,84 @@
+{
+    "@timestamp": "2026-08-13T09:22:33.634Z",
+    "agent": {
+        "ephemeral_id": "714157b9-dbd7-42e3-b542-8bf12d54dfcf",
+        "id": "86c418aa-8eb9-4976-aaaf-40c30b6e3a3d",
+        "name": "elastic-agent-52093",
+        "type": "filebeat",
+        "version": "9.5.0"
+    },
+    "data_stream": {
+        "dataset": "ecs_nested_fields.logs",
+        "namespace": "38286",
+        "type": "logs"
+    },
+    "ecs": {
+        "version": "8.0.0"
+    },
+    "elastic_agent": {
+        "id": "86c418aa-8eb9-4976-aaaf-40c30b6e3a3d",
+        "snapshot": false,
+        "version": "9.5.0"
+    },
+    "email": {
+        "attachments": [
+            {
+                "file.extension": [
+                    "pdf"
+                ],
+                "file.hash.sha256": [
+                    "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+                ],
+                "file.mime_type": [
+                    "application/pdf"
+                ],
+                "file.name": [
+                    "report.pdf"
+                ],
+                "file.name.text": [
+                    "report.pdf"
+                ],
+                "file.size": [
+                    52428
+                ]
+            }
+        ]
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "dataset": "ecs_nested_fields.logs",
+        "ingested": "2026-08-13T09:22:37Z"
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "elastic-agent-52093",
+        "ip": [
+            "172.19.0.2",
+            "172.18.0.4"
+        ],
+        "mac": [
+            "B2-EA-83-BA-7F-1B",
+            "F2-0F-F2-02-9D-87"
+        ],
+        "name": "elastic-agent-52093",
+        "os": {
+            "family": "",
+            "kernel": "6.8.0-136-generic",
+            "name": "Wolfi",
+            "platform": "wolfi",
+            "type": "linux",
+            "version": "20230201"
+        }
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/tmp/service_logs/ecs_nested_fields.log"
+        },
+        "offset": 0
+    },
+    "message": "{\"message\": \"hello\"}"
+}

@@ -1,0 +1,7 @@
+version: '2.3'
+services:
+  ecs_nested_fields:
+    image: "alpine:3.16"
+    command: ["sh", "-c", "while true; do echo '{\"message\": \"hello\"}' >> ./logs/ecs_nested_fields.log; sleep 1; done"]
+    volumes:
+      - ${SERVICE_LOGS_DIR}:/logs

@@ -1,0 +1,27 @@
+format_version: 3.3.2
+name: ecs_nested_fields
+title: ECS nested fields mapping validation test
+version: 0.0.1
+description: >
+  Tests that dynamically created child mappings under an explicitly-defined ECS nested parent
+  field are accepted by the mapping validator when they are valid ECS fields.
+  Regression test for https://github.com/elastic/elastic-package/issues/3639.
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.13.0 || ^9.0.0"
+  elastic:
+    subscription: basic
+policy_templates:
+  - name: logs
+    title: ECS nested fields logs
+    description: Collect logs for ECS nested fields mapping validation test
+    inputs:
+      - type: logfile
+        title: Collect logs from file
+        description: Collecting sample logs
+owner:
+  github: elastic/integrations
+  type: elastic

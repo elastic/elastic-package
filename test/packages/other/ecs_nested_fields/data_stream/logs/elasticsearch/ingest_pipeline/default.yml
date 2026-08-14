@@ -1,0 +1,20 @@
+---
+description: Pipeline for ECS nested fields mapping validation test.
+processors:
+  - set:
+      field: email.attachments
+      value:
+        - file:
+            name: "report.pdf"
+            extension: "pdf"
+            mime_type: "application/pdf"
+            size: 52428
+            hash:
+              sha256: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+on_failure:
+  - set:
+      field: event.kind
+      value: pipeline_error
+  - append:
+      field: error.message
+      value: "{{ _ingest.on_failure_message }}"

@@ -300,6 +300,24 @@ func isNumberTypeField(previewType, actualType string) bool {
 	return false
 }
 
+// mappingTypesWithDynamicChildren lists mapping types whose child mappings can be created
+// dynamically by Elasticsearch during document ingest, even when no child mapping is defined
+// in the index template (e.g. ECS nested fields like "email.attachments").
+// Add "object" here once the scope is extended to cover plain object parents.
+var mappingTypesWithDynamicChildren = []string{"nested"}
+
+// allowsDynamicChildMappings reports whether the preview mapping is a type that Elasticsearch
+// can populate with dynamically created child mappings, and that the actual mapping preserves
+// the same type.  When both conditions hold, the extra properties in the actual mapping should
+// be validated as dynamic fields rather than treated as an error.
+func allowsDynamicChildMappings(preview, actual map[string]any) bool {
+	previewType := mappingParameter("type", preview)
+	if !slices.Contains(mappingTypesWithDynamicChildren, previewType) {
+		return false
+	}
+	return previewType == mappingParameter("type", actual)
+}
+
 func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) multierror.Error {
 	found := FindElementDefinition(currentPath, v.Schema)
 	if found == nil {
@@ -457,8 +475,18 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 			}
 			return nil
 		} else if !isObject(preview) {
-			errs = append(errs, fmt.Errorf("undefined field mappings found in path: %q", path))
-			return errs.Unique()
+			if !allowsDynamicChildMappings(preview, actual) {
+				errs = append(errs, fmt.Errorf("undefined field mappings found in path: %q", path))
+				return errs.Unique()
+			}
+			// Elasticsearch created these child mappings dynamically while ingesting documents.
+			// Validate them the same way as any mapping not present in the preview.
+			dynamicErrors := v.validateMappingsNotInPreview(path, actual, dynamicTemplates)
+			errs = append(errs, dynamicErrors...)
+			if len(errs) > 0 {
+				return errs.Unique()
+			}
+			return nil
 		}
 		previewProperties, err := getMappingDefinitionsField("properties", preview)
 		if err != nil {

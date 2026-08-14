@@ -1,0 +1,5 @@
+- version: "0.0.1"
+  changes:
+    - description: Initial test package for ECS nested fields mapping validation.
+      type: enhancement
+      link: https://github.com/elastic/elastic-package/issues/3639
