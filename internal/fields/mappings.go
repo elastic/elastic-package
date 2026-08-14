@@ -602,7 +602,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
 			logger.Tracef("Found exception field, skip its validation (not present in preview): %q", fieldPath)
-			return nil
+			continue
 		}
 
 		def, ok := object.(map[string]any)
