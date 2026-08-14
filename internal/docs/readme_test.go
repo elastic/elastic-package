@@ -479,6 +479,45 @@ func TestRenderILMPathsLifecycleYMLDiscovered(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, rendered, "### Data streams using ILM policies")
 	assert.Contains(t, rendered, "#### mystream Policy")
+	assert.Contains(t, rendered, "| data_retention | 30d |")
+}
+
+func TestRenderReadmeWithLifecycleYML(t *testing.T) {
+	linksMap := newEmptyLinkMap()
+	urls := fields.NewSchemaURLs()
+	packageRoot := t.TempDir()
+
+	const tmpl = `# README
+Introduction to the package
+
+{{ ilm "mystream" }}
+`
+	const expected = `# README
+Introduction to the package
+
+
+### Data streams using ILM policies
+
+#### mystream Policy
+| Key | Value |
+|---|---|
+| data_retention | 30d |
+
+`
+
+	createManifestFile(t, packageRoot)
+	createBuildFile(t, packageRoot)
+	createReadmeTemplateFile(t, packageRoot, tmpl)
+	createILMFileYML(t, packageRoot, "mystream")
+
+	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", "README.md")
+	root, err := os.OpenRoot(packageRoot)
+	require.NoError(t, err)
+	t.Cleanup(func() { root.Close() })
+
+	rendered, err := renderReadme(root, "README.md", packageRoot, templatePath, linksMap, urls)
+	require.NoError(t, err)
+	assert.Equal(t, expected, string(rendered))
 }
 
 func TestRenderILMPathsEmpty(t *testing.T) {
@@ -532,7 +571,7 @@ Introduction to the package
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
 	urls := fields.NewSchemaURLs()
-	for i, c := range renderCases {
+	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
 			filename := filepath.Base(c.templatePath)
@@ -542,13 +581,8 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createBuildFile(t, packageRoot)
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
-			if i%2 == 0 {
-				createILMFileYML(t, packageRoot, c.dataStreamName)
-				createILMFileYML(t, packageRoot, "example2")
-			} else {
-				createILMFile(t, packageRoot, c.dataStreamName)
-				createILMFile(t, packageRoot, "example2")
-			}
+			createILMFile(t, packageRoot, c.dataStreamName)
+			createILMFile(t, packageRoot, "example2")
 			createTransformFile(t, packageRoot, c.transformName)
 
 			root, err := os.OpenRoot(packageRoot)
@@ -742,7 +776,8 @@ func createILMFile(t *testing.T, packageRoot, dataStreamName string) {
 	require.NoError(t, err)
 }
 
-// create ilm file as yaml
+// createILMFileYML creates a data stream lifecycle.yml following the package-spec:
+// only data_retention is defined (DLM, not an ILM policy).
 func createILMFileYML(t *testing.T, packageRoot, dataStreamName string) {
 	t.Helper()
 	if dataStreamName == "" {
@@ -753,19 +788,7 @@ func createILMFileYML(t *testing.T, packageRoot, dataStreamName string) {
 	err := os.MkdirAll(ilmFolder, 0755)
 	require.NoError(t, err)
 	ilmFile := filepath.Join(ilmFolder, "lifecycle.yml")
-	contents := `policy:
-  phases:
-    hot:
-      actions:
-        rollover:
-          max_age: "30d"
-          max_primary_shard_size: "50gb"
-    delete:
-      min_age: "30d"
-      actions:
-        delete: {}
-`
-	err = os.WriteFile(ilmFile, []byte(contents), 0644)
+	err = os.WriteFile(ilmFile, []byte("data_retention: \"30d\"\n"), 0644)
 	require.NoError(t, err)
 }
 

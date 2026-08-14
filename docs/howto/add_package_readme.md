@@ -124,9 +124,12 @@ List of placeholders that can be used in the Markdown templates:
       ```
     - Requirements:
         - It is needed to define a file with the links definitions. More information [in this section](#requirements)
-- `ilm [data_stream...]`: this placeholder renders ILM policies defined under
-  `data_stream/<name>/elasticsearch/ilm/`.
-    - Example of usage (all data streams with ILM policies):
+- `ilm [data_stream...]`: this placeholder renders ILM policies or lifecycle
+  configuration for each data stream. Two file locations are supported:
+    - `data_stream/<name>/elasticsearch/ilm/<policy>.json` — ILM policy file.
+    - `data_stream/<name>/lifecycle.yml` — DLM (Data Lifecycle Management)
+      configuration (takes precedence when both exist for the same data stream).
+    - Example of usage (all data streams):
       ```
       {{ ilm }}
       ```
@@ -134,10 +137,11 @@ List of placeholders that can be used in the Markdown templates:
       ```
       {{ ilm "metrics" }}
       ```
-    - When no data stream arguments are given, `elastic-package` discovers data streams
-      that have an `elasticsearch/ilm/` directory and documents each policy as a
+    - When no data stream arguments are given, `elastic-package` discovers all
+      data streams that have either an `elasticsearch/ilm/` directory or a
+      `lifecycle.yml` file, and documents one policy per data stream as a
       flattened key/value table.
-    - If there are no ILM policies to document (or discovery finds none), the placeholder
+    - If there are no policies to document (or discovery finds none), the placeholder
       renders as an empty string: no heading and no empty section are written.
     - Example of the rendered output when policies exist:
       ```
