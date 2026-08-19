@@ -23,6 +23,7 @@ const (
 # README
 Introduction to the package
 `
+	lifecycleYMLContent = "data_retention: \"30d\"\n"
 )
 
 func readmeEventTemplateLine(eventTarget string) string {
@@ -520,6 +521,68 @@ Introduction to the package
 	assert.Equal(t, expected, string(rendered))
 }
 
+func TestRenderILMPathsRootLifecycleDiscovered(t *testing.T) {
+	packageRoot := t.TempDir()
+
+	createRootLifecycleFile(t, packageRoot)
+	createInputPackageManifestFile(t, packageRoot, "my_input_pkg")
+
+	rendered, err := renderILMPaths(packageRoot, nil)
+	require.NoError(t, err)
+	assert.Contains(t, rendered, "### Data streams using ILM policies")
+	assert.Contains(t, rendered, "#### my_input_pkg Policy")
+	assert.Contains(t, rendered, "| data_retention | 30d |")
+}
+
+func TestRenderILMPathsRootLifecycleNotDiscoveredWhenArgsGiven(t *testing.T) {
+	packageRoot := t.TempDir()
+
+	createRootLifecycleFile(t, packageRoot)
+
+	// Named form {{ ilm "ds" }} should not pick up the root lifecycle.yml.
+	rendered, err := renderILMPaths(packageRoot, []string{"ds"})
+	require.Error(t, err)
+	assert.Empty(t, rendered)
+}
+
+func TestRenderReadmeWithRootLifecycle(t *testing.T) {
+	linksMap := newEmptyLinkMap()
+	urls := fields.NewSchemaURLs()
+	packageRoot := t.TempDir()
+
+	const tmpl = `# README
+Input package lifecycle
+
+{{ ilm }}
+`
+	const expected = `# README
+Input package lifecycle
+
+
+### Data streams using ILM policies
+
+#### my_input_pkg Policy
+| Key | Value |
+|---|---|
+| data_retention | 30d |
+
+`
+
+	createInputPackageManifestFile(t, packageRoot, "my_input_pkg")
+	createBuildFile(t, packageRoot)
+	createReadmeTemplateFile(t, packageRoot, tmpl)
+	createRootLifecycleFile(t, packageRoot)
+
+	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", "README.md")
+	root, err := os.OpenRoot(packageRoot)
+	require.NoError(t, err)
+	t.Cleanup(func() { root.Close() })
+
+	rendered, err := renderReadme(root, "README.md", packageRoot, templatePath, linksMap, urls)
+	require.NoError(t, err)
+	assert.Equal(t, expected, string(rendered))
+}
+
 func TestRenderILMPathsEmpty(t *testing.T) {
 	packageRoot := t.TempDir()
 
@@ -692,6 +755,25 @@ version: 1.0.0
 	require.NoError(t, err)
 }
 
+func createInputPackageManifestFile(t *testing.T, packageRoot, packageName string) {
+	t.Helper()
+	manifest := fmt.Sprintf(`format_version: 2.10.0
+name: %s
+type: input
+version: 1.0.0
+`, packageName)
+	manifestFile := filepath.Join(packageRoot, packages.PackageManifestFile)
+	err := os.WriteFile(manifestFile, []byte(manifest), 0o644)
+	require.NoError(t, err)
+}
+
+func createRootLifecycleFile(t *testing.T, packageRoot string) {
+	t.Helper()
+	lifecycleFile := filepath.Join(packageRoot, "lifecycle.yml")
+	err := os.WriteFile(lifecycleFile, []byte(lifecycleYMLContent), 0o644)
+	require.NoError(t, err)
+}
+
 func createDataStreamFolder(t *testing.T, packageRoot, dataStreamName string) string {
 	t.Helper()
 	if dataStreamName == "" {
@@ -788,7 +870,7 @@ func createILMFileYML(t *testing.T, packageRoot, dataStreamName string) {
 	err := os.MkdirAll(ilmFolder, 0755)
 	require.NoError(t, err)
 	ilmFile := filepath.Join(ilmFolder, "lifecycle.yml")
-	err = os.WriteFile(ilmFile, []byte("data_retention: \"30d\"\n"), 0644)
+	err = os.WriteFile(ilmFile, []byte(lifecycleYMLContent), 0644)
 	require.NoError(t, err)
 }
 

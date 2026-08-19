@@ -6,6 +6,7 @@ package docs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // flattenNestedMap flattens a nested JSON-like structure (maps and slices) into
@@ -95,43 +98,74 @@ func getILMPolicyFilePath(packageRoot, dataStreamName string) (string, error) {
 	return paths[0], nil
 }
 
-func renderILMPaths(packageRoot string, args []string) (string, error) {
-	var dataStreamNames []string
-	var err error
-	if len(args) > 0 {
-		// filter the list of data streams to only include the data stream name in the args
-		dataStreamNames = append(dataStreamNames, args...)
-	} else {
-		dataStreamNames, err = findILMPaths(packageRoot)
-		if err != nil {
-			return "", fmt.Errorf("finding ILM paths failed: %w", err)
-		}
-	}
+func renderILMPolicySection(out *strings.Builder, title string, policyMap map[string]string) {
+	fmt.Fprintf(out, "\n#### %s Policy\n", title)
+	out.WriteString("| Key | Value |\n")
+	out.WriteString("|---|---|\n")
+	renderILMPolicyMap(out, policyMap)
+}
+
+// renderDataStreamILM renders ILM policies for named data streams (integration packages).
+func renderDataStreamILM(packageRoot string, dataStreamNames []string) (string, error) {
 	if len(dataStreamNames) == 0 {
 		return "", nil
 	}
-
-	var renderedDocs strings.Builder
-	renderedDocs.WriteString("\n### Data streams using ILM policies\n")
-	for _, dataStreamName := range dataStreamNames {
-		ilmPath, err := getILMPolicyFilePath(packageRoot, dataStreamName)
+	var out strings.Builder
+	out.WriteString("\n### Data streams using ILM policies\n")
+	for _, name := range dataStreamNames {
+		ilmPath, err := getILMPolicyFilePath(packageRoot, name)
 		if err != nil {
-			return "", fmt.Errorf("getting ILM policy file path for data stream %s failed: %w", dataStreamName, err)
+			return "", fmt.Errorf("getting ILM policy file path for data stream %s failed: %w", name, err)
 		}
-
-		// get the policy map from the ILM policy file
 		policyMap, err := getILMPolicyMap(ilmPath)
 		if err != nil {
 			return "", fmt.Errorf("getting ILM policy map for path %s failed: %w", ilmPath, err)
 		}
-		fmt.Fprintf(&renderedDocs, "\n#### %s Policy\n", dataStreamName)
-
-		// render the policy map as a markdown table
-		renderedDocs.WriteString("| Key | Value |\n")
-		renderedDocs.WriteString("|---|---|\n")
-		renderILMPolicyMap(&renderedDocs, policyMap)
+		renderILMPolicySection(&out, name, policyMap)
 	}
-	return renderedDocs.String(), nil
+	return out.String(), nil
+}
+
+// renderInputPackageILM renders the lifecycle policy at the package root (input packages).
+// Returns an empty string when no root lifecycle.yml exists.
+func renderInputPackageILM(packageRoot string) (string, error) {
+	p := filepath.Join(packageRoot, "lifecycle.yml")
+	policyMap, err := getILMPolicyMap(p)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", fmt.Errorf("getting ILM policy map for root lifecycle.yml failed: %w", err)
+	}
+	sectionName := "lifecycle"
+	if manifest, mErr := packages.ReadPackageManifestFromPackageRoot(packageRoot); mErr == nil && manifest.Name != "" {
+		sectionName = manifest.Name
+	}
+	var out strings.Builder
+	out.WriteString("\n### Data streams using ILM policies\n")
+	renderILMPolicySection(&out, sectionName, policyMap)
+	return out.String(), nil
+}
+
+// renderILMPaths is the entry point for the {{ ilm }} template function.
+// args are data stream names and only apply to integration packages; passing
+// them skips the input-package path entirely. Bare invocation checks for a
+// root lifecycle.yml (input packages) first, then discovers data streams.
+func renderILMPaths(packageRoot string, args []string) (string, error) {
+	if len(args) > 0 {
+		return renderDataStreamILM(packageRoot, args)
+	}
+
+	result, err := renderInputPackageILM(packageRoot)
+	if err != nil || result != "" {
+		return result, err
+	}
+
+	names, err := findILMPaths(packageRoot)
+	if err != nil {
+		return "", fmt.Errorf("finding ILM paths failed: %w", err)
+	}
+	return renderDataStreamILM(packageRoot, names)
 }
 
 // findILMPaths scans a given package path for data streams that have ILM policies
