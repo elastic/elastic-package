@@ -61,13 +61,15 @@ func run(pkg *fleetpkg.Package) error {
 func processPipeline(pipeline *fleetpkg.Pipeline) error {
 	seen := map[string]*processorNode{}
 
-	for _, proc := range pipeline.Processors {
-		node := processorNode{
-			Processor: proc,
-		}
+	for _, procs := range [][]*fleetpkg.Processor{pipeline.Processors, pipeline.OnFailure} {
+		for _, proc := range procs {
+			node := processorNode{
+				Processor: proc,
+			}
 
-		if err := processTag(pipeline, &node, seen); err != nil {
-			return err
+			if err := processTag(pipeline, &node, seen); err != nil {
+				return err
+			}
 		}
 	}
 

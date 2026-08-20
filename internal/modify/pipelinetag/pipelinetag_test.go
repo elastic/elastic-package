@@ -55,4 +55,7 @@ func Test_GenerateTags(t *testing.T) {
 	assertProcessorTag(t, &pipeline, "$.processors[0].set.tag", "set_sample_field_71a88542")
 	assertProcessorTag(t, &pipeline, "$.processors[1].set.tag", "valid_tag")
 	assertProcessorTag(t, &pipeline, "$.processors[1].set.on_failure[0].set.tag", "set_sample_field_a7a6e0d7")
+
+	// Processors in the pipeline-level on_failure block must be tagged too.
+	assertProcessorTag(t, &pipeline, "$.on_failure[0].set.tag", "set_error_message_57a6b93c")
 }
