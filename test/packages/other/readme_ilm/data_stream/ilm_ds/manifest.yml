@@ -1,1 +1,13 @@
 title: "ILM DS"
+type: logs
+streams:
+  - input: logfile
+    title: ILM DS
+    description: Collect ILM DS logs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        default:
+          - /var/log/*.log
