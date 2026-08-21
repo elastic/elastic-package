@@ -143,7 +143,7 @@ List of placeholders that can be used in the Markdown templates:
       flattened key/value table.
     - If there are no policies to document (or discovery finds none), the placeholder
       renders as an empty string: no heading and no empty section are written.
-    - Example of the rendered output when policies exist:
+    - Example of the rendered output for an ILM policy (`elasticsearch/ilm/<policy>.json`):
       ```
       ### Data streams using ILM policies
 
@@ -153,6 +153,16 @@ List of placeholders that can be used in the Markdown templates:
       | policy.phases.delete.min_age | 30d |
       | policy.phases.hot.actions.rollover.max_age | 30d |
       ...
+      ```
+    - Example of the rendered output for a DLM `lifecycle.yml` (for example
+      `data_retention: "30d"`):
+      ```
+      ### Data streams using ILM policies
+
+      #### metrics Policy
+      | Key | Value |
+      |---|---|
+      | data_retention | 30d |
       ```
 - `transform`: this placeholder renders transforms defined under `elasticsearch/transform/`.
     - Example of usage:
