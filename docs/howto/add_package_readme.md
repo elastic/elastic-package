@@ -125,22 +125,27 @@ List of placeholders that can be used in the Markdown templates:
     - Requirements:
         - It is needed to define a file with the links definitions. More information [in this section](#requirements)
 - `ilm [data_stream...]`: this placeholder renders ILM policies or lifecycle
-  configuration for each data stream. Two file locations are supported:
-    - `data_stream/<name>/elasticsearch/ilm/<policy>.json` — ILM policy file.
-    - `data_stream/<name>/lifecycle.yml` — DLM (Data Lifecycle Management)
-      configuration (takes precedence when both exist for the same data stream).
-    - Example of usage (all data streams):
+  configuration. Behavior depends on the package type:
+    - **Integration packages** — reads per-data-stream policy files:
+        - `data_stream/<name>/elasticsearch/ilm/<policy>.json` — ILM policy file.
+        - `data_stream/<name>/lifecycle.yml` — DLM (Data Lifecycle Management)
+          configuration (takes precedence when both exist for the same data stream).
+    - **Input packages** — reads a single package-root lifecycle file:
+        - `lifecycle.yml` at the package root (bare `{{ ilm }}` only; data stream
+          name arguments are not supported for input packages and skip this path).
+    - Example of usage (all data streams / input package root):
       ```
       {{ ilm }}
       ```
-    - Example of usage (specific data streams):
+    - Example of usage (specific data streams, integration packages only):
       ```
       {{ ilm "metrics" }}
       ```
-    - When no data stream arguments are given, `elastic-package` discovers all
-      data streams that have either an `elasticsearch/ilm/` directory or a
-      `lifecycle.yml` file, and documents one policy per data stream as a
-      flattened key/value table.
+    - When no data stream arguments are given, `elastic-package` reads the package
+      manifest type. For integration packages it discovers all data streams that
+      have either an `elasticsearch/ilm/` directory or a `lifecycle.yml` file, and
+      documents one policy per data stream as a flattened key/value table. For
+      input packages it renders the single root `lifecycle.yml`.
     - If there are no policies to document (or discovery finds none), the placeholder
       renders as an empty string: no heading and no empty section are written.
     - Example of the rendered output for an ILM policy (`elasticsearch/ilm/<policy>.json`):
@@ -160,6 +165,16 @@ List of placeholders that can be used in the Markdown templates:
       ### Data streams using ILM policies
 
       #### metrics Policy
+      | Key | Value |
+      |---|---|
+      | data_retention | 30d |
+      ```
+    - Example of the rendered output for an input package root `lifecycle.yml`
+      (for example `data_retention: "30d"`):
+      ```
+      ### Lifecycle policy
+
+      #### <package-name> Policy
       | Key | Value |
       |---|---|
       | data_retention | 30d |
