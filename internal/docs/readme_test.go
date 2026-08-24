@@ -534,6 +534,20 @@ func TestRenderILMPathsRootLifecycleDiscovered(t *testing.T) {
 	assert.Contains(t, rendered, "| data_retention | 30d |")
 }
 
+func TestRenderILMPathsIntegrationWithRootLifecycleIgnored(t *testing.T) {
+	packageRoot := t.TempDir()
+
+	createManifestFile(t, packageRoot) // type: integration
+	createRootLifecycleFile(t, packageRoot)
+	createILMFile(t, packageRoot, "mystream")
+
+	rendered, err := renderILMPaths(packageRoot, nil)
+	require.NoError(t, err)
+	assert.Contains(t, rendered, "### Data streams using ILM policies")
+	assert.Contains(t, rendered, "#### mystream Policy")
+	assert.NotContains(t, rendered, "### Lifecycle policy")
+}
+
 func TestRenderILMPathsRootLifecycleNotDiscoveredWhenArgsGiven(t *testing.T) {
 	packageRoot := t.TempDir()
 
