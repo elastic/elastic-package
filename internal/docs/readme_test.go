@@ -529,7 +529,7 @@ func TestRenderILMPathsRootLifecycleDiscovered(t *testing.T) {
 
 	rendered, err := renderILMPaths(packageRoot, nil)
 	require.NoError(t, err)
-	assert.Contains(t, rendered, "### Data streams using ILM policies")
+	assert.Contains(t, rendered, "### Lifecycle policy")
 	assert.Contains(t, rendered, "#### my_input_pkg Policy")
 	assert.Contains(t, rendered, "| data_retention | 30d |")
 }
@@ -559,7 +559,7 @@ Input package lifecycle
 Input package lifecycle
 
 
-### Data streams using ILM policies
+### Lifecycle policy
 
 #### my_input_pkg Policy
 | Key | Value |

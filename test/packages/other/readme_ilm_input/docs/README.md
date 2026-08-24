@@ -1,7 +1,7 @@
 # Readme ILM Input
 
 
-### Data streams using ILM policies
+### Lifecycle policy
 
 #### readme_ilm_input Policy
 | Key | Value |

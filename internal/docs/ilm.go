@@ -128,7 +128,7 @@ func renderDataStreamILM(packageRoot string, dataStreamNames []string) (string, 
 
 // renderInputPackageILM renders the lifecycle policy at the package root (input packages).
 // Returns an empty string when no root lifecycle.yml exists.
-func renderInputPackageILM(packageRoot string) (string, error) {
+func renderInputPackageILM(packageRoot, packageName string) (string, error) {
 	p := filepath.Join(packageRoot, "lifecycle.yml")
 	policyMap, err := getILMPolicyMap(p)
 	if err != nil {
@@ -137,28 +137,26 @@ func renderInputPackageILM(packageRoot string) (string, error) {
 		}
 		return "", fmt.Errorf("getting ILM policy map for root lifecycle.yml failed: %w", err)
 	}
-	sectionName := "lifecycle"
-	if manifest, mErr := packages.ReadPackageManifestFromPackageRoot(packageRoot); mErr == nil && manifest.Name != "" {
-		sectionName = manifest.Name
-	}
 	var out strings.Builder
-	out.WriteString("\n### Data streams using ILM policies\n")
-	renderILMPolicySection(&out, sectionName, policyMap)
+	out.WriteString("\n### Lifecycle policy\n")
+	renderILMPolicySection(&out, packageName, policyMap)
 	return out.String(), nil
 }
 
 // renderILMPaths is the entry point for the {{ ilm }} template function.
 // args are data stream names and only apply to integration packages; passing
-// them skips the input-package path entirely. Bare invocation checks for a
-// root lifecycle.yml (input packages) first, then discovers data streams.
+// them skips the input-package path entirely. Bare invocation reads the
+// manifest type: input packages use the root lifecycle.yml; all other types
+// use per-data-stream discovery.
 func renderILMPaths(packageRoot string, args []string) (string, error) {
 	if len(args) > 0 {
 		return renderDataStreamILM(packageRoot, args)
 	}
 
-	result, err := renderInputPackageILM(packageRoot)
-	if err != nil || result != "" {
-		return result, err
+	// Only input packages use a root lifecycle.yml; non-input packages and any
+	// package whose manifest is unreadable fall through to per-data-stream discovery.
+	if manifest, mErr := packages.ReadPackageManifestFromPackageRoot(packageRoot); mErr == nil && manifest.Type == "input" {
+		return renderInputPackageILM(packageRoot, manifest.Name)
 	}
 
 	names, err := findILMPaths(packageRoot)
