@@ -87,6 +87,9 @@ func getILMPolicyFilePath(packageRoot, dataStreamName string) (string, error) {
 	if err == nil {
 		return lifecyclePath, nil
 	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("checking lifecycle.yml for data stream %s: %w", dataStreamName, err)
+	}
 
 	// otherwise, look for something in an ilm directory
 	paths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", dataStreamName, "elasticsearch", "ilm", "*.json"))
