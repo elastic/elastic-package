@@ -474,6 +474,7 @@ Introduction to the package
 func TestRenderILMPathsLifecycleYMLDiscovered(t *testing.T) {
 	packageRoot := t.TempDir()
 
+	createManifestFile(t, packageRoot)
 	createILMFileYML(t, packageRoot, "mystream")
 
 	rendered, err := renderILMPaths(packageRoot, nil)
@@ -599,6 +600,7 @@ Input package lifecycle
 
 func TestRenderILMPathsEmpty(t *testing.T) {
 	packageRoot := t.TempDir()
+	createManifestFile(t, packageRoot) // bare {{ ilm }} requires a readable manifest
 
 	rendered, err := renderILMPaths(packageRoot, nil)
 	require.NoError(t, err)

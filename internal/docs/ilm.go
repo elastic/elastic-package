@@ -153,9 +153,11 @@ func renderILMPaths(packageRoot string, args []string) (string, error) {
 		return renderDataStreamILM(packageRoot, args)
 	}
 
-	// Only input packages use a root lifecycle.yml; non-input packages and any
-	// package whose manifest is unreadable fall through to per-data-stream discovery.
-	if manifest, mErr := packages.ReadPackageManifestFromPackageRoot(packageRoot); mErr == nil && manifest.Type == "input" {
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return "", fmt.Errorf("reading package manifest failed: %w", err)
+	}
+	if manifest.Type == "input" {
 		return renderInputPackageILM(packageRoot, manifest.Name)
 	}
 
