@@ -1,0 +1,18 @@
+format_version: 3.2.1
+name: readme_ilm
+title: "Readme ILM"
+version: 0.0.1
+source:
+  license: "Elastic-2.0"
+description: "Tests README rendering with ILM policies and lifecycle.yml data streams."
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.15.0"
+  elastic:
+    subscription: "basic"
+owner:
+  github: elastic/ecosystem
+  type: elastic
