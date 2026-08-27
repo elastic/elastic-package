@@ -1,0 +1,60 @@
+---
+name: Bump Terraform version
+pipelineid: 'bump-terraform-version'
+
+actions:
+  default:
+    title: '[updatecli] Update Terraform to {{ source "latestVersion" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+      description: |
+        This PR was opened automatically by updatecli. It bumps the pinned
+        `terraform` version in `Dockerfile.terraform_deployer`.
+
+        **Why this matters:** HashiCorp's apt repository retains only a limited
+        window of `terraform` versions. Once a pinned version ages out of the
+        retention window, every `docker build --no-cache` on the terraform
+        deployer fails with "Version not found", blocking CI across all packages
+        that use `_dev/deploy/tf/` Terraform-deployed test infrastructure.
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  latestVersion:
+    name: Get latest Terraform version from HashiCorp apt repository
+    kind: shell
+    spec:
+      # Read the apt Packages index directly so the pinned version is guaranteed
+      # to be resolvable by apt-get in Dockerfile.terraform_deployer.
+      command: >-
+        curl -sSfL https://apt.releases.hashicorp.com/dists/noble/main/binary-amd64/Packages |
+        awk '/^Package: terraform$/ { found = 1; next } found && /^Version:/ { print $2; found = 0 }' |
+        sort --version-sort | tail -n 1
+      environments:
+        - name: HOME
+        - name: PATH
+
+targets:
+  update-dockerfile:
+    name: '[updatecli] Update Terraform to {{ source "latestVersion" }}'
+    kind: file
+    sourceid: latestVersion
+    scmid: default
+    spec:
+      file: internal/servicedeployer/_static/Dockerfile.terraform_deployer
+      matchpattern: 'TERRAFORM_VERSION=[0-9.]+-[0-9]+'
+      replacepattern: 'TERRAFORM_VERSION={{ source "latestVersion" }}'
