@@ -1,5 +1,5 @@
 FROM --platform=linux/amd64 ubuntu:24.04
-ENV GCLOUD_SDK_VERSION=467.0.0-0
+ENV GCLOUD_CLI_VERSION=582.0.0-0
 ENV TERRAFORM_VERSION=1.9.6
 
 RUN apt-get -qq update \
@@ -9,7 +9,7 @@ RUN apt-get -qq update \
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
   && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
   && apt-get update -qq \
-  && apt-get install google-cloud-sdk=${GCLOUD_SDK_VERSION} -yq \
+  && apt-get install google-cloud-cli=${GCLOUD_CLI_VERSION} -yq \
   && apt-get clean
 
 RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \

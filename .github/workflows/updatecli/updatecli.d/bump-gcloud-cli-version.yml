@@ -1,0 +1,62 @@
+---
+name: Bump Google Cloud CLI version
+pipelineid: 'bump-gcloud-cli-version'
+
+actions:
+  default:
+    title: '[updatecli] Update Google Cloud CLI to {{ source "latestVersion" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+      description: |
+        This PR was opened automatically by updatecli. It bumps the pinned
+        `google-cloud-cli` version in `Dockerfile.terraform_deployer`.
+
+        **Why this matters:** Google's apt repository retains only the last
+        365 days of `google-cloud-cli` versions. Once a pinned version ages
+        out of the retention window, every `docker build --no-cache` on the
+        terraform deployer fails with "Version not found", blocking CI across
+        all packages that use `_dev/deploy/tf/` Terraform-deployed test
+        infrastructure.
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  latestVersion:
+    name: Get latest google-cloud-cli version from Google's apt repository
+    kind: shell
+    spec:
+      # Read the apt Packages index directly rather than a release feed so
+      # the pinned version is guaranteed to be resolvable by apt-get.
+      # Google retains only the last 365 days of versions in the repo.
+      command: >-
+        curl -sSfL https://packages.cloud.google.com/apt/dists/cloud-sdk/main/binary-amd64/Packages |
+        awk '/^Package: google-cloud-cli$/ { found = 1; next } found && /^Version:/ { print $2; found = 0 }' |
+        sort --version-sort | tail -n 1
+      environments:
+        - name: HOME
+        - name: PATH
+
+targets:
+  update-dockerfile:
+    name: '[updatecli] Update Google Cloud CLI to {{ source "latestVersion" }}'
+    kind: file
+    sourceid: latestVersion
+    scmid: default
+    spec:
+      file: internal/servicedeployer/_static/Dockerfile.terraform_deployer
+      matchpattern: 'GCLOUD_CLI_VERSION=[0-9.]+-[0-9]+'
+      replacepattern: 'GCLOUD_CLI_VERSION={{ source "latestVersion" }}'
