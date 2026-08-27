@@ -26,8 +26,7 @@ scms:
 
 sources:
   latestVersion:
-    name: Get latest Terraform release version
-    kind: shell
+    name: Get latest Terraform version from HashiCorp apt repository
     spec:
       # Read the apt Packages index directly so the pinned version is guaranteed
       # to be resolvable by apt-get in Dockerfile.terraform_deployer.
