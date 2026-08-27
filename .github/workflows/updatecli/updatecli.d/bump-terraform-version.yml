@@ -27,12 +27,18 @@ scms:
 sources:
   latestVersion:
     name: Get latest Terraform release version
-    kind: json
-    transformers:
-      - trimprefix: "v"
+    kind: shell
     spec:
-      file: https://api.github.com/repos/hashicorp/terraform/releases/latest
-      key: .tag_name
+      # Read the apt Packages index directly so the pinned version is guaranteed
+      # to be resolvable by apt-get in Dockerfile.terraform_deployer.
+      command: >-
+        curl -sSfL https://apt.releases.hashicorp.com/dists/noble/main/binary-amd64/Packages |
+        awk '/^Package: terraform$/ { found = 1; next } found && /^Version:/ { print $2; found = 0 }' |
+        sed 's/-[0-9][0-9]*$//' |
+        sort --version-sort | tail -n 1
+      environments:
+        - name: HOME
+        - name: PATH
 
 targets:
   update-dockerfile:
