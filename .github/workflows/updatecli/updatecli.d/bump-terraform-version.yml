@@ -1,0 +1,46 @@
+---
+name: Bump Terraform version
+pipelineid: 'bump-terraform-version'
+
+actions:
+  default:
+    title: '[updatecli] Update Terraform to {{ source "latestVersion" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  latestVersion:
+    name: Get latest Terraform release version
+    kind: json
+    transformers:
+      - trimprefix: "v"
+    spec:
+      file: https://api.github.com/repos/hashicorp/terraform/releases/latest
+      key: .tag_name
+
+targets:
+  update-dockerfile:
+    name: '[updatecli] Update Terraform to {{ source "latestVersion" }}'
+    kind: file
+    sourceid: latestVersion
+    scmid: default
+    spec:
+      file: internal/servicedeployer/_static/Dockerfile.terraform_deployer
+      matchpattern: 'TERRAFORM_VERSION=[0-9.]+'
+      replacepattern: 'TERRAFORM_VERSION={{ source "latestVersion" }}'
