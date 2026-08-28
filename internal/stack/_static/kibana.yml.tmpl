@@ -193,4 +193,7 @@ xpack.fleet.outputs:
 xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
 {{- end }}
 
+{{/* TODO: extend to 8.19, 9.4, and 9.5 once elastic/kibana#286094 is backported and released in those branches */}}
+{{- if not (semverLessThan $version "9.6.0-SNAPSHOT") }}
 xpack.fleet.internal.allowRegistryPackageUploads: true
+{{- end }}
