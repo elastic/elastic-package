@@ -36,7 +36,13 @@ When using a stack version that does not yet include the setting (< 9.6.0), you 
 echo 'xpack.fleet.internal.allowRegistryPackageUploads: true' >> ~/.elastic-package/profiles/default/kibana.dev.yml
 ```
 
-Restart the stack with `elastic-package stack up` for the change to take effect. See [Custom Kibana Configuration](./custom_kibana_config.md) for more details on profile-level overrides.
+Restart the stack for the change to take effect:
+
+```bash
+elastic-package stack down && elastic-package stack up -d
+```
+
+See [Custom Kibana Configuration](./custom_kibana_config.md) for more details on profile-level overrides.
 
 When using an external Kibana instance (>= 9.6.0), add this setting to your Kibana configuration manually:
 
