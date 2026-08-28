@@ -26,7 +26,7 @@ From Kibana 8.7.0 version, `elastic-package install` is able to install packages
     - build the package
     - upload the zip file built to Kibana.
 
-The stack started by `elastic-package stack up` automatically sets `xpack.fleet.internal.allowRegistryPackageUploads: true` in Kibana, which enables the upload API without requiring an Enterprise license. When using an external Kibana instance, add this setting to your Kibana configuration manually.
+The stack started by `elastic-package stack up` automatically sets `xpack.fleet.internal.allowRegistryPackageUploads: true` in Kibana, which allows uploading packages even when the package name already exists in the Elastic Package Registry (EPR). When using an external Kibana instance, add this setting to your Kibana configuration manually.
 
 Example of using `--zip` parameter:
 ```shell
