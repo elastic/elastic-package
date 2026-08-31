@@ -15,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func TestAllowRegistryPackageUploadsGating(t *testing.T) {
+func TestskipUploadPackageValidationGating(t *testing.T) {
 	cases := []struct {
 		version string
 		want    bool
@@ -72,17 +72,17 @@ func TestAllowRegistryPackageUploadsGating(t *testing.T) {
 				t.Fatalf("read kibana.yml: %v", err)
 			}
 
-			got := strings.Contains(string(d), "allowRegistryPackageUploads")
+			got := strings.Contains(string(d), "skipUploadPackageValidation")
 			if got != tc.want {
 				lines := strings.Split(string(d), "\n")
 				tail := lines
 				if len(lines) > 20 {
 					tail = lines[len(lines)-20:]
 				}
-				t.Errorf("version %s: allowRegistryPackageUploads present=%v, want=%v\n\n--- kibana.yml tail ---\n%s",
+				t.Errorf("version %s: skipUploadPackageValidation present=%v, want=%v\n\n--- kibana.yml tail ---\n%s",
 					tc.version, got, tc.want, strings.Join(tail, "\n"))
 			} else {
-				t.Logf("version %s: allowRegistryPackageUploads present=%v ✓", tc.version, got)
+				t.Logf("version %s: skipUploadPackageValidation present=%v ✓", tc.version, got)
 			}
 		})
 	}
