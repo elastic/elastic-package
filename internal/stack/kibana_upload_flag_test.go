@@ -15,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func TestskipUploadPackageValidationGating(t *testing.T) {
+func TestSkipUploadPackageValidationGating(t *testing.T) {
 	cases := []struct {
 		version string
 		want    bool
