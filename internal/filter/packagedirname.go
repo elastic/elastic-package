@@ -17,7 +17,7 @@ import (
 type PackageDirNameFlag struct {
 	FilterFlagBase
 
-	patterns []glob.Glob
+	patterns []*glob.Pattern
 }
 
 func (f *PackageDirNameFlag) Parse(cmd *cobra.Command) error {
