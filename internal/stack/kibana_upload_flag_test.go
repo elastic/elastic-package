@@ -68,6 +68,7 @@ func TestSkipUploadPackageValidationBackportEnvVar(t *testing.T) {
 		// Entirely outside the backport branches — env var has no effect
 		{"8.18.0", false},
 		{"9.0.0", false},
+		{"9.0.0-SNAPSHOT", false},
 		{"9.3.0", false},
 		// 8.19.x: patches before the backport (elastic/kibana#287670)
 		{"8.19.0", false},
@@ -86,6 +87,7 @@ func TestSkipUploadPackageValidationBackportEnvVar(t *testing.T) {
 		{"9.4.7", true},
 		// 9.5.x: patches before the backport (elastic/kibana#287672)
 		{"9.5.0", false},
+		{"9.5.0-SNAPSHOT", false},
 		{"9.5.2", false},
 		{"9.5.2-SNAPSHOT", false},
 		// 9.5.x: backport patch and later

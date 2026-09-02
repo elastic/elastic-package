@@ -198,8 +198,8 @@ xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
 {{- $skipUpload := eq (fact "skip_upload_package_validation") "true" }}
 {{- if or
     (not (semverLessThan $version "9.6.0-SNAPSHOT"))
-    (and $skipUpload (not (semverLessThan $version "8.19.10-SNAPSHOT")) (semverLessThan $version "9.0.0"))
-    (and $skipUpload (not (semverLessThan $version "9.4.7-SNAPSHOT")) (semverLessThan $version "9.5.0"))
+    (and $skipUpload (not (semverLessThan $version "8.19.10-SNAPSHOT")) (semverLessThan $version "9.0.0-SNAPSHOT"))
+    (and $skipUpload (not (semverLessThan $version "9.4.7-SNAPSHOT")) (semverLessThan $version "9.5.0-SNAPSHOT"))
     (and $skipUpload (not (semverLessThan $version "9.5.3-SNAPSHOT")) (semverLessThan $version "9.6.0-SNAPSHOT"))
 }}
 xpack.fleet.internal.skipUploadPackageValidation: true
