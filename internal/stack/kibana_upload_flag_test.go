@@ -16,6 +16,7 @@ import (
 )
 
 func TestSkipUploadPackageValidationGating(t *testing.T) {
+	t.Setenv(KibanaSkipUploadPackageValidationEnvVar, "")
 	cases := []struct {
 		version string
 		want    bool
