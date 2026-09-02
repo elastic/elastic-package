@@ -81,9 +81,10 @@ const (
 )
 
 var (
-	// KibanaSkipUploadPackageValidationEnvVar enables xpack.fleet.internal.skipUploadPackageValidation
-	// for backport branches (8.19.x, 9.4.x, 9.5.x) that have elastic/kibana#286094 but are below
-	// 9.6.0-SNAPSHOT. Set to "true" in CI for those branches; the flag is ignored for other versions.
+	// KibanaSkipUploadPackageValidationEnvVar activates xpack.fleet.internal.skipUploadPackageValidation
+	// for the backport branches. Set to "true" in CI once the backport is confirmed present in the
+	// snapshot under test. The version gates (8.19.10-SNAPSHOT, 9.4.7-SNAPSHOT, 9.5.3-SNAPSHOT) ensure
+	// the flag is only injected into patches that actually contain the fix.
 	KibanaSkipUploadPackageValidationEnvVar = environment.WithElasticPackagePrefix("KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION")
 )
 
@@ -219,7 +220,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"elastic_subscription":                        elasticSubscriptionProfile,
 		"fleet_auto_install_task_interval":            profile.Config(configFleetAutoInstallTaskInterval, "10m"),
 		"fleet_auto_install_content_packages_enabled": profile.Config(configFleetAutoInstallContentPackagesEnabled, "false"),
-		"skip_upload_package_validation":              skipUploadPackageValidationFact(stackVersion),
+		"skip_upload_package_validation":              os.Getenv(KibanaSkipUploadPackageValidationEnvVar),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
@@ -321,25 +322,3 @@ func indent(input string, indent string) string {
 	return strings.ReplaceAll(input, "\n", "\n"+indent)
 }
 
-// skipUploadPackageValidationFact returns "true" when the env var override is set and the stack
-// version falls in a known backport branch (8.19.x or 9.4.x/9.5.x). Versions outside those ranges
-// are unaffected even when the env var is present, preventing accidental injection into unsupported stacks.
-func skipUploadPackageValidationFact(stackVersion string) string {
-	if os.Getenv(KibanaSkipUploadPackageValidationEnvVar) != "true" {
-		return ""
-	}
-	v, err := semver.NewVersion(stackVersion)
-	if err != nil {
-		return ""
-	}
-	backport819Min := semver.MustParse("8.19.0")
-	backport819Max := semver.MustParse("9.0.0")
-	backport9xMin := semver.MustParse("9.4.0")
-	backport9xMax := semver.MustParse("9.6.0-SNAPSHOT")
-	in8x := !v.LessThan(backport819Min) && v.LessThan(backport819Max)
-	in9x := !v.LessThan(backport9xMin) && v.LessThan(backport9xMax)
-	if in8x || in9x {
-		return "true"
-	}
-	return ""
-}
