@@ -66,6 +66,23 @@ pipeline tests should not be compared. This can be achieved by setting the follo
 export ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS=true
 ```
 
+### Package already exists in the package registry
+
+If you encounter an error like the following when installing a package:
+
+```
+can't install the package: there was an apply error: installation failed: can't install the package: could not zip-install package; API status code = 400; response body = {"statusCode":400,"error":"Bad Request","message":"Cannot upload a package whose name already exists in the package registry or as a bundled package: <package_name>"}
+```
+
+This happens because the package is already present in EPR and the Serverless project does not allow overriding it by default.
+To fix this, set the following environment variable before creating the Serverless project:
+
+```shell
+export ELASTIC_PACKAGE_SERVERLESS_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true
+```
+
+> **Note:** This setting is only available in QA environments.
+
 ### How to use an existing `Serverless` project
 
 In case you want to test your packages using an already existing Serverless project, it could be used

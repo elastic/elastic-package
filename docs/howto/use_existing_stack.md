@@ -80,6 +80,17 @@ You can have multiple stacks configured, with different providers, if you use
 profiles. You can read more about them in the [README](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1).
 
 
+### Package already exists in the package registry
+
+If you encounter an error like the following when installing a package:
+
+```
+can't install the package: there was an apply error: installation failed: can't install the package: could not zip-install package; API status code = 400; response body = {"statusCode":400,"error":"Bad Request","message":"Cannot upload a package whose name already exists in the package registry or as a bundled package: <package_name>"}
+```
+
+This happens because the package is already present in EPR and the stack does not allow overriding it by default.
+To fix this, the Kibana configuration `xpack.fleet.internal.skipUploadPackageValidation` must be set to `true` in the target stack.
+
 ### Example: Using elastic-package with Kibana development environment
 
 One of the use cases of the environment provider is to be able to use

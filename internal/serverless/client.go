@@ -16,6 +16,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -36,6 +37,8 @@ type ClientOption func(*Client)
 var (
 	elasticCloudAPIKeyEnv   = "EC_API_KEY"
 	elasticCloudEndpointEnv = "EC_HOST"
+
+	kibanaSkipUploadPackageValidationEnv = environment.WithElasticPackagePrefix("SERVERLESS_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION")
 
 	ErrProjectNotExist = errors.New("project does not exist")
 )
@@ -140,14 +143,34 @@ func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 }
 
 func (c *Client) CreateProject(ctx context.Context, name, region, projectType string) (*Project, error) {
-	ReqBody := struct {
-		Name     string `json:"name"`
-		RegionID string `json:"region_id"`
-	}{
+	type createProjectKibanaOverride struct {
+		Config map[string]any `json:"config"`
+	}
+	type createProjectOverrides struct {
+		Kibana createProjectKibanaOverride `json:"kibana"`
+	}
+	type createProjectRequest struct {
+		Name      string                  `json:"name"`
+		RegionID  string                  `json:"region_id"`
+		Overrides *createProjectOverrides `json:"overrides,omitempty"`
+	}
+
+	reqBody := createProjectRequest{
 		Name:     name,
 		RegionID: region,
 	}
-	p, err := json.Marshal(ReqBody)
+	// Required to install packages via API even if they are already present in EPR (only available in QA).
+	if os.Getenv(kibanaSkipUploadPackageValidationEnv) == "true" {
+		logger.Debug("Adding xpack.fleet.internal.skipUploadPackageValidation kibana config")
+		reqBody.Overrides = &createProjectOverrides{
+			Kibana: createProjectKibanaOverride{
+				Config: map[string]any{
+					"xpack.fleet.internal.skipUploadPackageValidation": true,
+				},
+			},
+		}
+	}
+	p, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, err
 	}
