@@ -321,4 +321,3 @@ func semverLessThan(a, b string) (bool, error) {
 func indent(input string, indent string) string {
 	return strings.ReplaceAll(input, "\n", "\n"+indent)
 }
-
