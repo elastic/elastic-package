@@ -83,8 +83,8 @@ const (
 var (
 	// KibanaSkipUploadPackageValidationEnvVar activates xpack.fleet.internal.skipUploadPackageValidation
 	// for the backport branches. Set to "true" in CI once the backport is confirmed present in the
-	// snapshot under test. The version gates (8.19.10-SNAPSHOT, 9.4.7-SNAPSHOT, 9.5.3-SNAPSHOT) ensure
-	// the flag is only injected into patches that actually contain the fix.
+	// snapshot under test. The version gates (8.19.22-SNAPSHOT, 9.4.7-SNAPSHOT, 9.5.4-SNAPSHOT) ensure
+	// the flag is only injected into snapshots that actually contain the fix.
 	KibanaSkipUploadPackageValidationEnvVar = environment.WithElasticPackagePrefix("KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION")
 )
 
