@@ -33,7 +33,7 @@ func TestSkipUploadPackageValidationGating(t *testing.T) {
 		{"9.4.6-SNAPSHOT", false},
 		{"9.5.0", false},
 		{"9.5.2", false},
-		// Should have the flag (9.6 main — elastic/kibana#286094 merged here; backport follow-up pending)
+		// Should have the flag (9.6 main — elastic/kibana#286094 merged here)
 		{"9.6.0-SNAPSHOT", true},
 		{"9.6.0", true},
 		{"9.6.1", true},
@@ -83,6 +83,71 @@ func TestSkipUploadPackageValidationGating(t *testing.T) {
 					tc.version, got, tc.want, strings.Join(tail, "\n"))
 			} else {
 				t.Logf("version %s: skipUploadPackageValidation present=%v ✓", tc.version, got)
+			}
+		})
+	}
+}
+
+// TestSkipUploadPackageValidationEnvOverride verifies that setting
+// ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true injects the flag
+// even for versions that predate 9.6.0-SNAPSHOT (backport branches).
+func TestSkipUploadPackageValidationEnvOverride(t *testing.T) {
+	t.Setenv(KibanaSkipUploadPackageValidationEnvVar, "true")
+
+	cases := []struct {
+		version string
+		want    bool
+	}{
+		// Backport target branches — flag forced on via env var
+		{"8.19.0", true},
+		{"8.19.21", true},
+		{"9.4.0", true},
+		{"9.4.6", true},
+		{"9.5.0", true},
+		{"9.5.2", true},
+		// Already covered by the version gate, still true
+		{"9.6.0-SNAPSHOT", true},
+		{"9.6.0", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("version_%s", tc.version), func(t *testing.T) {
+			elasticPackagePath := t.TempDir()
+			profilesPath := filepath.Join(elasticPackagePath, "profiles")
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", elasticPackagePath)
+
+			err := profile.CreateProfile(profile.Options{
+				ProfilesDirPath: profilesPath,
+				Name:            "test",
+			})
+			if err != nil {
+				t.Fatalf("create profile: %v", err)
+			}
+
+			p, err := profile.LoadProfile("test")
+			if err != nil {
+				t.Fatalf("load profile: %v", err)
+			}
+
+			appConfig, err := install.Configuration()
+			if err != nil {
+				t.Fatalf("load config: %v", err)
+			}
+
+			if err := applyResources(p, appConfig, tc.version, tc.version); err != nil {
+				t.Fatalf("applyResources: %v", err)
+			}
+
+			d, err := os.ReadFile(p.Path(ProfileStackPath, KibanaConfigFile))
+			if err != nil {
+				t.Fatalf("read kibana.yml: %v", err)
+			}
+
+			got := strings.Contains(string(d), "skipUploadPackageValidation")
+			if got != tc.want {
+				t.Errorf("version %s (env override): skipUploadPackageValidation present=%v, want=%v", tc.version, got, tc.want)
+			} else {
+				t.Logf("version %s (env override): skipUploadPackageValidation present=%v ✓", tc.version, got)
 			}
 		})
 	}
