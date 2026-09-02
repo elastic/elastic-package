@@ -161,7 +161,7 @@ func (c *Client) CreateProject(ctx context.Context, name, region, projectType st
 	}
 	// Required to install packages via API even if they are already present in EPR (only available in QA).
 	if os.Getenv(kibanaSkipUploadPackageValidationEnv) == "true" {
-		logger.Debug("Adding skipUploadPackageValidation kibana config")
+		logger.Debug("Adding xpack.fleet.internal.skipUploadPackageValidation kibana config")
 		reqBody.Overrides = &createProjectOverrides{
 			Kibana: createProjectKibanaOverride{
 				Config: map[string]any{
