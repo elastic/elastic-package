@@ -89,9 +89,11 @@ func TestSkipUploadPackageValidationGating(t *testing.T) {
 	}
 }
 
-// TestSkipUploadPackageValidationEnvOverride verifies that setting
-// ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true injects the flag
-// even for versions that predate 9.6.0-SNAPSHOT (backport branches).
+// TestSkipUploadPackageValidationEnvOverride verifies template rendering when
+// ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true. It does not assert
+// Kibana compatibility — that depends on the backport being present in the version.
+// The env var only activates for backport branch ranges (8.19.x, 9.4.x, 9.5.x);
+// versions outside those ranges are unaffected even when the env var is set.
 func TestSkipUploadPackageValidationEnvOverride(t *testing.T) {
 	t.Setenv(KibanaSkipUploadPackageValidationEnvVar, "true")
 
@@ -99,14 +101,19 @@ func TestSkipUploadPackageValidationEnvOverride(t *testing.T) {
 		version string
 		want    bool
 	}{
-		// Backport target branches — flag forced on via env var
+		// Outside backport range — env var must NOT apply
+		{"8.0.0", false},
+		{"8.18.0", false},
+		{"9.0.0", false},
+		{"9.3.0", false},
+		// Backport target branches — env var activates the flag
 		{"8.19.0", true},
 		{"8.19.21", true},
 		{"9.4.0", true},
 		{"9.4.6", true},
 		{"9.5.0", true},
 		{"9.5.2", true},
-		// Already covered by the version gate, still true
+		// Version gate takes over from here regardless of env var
 		{"9.6.0-SNAPSHOT", true},
 		{"9.6.0", true},
 	}
