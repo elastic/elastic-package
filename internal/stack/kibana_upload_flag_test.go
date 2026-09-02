@@ -85,14 +85,15 @@ func TestSkipUploadPackageValidationBackportEnvVar(t *testing.T) {
 		// 9.4.x: backport patch and later
 		{"9.4.7-SNAPSHOT", true},
 		{"9.4.7", true},
-		// 9.5.x: patches before the backport (elastic/kibana#287672)
+		// 9.5.x: already-released patches and 9.5.3 (RC cut without the fix)
 		{"9.5.0", false},
 		{"9.5.0-SNAPSHOT", false},
 		{"9.5.2", false},
 		{"9.5.2-SNAPSHOT", false},
+		{"9.5.3-SNAPSHOT", false},
+		{"9.5.3", false},
 		// 9.5.x: backport patch and later
-		{"9.5.3-SNAPSHOT", true},
-		{"9.5.3", true},
+		{"9.5.4-SNAPSHOT", true},
 		// 9.6.0-SNAPSHOT+ enabled by version gate regardless of env var
 		{"9.6.0-SNAPSHOT", true},
 		{"9.6.0", true},
