@@ -1,6 +1,6 @@
 FROM --platform=linux/amd64 ubuntu:24.04
 ENV GCLOUD_CLI_VERSION=582.0.0-0
-ENV TERRAFORM_VERSION=1.16.0-1
+ENV TERRAFORM_VERSION=1.16.1-1
 
 RUN apt-get -qq update \
   && apt-get install -yq curl apt-transport-https ca-certificates gnupg \
