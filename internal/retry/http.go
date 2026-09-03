@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -87,9 +87,13 @@ func checkRetry(ctx context.Context, resp *http.Response, err error) (bool, erro
 			return false, nil
 		}
 
-		var urlError *url.Error
-		if errors.As(err, &urlError) {
-			// URL is invalid, not recoverable.
+		// http.Client.Do wraps every error it returns in *url.Error, including
+		// transient transport failures such as EOF or connection reset that are
+		// worth retrying, so the wrapper itself says nothing about recoverability.
+		// Inspect the underlying error for the genuinely unrecoverable causes.
+
+		if strings.Contains(err.Error(), "unsupported protocol scheme") {
+			// Malformed request URL, not recoverable.
 			return false, nil
 		}
 
@@ -111,7 +115,9 @@ func checkRetry(ctx context.Context, resp *http.Response, err error) (bool, erro
 			return false, nil
 		}
 
-		// Consider other errors as recoverable and retry.
+		// Consider other errors, including connection-level failures such as
+		// EOF (e.g. a reused keep-alive connection closed by the server) or
+		// connection reset, as recoverable and retry.
 		return true, nil
 	}
 
