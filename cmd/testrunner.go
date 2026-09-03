@@ -483,6 +483,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
+	cmd.Flags().Int(cobraext.SetupReattemptsFlagName, 1, cobraext.SetupReattemptsFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -546,6 +547,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+	}
+
+	setupReattempts, err := cmd.Flags().GetInt(cobraext.SetupReattemptsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.SetupReattemptsFlagName)
 	}
 
 	variantFlag, err := cmd.Flags().GetString(cobraext.VariantFlagName)
@@ -677,6 +683,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		FailOnMissingTests:     failOnMissing,
 		GenerateTestResult:     generateTestResult,
 		DeferCleanup:           deferCleanup,
+		SetupReattempts:        setupReattempts,
 		GlobalTestConfig:       globalTestConfig.System,
 		WithCoverage:           testCoverage,
 		CoverageType:           testCoverageFormat,

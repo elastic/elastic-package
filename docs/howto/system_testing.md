@@ -989,6 +989,28 @@ A sample workflow would look like:
 - Run `elastic-package stack up -d -v`
 - Navigate to the package folder in integrations and run `elastic-package test system -v`
 
+### Re-attempting tests that fail during the setup phase
+
+Failures during the setup phase of a system test (policy creation, agent
+enrollment and assignment, service container startup) are usually caused by
+transient issues in the environment, such as a dropped connection to Kibana or
+a container terminated by the CI runner, and not by problems in the package
+under test.
+
+To reduce the noise caused by these failures, when a system test fails during
+the setup phase, its resources are torn down and the failing test is
+re-attempted from scratch, once by default. The number of re-attempts can be
+adjusted with the `--setup-reattempts` flag, and re-attempts can be disabled
+with `--setup-reattempts=0`.
+
+Failures during data validation (missing documents, field or mapping problems,
+unexpected hit counts) are real test signal and are never re-attempted.
+
+A test that passes only after being re-attempted is still reported as passed,
+but it is annotated as flaky: the failures of the previous attempts are
+reported in a `<flakyFailure>` element in the xUnit report, so the instability
+of the environment remains visible in aggregate.
+
 ### Running system tests without cleanup (technical preview)
 
 By default, `elastic-package test system` command always performs these steps to run tests for a given package:

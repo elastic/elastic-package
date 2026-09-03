@@ -41,6 +41,7 @@ type runner struct {
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
 	failOnMissingTests bool
 	deferCleanup       time.Duration
+	setupReattempts    int
 	generateTestResult bool
 	withCoverage       bool
 	coverageType       string
@@ -83,6 +84,7 @@ type SystemTestRunnerOptions struct {
 	FailOnMissingTests     bool
 	GenerateTestResult     bool
 	DeferCleanup           time.Duration
+	SetupReattempts        int
 	WithCoverage           bool
 	CoverageType           string
 	RequiredInputsResolver requiredinputs.Resolver
@@ -105,6 +107,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		failOnMissingTests:     options.FailOnMissingTests,
 		generateTestResult:     options.GenerateTestResult,
 		deferCleanup:           options.DeferCleanup,
+		setupReattempts:        options.SetupReattempts,
 		globalTestConfig:       options.GlobalTestConfig,
 		withCoverage:           options.WithCoverage,
 		coverageType:           options.CoverageType,
@@ -270,6 +273,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					ServiceVariant:       variant,
 					GenerateTestResult:   r.generateTestResult,
 					DeferCleanup:         r.deferCleanup,
+					SetupReattempts:      r.setupReattempts,
 					RunSetup:             r.runSetup,
 					RunTestsOnly:         r.runTestsOnly,
 					RunTearDown:          r.runTearDown,
