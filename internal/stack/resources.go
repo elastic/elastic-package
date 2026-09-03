@@ -19,6 +19,7 @@ import (
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -77,6 +78,14 @@ const (
 	configElasticSubscription                    = "stack.elastic_subscription"
 	configFleetAutoInstallTaskInterval           = "stack.fleet_auto_install_task_interval"
 	configFleetAutoInstallContentPackagesEnabled = "stack.fleet_auto_install_content_packages_enabled"
+)
+
+var (
+	// KibanaSkipUploadPackageValidationEnvVar activates xpack.fleet.internal.skipUploadPackageValidation
+	// for the backport branches. Set to "true" in CI once the backport is confirmed present in the
+	// snapshot under test. The version gates (8.19.22-SNAPSHOT, 9.4.7-SNAPSHOT, 9.5.4-SNAPSHOT) ensure
+	// the flag is only injected into snapshots that actually contain the fix.
+	KibanaSkipUploadPackageValidationEnvVar = environment.WithElasticPackagePrefix("KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION")
 )
 
 var (
@@ -211,6 +220,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"elastic_subscription":                        elasticSubscriptionProfile,
 		"fleet_auto_install_task_interval":            profile.Config(configFleetAutoInstallTaskInterval, "10m"),
 		"fleet_auto_install_content_packages_enabled": profile.Config(configFleetAutoInstallContentPackagesEnabled, "false"),
+		"skip_upload_package_validation":              os.Getenv(KibanaSkipUploadPackageValidationEnvVar),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
