@@ -193,7 +193,14 @@ xpack.fleet.outputs:
 xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
 {{- end }}
 
-{{/* TODO: extend to 8.19, 9.4, and 9.5 once elastic/kibana#286094 is backported and released in those branches */}}
-{{- if not (semverLessThan $version "9.6.0-SNAPSHOT") }}
+{{/* elastic/kibana#286094: merged in 9.6.0-SNAPSHOT; backported to 8.19.22-SNAPSHOT (elastic/kibana#287670), 9.4.7-SNAPSHOT (elastic/kibana#287671), 9.5.4-SNAPSHOT (elastic/kibana#287672).
+     Backport branches also require ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true so CI controls when activation occurs. */}}
+{{- $skipUpload := eq (fact "skip_upload_package_validation") "true" }}
+{{- if or
+    (not (semverLessThan $version "9.6.0-SNAPSHOT"))
+    (and $skipUpload (not (semverLessThan $version "8.19.22-SNAPSHOT")) (semverLessThan $version "9.0.0-SNAPSHOT"))
+    (and $skipUpload (not (semverLessThan $version "9.4.7-SNAPSHOT")) (semverLessThan $version "9.5.0-SNAPSHOT"))
+    (and $skipUpload (not (semverLessThan $version "9.5.4-SNAPSHOT")) (semverLessThan $version "9.6.0-SNAPSHOT"))
+}}
 xpack.fleet.internal.skipUploadPackageValidation: true
 {{- end }}
