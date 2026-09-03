@@ -58,6 +58,8 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 			result = fmt.Sprintf("FAIL: %s", r.FailureMsg)
 		} else if r.Skipped != nil {
 			result = fmt.Sprintf("SKIPPED: %s", r.Skipped.String())
+		} else if r.FlakyMsg != "" {
+			result = fmt.Sprintf("PASS (flaky: %s)", r.FlakyMsg)
 		} else {
 			result = "PASS"
 		}

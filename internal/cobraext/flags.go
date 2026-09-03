@@ -298,6 +298,9 @@ const (
 	SetupFlagName        = "setup"
 	SetupFlagDescription = "trigger just the setup phase of testing"
 
+	SetupReattemptsFlagName        = "setup-reattempts"
+	SetupReattemptsFlagDescription = "number of times a test that fails during the setup phase is re-attempted from scratch, set to 0 to disable re-attempts"
+
 	TearDownFlagName        = "tear-down"
 	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 

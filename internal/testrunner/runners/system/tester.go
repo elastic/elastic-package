@@ -216,9 +216,10 @@ type tester struct {
 
 	fieldValidationMethod fieldValidationMethod
 
-	deferCleanup   time.Duration
-	serviceVariant string
-	configFileName string
+	deferCleanup    time.Duration
+	serviceVariant  string
+	configFileName  string
+	setupReattempts int
 
 	runSetup     bool
 	runTearDown  bool
@@ -273,6 +274,11 @@ type SystemTesterOptions struct {
 	WithCoverage     bool
 	CoverageType     string
 
+	// SetupReattempts is the number of times a test is re-attempted, from
+	// scratch, if it fails during the setup phase. Failures during data
+	// validation are never re-attempted.
+	SetupReattempts int
+
 	RunSetup     bool
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -291,6 +297,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
 		configFileName:             options.ConfigFileName,
+		setupReattempts:            max(0, options.SetupReattempts),
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
@@ -733,30 +740,90 @@ func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []t
 	return results, nil
 }
 
+// errSetupFailed marks failures that happen while preparing the test scenario
+// (policy creation, agent enrollment and assignment, service startup), before
+// any data validation takes place. These failures are usually caused by
+// transient issues in the environment, so tests failing this way can be
+// re-attempted.
+type errSetupFailed struct {
+	err error
+}
+
+func (e errSetupFailed) Error() string {
+	return fmt.Sprintf("test setup failed: %v", e.err)
+}
+
+func (e errSetupFailed) Unwrap() error {
+	return e.err
+}
+
 func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
-	svcInfo, err := r.createServiceInfo()
-	if err != nil {
-		return result.WithError(err)
-	}
+	attempt := func() (partial []testrunner.TestResult, runErr, tdErr error) {
+		svcInfo, err := r.createServiceInfo()
+		if err != nil {
+			partial, err := result.WithError(err)
+			return partial, err, nil
+		}
 
-	configFile := filepath.Join(r.testFolder.Path, cfgFile)
-	testConfig, err := newConfig(configFile, svcInfo, variantName)
-	if err != nil {
-		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
-	}
-	logger.Debugf("Using config: %q", testConfig.Name())
+		configFile := filepath.Join(r.testFolder.Path, cfgFile)
+		testConfig, err := newConfig(configFile, svcInfo, variantName)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err), nil
+		}
+		logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
+		partial, err = r.runTest(ctx, testConfig, stackConfig, svcInfo)
 
-	skipDeferCleanup := len(partial) > 0 && partial[0].Skipped != nil
-	tdErr := r.tearDownTest(ctx, skipDeferCleanup)
-	if err != nil {
-		return partial, err
+		skipDeferCleanup := len(partial) > 0 && partial[0].Skipped != nil
+		return partial, err, r.tearDownTest(ctx, skipDeferCleanup)
 	}
-	if tdErr != nil {
-		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
+	return runWithSetupReattempts(ctx, r.setupReattempts, attempt)
+}
+
+// runWithSetupReattempts runs a test attempt and, if it fails during the setup
+// phase, tears it down and re-attempts it from scratch up to the given number
+// of re-attempts. A test that eventually passes is annotated as flaky, so the
+// instability remains visible even if it doesn't fail the run anymore.
+func runWithSetupReattempts(ctx context.Context, reattempts int, attempt func() (partial []testrunner.TestResult, runErr, tdErr error)) ([]testrunner.TestResult, error) {
+	maxAttempts := 1 + reattempts
+	var setupFailures []string
+	for attemptNum := 1; ; attemptNum++ {
+		partial, err, tdErr := attempt()
+
+		var setupErr errSetupFailed
+		if errors.As(err, &setupErr) {
+			// Setup failures are already reported as part of the test results,
+			// they are not returned as hard errors to the caller.
+			err = nil
+
+			// Re-attempt the test from scratch, but only if the failure didn't
+			// come from a cancellation and the previous attempt could be torn
+			// down, so the new attempt starts from a clean environment.
+			if attemptNum < maxAttempts && ctx.Err() == nil && tdErr == nil {
+				failure := fmt.Sprintf("attempt %d of %d failed during setup: %v", attemptNum, maxAttempts, setupErr.Unwrap())
+				setupFailures = append(setupFailures, failure)
+				logger.Warnf("re-attempting test (%s)", failure)
+				continue
+			}
+		}
+		if err != nil {
+			return partial, err
+		}
+		if tdErr != nil {
+			return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
+		}
+
+		// If the test finally passed after failing setup in previous attempts,
+		// keep the flakiness visible in the results.
+		if len(setupFailures) > 0 && len(partial) > 0 && testPassed(partial[0]) {
+			partial[0].FlakyMsg = strings.Join(setupFailures, "; ")
+		}
+		return partial, nil
 	}
-	return partial, nil
+}
+
+func testPassed(result testrunner.TestResult) bool {
+	return result.ErrorMsg == "" && result.FailureMsg == "" && result.Skipped == nil
 }
 
 func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, dataStreamName string) (bool, error) {
@@ -2120,7 +2187,16 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 		}
 		// report all other errors as error entries in the xUnit file
 		results, _ := result.WithError(err)
-		return results, nil
+
+		// Test case failures (e.g. expected documents did not arrive) are
+		// real test signal, never re-attempted. Any other error during the
+		// preparation of the scenario is considered an environment issue and
+		// returned as a sentinel error so the caller can re-attempt the test.
+		var tcf testrunner.ErrTestCaseFailed
+		if errors.As(err, &tcf) {
+			return results, nil
+		}
+		return results, errSetupFailed{err: err}
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
