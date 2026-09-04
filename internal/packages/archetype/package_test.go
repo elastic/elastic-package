@@ -35,6 +35,48 @@ func TestPackage(t *testing.T) {
 		pd := createPackageDescriptorForTest("content", "^8.16.0")
 		createAndCheckPackage(t, pd, true)
 	})
+	t.Run("blueprint-package", func(t *testing.T) {
+		pd := createPackageDescriptorForTest("blueprint", "^8.0.0")
+		createAndCheckBlueprintPackage(t, pd)
+	})
+}
+
+// createAndCheckBlueprintPackage verifies blueprint scaffolding and package-root
+// detection. Full package-spec validation is skipped until package-spec publishes
+// the blueprint type (elastic/package-spec#1209).
+func createAndCheckBlueprintPackage(t *testing.T, pd PackageDescriptor) {
+	t.Helper()
+
+	repositoryRoot, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
+	defer repositoryRoot.Close()
+
+	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
+	err = createPackageInDir(pd, packagesDir)
+	require.NoError(t, err)
+
+	packageRoot := filepath.Join(packagesDir, pd.Manifest.Name)
+	root, err := packages.FindPackageRootFrom(packageRoot)
+	require.NoError(t, err)
+	assert.Equal(t, packageRoot, root)
+
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	require.NoError(t, err)
+	assert.Equal(t, "blueprint", manifest.Type)
+	assert.Empty(t, manifest.Categories)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(packageRoot, packages.PackageManifestFile))
+	require.NoError(t, err)
+	assert.NotContains(t, string(manifestBytes), "icons:")
+	assert.NotContains(t, string(manifestBytes), "screenshots:")
+	assert.NotContains(t, string(manifestBytes), "categories:")
+
+	_, err = os.Stat(filepath.Join(packageRoot, "blueprints", "aws", "federated-identity", "account.cloudformation.json"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(packageRoot, "img"))
+	require.ErrorIs(t, err, os.ErrNotExist)
+	_, err = os.Stat(filepath.Join(packageRoot, "_dev"))
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
