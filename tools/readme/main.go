@@ -95,10 +95,14 @@ func generateReadme(readmeTmpl *template.Template, cmdsDoc string) {
 	if err != nil {
 		log.Fatalf("Opening README file %s failed: %v", readmePath, err)
 	}
-	defer readme.Close()
-
+	// Close readme explicitly (no defer) because this function may call log.Fatalf,
+	// which exits the process and skips deferred calls.
 	r := readmeVars{cmdsDoc}
 	if err := readmeTmpl.Execute(readme, r); err != nil {
+		_ = readme.Close()
 		log.Fatalf("Writing README file %s failed: %v", readmePath, err)
+	}
+	if err := readme.Close(); err != nil {
+		log.Fatalf("Closing README file %s failed: %v", readmePath, err)
 	}
 }

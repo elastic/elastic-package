@@ -67,11 +67,12 @@ func fetchKey(url string) ([]byte, string) {
 	if err != nil {
 		log.Fatalf("GET %s: %v", url, err)
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close() // log.Fatalf exits the process; defer would not run.
 		log.Fatalf("GET %s: unexpected status %d", url, resp.StatusCode)
 	}
 	data, err := io.ReadAll(resp.Body)
+	resp.Body.Close() // both log.Fatalf (exit) and normal return are below; defer would not run.
 	if err != nil {
 		log.Fatalf("reading response body: %v", err)
 	}
