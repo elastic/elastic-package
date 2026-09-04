@@ -39,7 +39,7 @@ steps:
     agents:
       provider: "gcp"
     plugins:
-      # required to create Github releases
+      # required to create GitHub releases
       - elastic/vault-github-token#v0.1.0:
 
   - group: ":go: Run Unit tests"
