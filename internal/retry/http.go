@@ -11,7 +11,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -92,9 +94,26 @@ func checkRetry(ctx context.Context, resp *http.Response, err error) (bool, erro
 		// worth retrying, so the wrapper itself says nothing about recoverability.
 		// Inspect the underlying error for the genuinely unrecoverable causes.
 
-		if strings.Contains(err.Error(), "unsupported protocol scheme") {
-			// Malformed request URL, not recoverable.
+		if errors.Is(err, http.ErrSchemeMismatch) {
+			// Server returned HTTP to an HTTPS client — a configuration error.
 			return false, nil
+		}
+
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			// Go's stdlib does not export a typed error for unsupported protocol
+			// scheme, so match on the inner error string only (not the full
+			// url.Error string which embeds the URL and could produce false matches).
+			if strings.Contains(urlErr.Err.Error(), "unsupported protocol scheme") {
+				return false, nil
+			}
+
+			// Permanent DNS failure (NXDOMAIN). IsNotFound distinguishes it from
+			// transient resolver hiccups, which should still be retried.
+			var dnsErr *net.DNSError
+			if errors.As(urlErr.Err, &dnsErr) && dnsErr.IsNotFound {
+				return false, nil
+			}
 		}
 
 		var certVerificationError *tls.CertificateVerificationError

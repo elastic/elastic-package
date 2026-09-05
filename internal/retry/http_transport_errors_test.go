@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -20,6 +21,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// transientDNSError simulates a DNS failure that is NOT a permanent NXDOMAIN,
+// e.g. a transient resolver timeout.
+func transientDNSError(host string) error {
+	return &url.Error{Op: "Get", URL: "https://" + host + "/", Err: &net.DNSError{
+		Name:       host,
+		IsNotFound: false, // transient, not NXDOMAIN
+	}}
+}
+
+// permanentDNSError simulates a permanent NXDOMAIN failure.
+func permanentDNSError(host string) error {
+	return &url.Error{Op: "Get", URL: "https://" + host + "/", Err: &net.DNSError{
+		Name:       host,
+		IsNotFound: true,
+	}}
+}
 
 // TestCheckRetryTransientConnectionErrors feeds checkRetry the error shapes
 // http.Client.Do produces for transport-level failures, which are always
@@ -34,6 +52,7 @@ func TestCheckRetryTransientConnectionErrors(t *testing.T) {
 		{"unexpected EOF", &url.Error{Op: "Post", URL: "https://127.0.0.1:5601/api/fleet/package_policies", Err: io.ErrUnexpectedEOF}},
 		{"connection reset by peer", &url.Error{Op: "Get", URL: "https://127.0.0.1:5601/api/status", Err: syscall.ECONNRESET}},
 		{"connection refused", &url.Error{Op: "Get", URL: "https://127.0.0.1:5601/api/status", Err: syscall.ECONNREFUSED}},
+		{"transient DNS failure (not NXDOMAIN)", transientDNSError("kibana.example.internal")},
 	}
 
 	for _, c := range cases {
@@ -58,6 +77,8 @@ func TestCheckRetryUnrecoverableTransportErrors(t *testing.T) {
 		{"invalid certificate", &url.Error{Op: "Get", URL: "https://example.com", Err: &x509.CertificateInvalidError{Reason: x509.Expired}}},
 		{"unsupported protocol scheme", &url.Error{Op: "Get", URL: "ftp://example.com", Err: errors.New(`unsupported protocol scheme "ftp"`)}},
 		{"too many redirects", &url.Error{Op: "Get", URL: "http://example.com", Err: errTooManyRedirects}},
+		{"permanent DNS failure (NXDOMAIN)", permanentDNSError("does-not-exist.example.com")},
+		{"HTTP response to HTTPS client", fmt.Errorf("tls handshake: %w", http.ErrSchemeMismatch)},
 	}
 
 	for _, c := range cases {
