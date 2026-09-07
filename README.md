@@ -931,10 +931,10 @@ There are available some environment variables that could be used to change some
 `elastic-package` settings:
 
 - Related to `docker-compose` / `docker compose` commands:
-    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT`: If set to `true`, it disables the progress output from `docker compose`/`docker-compose` commands.
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT`: If set to `true`, it reduces the output from `docker compose`/`docker-compose` commands further.
         - For versions v2 `< 2.19.0`, it sets `--ansi never` flag.
         - For all versions, it sets `--quiet-pull` for `up` sub-command.
-        - `--progress plain` is always set for versions v2 `>= 2.19.0`, regardless of this variable: Compose is run without a terminal on its standard output, and recent versions fail to render interactive progress there.
+        - Independently of this variable, `--progress plain` is always set for versions v2 `>= 2.19.0`: Compose is run without a terminal on its standard output, and recent versions fail to render interactive progress there.
 
 
 - Related to global `elastic-package` settings:
