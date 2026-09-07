@@ -208,11 +208,11 @@ func NewProject(name string, paths ...string) (*Project, error) {
 
 	// Compose is never given a terminal to draw on: on Unix it runs under a pseudo-terminal
 	// so that its messages can be captured, but stdout is discarded unless in debug mode.
-	// Recent versions decide to render interactive progress from stderr being a terminal
-	// and then require stdout to be one as well, failing every build with "failed to get
-	// console: provided file is not a console" (observed with Docker Compose v5.5.1, see
-	// https://github.com/docker/compose/issues/13363). Plain progress is also what ends up
-	// in logs and error messages, so it is the right default and not only a CI setting.
+	// Docker Compose v5.5.1 decides to render interactive progress from stderr being a
+	// terminal and then requires stdout to be one as well, failing every build with "failed
+	// to get console: provided file is not a console" (docker/compose#14182, fixed upstream
+	// after v5.5.1 by docker/compose#14194). Plain progress is also what ends up in logs and
+	// error messages, so it is the right default and not only a CI setting.
 	c.progressOutput = composeProgressOutput(c.composeVersion)
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
