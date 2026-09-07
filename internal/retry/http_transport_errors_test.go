@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync/atomic"
-	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,8 +49,8 @@ func TestCheckRetryTransientConnectionErrors(t *testing.T) {
 	}{
 		{"EOF (stale keep-alive close)", &url.Error{Op: "Post", URL: "https://127.0.0.1:5601/api/fleet/agent_policies", Err: io.EOF}},
 		{"unexpected EOF", &url.Error{Op: "Post", URL: "https://127.0.0.1:5601/api/fleet/package_policies", Err: io.ErrUnexpectedEOF}},
-		{"connection reset by peer", &url.Error{Op: "Get", URL: "https://127.0.0.1:5601/api/status", Err: syscall.ECONNRESET}},
-		{"connection refused", &url.Error{Op: "Get", URL: "https://127.0.0.1:5601/api/status", Err: syscall.ECONNREFUSED}},
+		{"connection reset by peer", &url.Error{Op: "Get", URL: "https://127.0.0.1:5601/api/status", Err: errors.New("connection reset by peer")}},
+		{"connection refused", &url.Error{Op: "Get", URL: "https://127.0.0.1:5601/api/status", Err: errors.New("connection refused")}},
 		{"transient DNS failure (not NXDOMAIN)", transientDNSError("kibana.example.internal")},
 	}
 
