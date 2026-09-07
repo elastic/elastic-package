@@ -31,6 +31,17 @@ steps:
       cpu: "8"
       memory: "4G"
 
+  - label: ":github: Release"
+    key: "release"
+    if: |
+      build.tag =~ /^v[0-9]+[.][0-9]+[.][0-9]+$$/
+    command: ".buildkite/scripts/release.sh"
+    agents:
+      provider: "gcp"
+    plugins:
+      # required to create GitHub releases
+      - elastic/vault-github-token#v0.1.0:
+
   - group: ":go: Run Unit tests"
     key: unit-tests
     steps:
@@ -116,14 +127,3 @@ steps:
           report-skipped: true
           always-annotate: true
           run-in-docker: false
-
-  - label: ":github: Release"
-    key: "release"
-    if: |
-      build.tag =~ /^v[0-9]+[.][0-9]+[.][0-9]+$$/
-    command: ".buildkite/scripts/release.sh"
-    agents:
-      provider: "gcp"
-    plugins:
-      # required to create Github releases
-      - elastic/vault-github-token#v0.1.0:
