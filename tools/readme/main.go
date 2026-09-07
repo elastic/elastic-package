@@ -104,7 +104,7 @@ func generateReadme(readmeTmpl *template.Template, cmdsDoc string) (err error) {
 	}()
 
 	r := readmeVars{cmdsDoc}
-	if err := readmeTmpl.Execute(readme, r); err != nil {
+	if err = readmeTmpl.Execute(readme, r); err != nil {
 		return fmt.Errorf("writing README file %s: %w", readmePath, err)
 	}
 	return nil
