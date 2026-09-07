@@ -99,7 +99,7 @@ func generateReadme(readmeTmpl *template.Template, cmdsDoc string) (err error) {
 	}
 	defer func() {
 		if cerr := readme.Close(); cerr != nil && err == nil {
-			err = cerr
+			err = fmt.Errorf("closing README file %s: %w", readmePath, cerr)
 		}
 	}()
 
