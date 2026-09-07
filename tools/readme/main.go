@@ -22,7 +22,9 @@ func main() {
 	commandsDoc := generateCommandsDoc(commandTemplate, subCommandTemplate)
 
 	readmeTemplate := loadReadmeTemplate()
-	generateReadme(readmeTemplate, commandsDoc.String())
+	if err := generateReadme(readmeTemplate, commandsDoc.String()); err != nil {
+		log.Fatalf("generating README: %v", err)
+	}
 
 	fmt.Println("README.md successfully written")
 }
@@ -85,24 +87,25 @@ func loadReadmeTemplate() *template.Template {
 	return readmeTmpl
 }
 
-func generateReadme(readmeTmpl *template.Template, cmdsDoc string) {
+func generateReadme(readmeTmpl *template.Template, cmdsDoc string) (err error) {
 	readmePath, err := filepath.Abs("../../README.md")
 	if err != nil {
-		log.Fatalf("Creating README absolute file path failed: %v", err)
+		return fmt.Errorf("creating README absolute file path: %w", err)
 	}
 
-	readme, err := os.OpenFile(readmePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	readme, err := os.OpenFile(readmePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
-		log.Fatalf("Opening README file %s failed: %v", readmePath, err)
+		return fmt.Errorf("opening README file %s: %w", readmePath, err)
 	}
-	// Close readme explicitly (no defer) because this function may call log.Fatalf,
-	// which exits the process and skips deferred calls.
+	defer func() {
+		if cerr := readme.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
+
 	r := readmeVars{cmdsDoc}
 	if err := readmeTmpl.Execute(readme, r); err != nil {
-		_ = readme.Close()
-		log.Fatalf("Writing README file %s failed: %v", readmePath, err)
+		return fmt.Errorf("writing README file %s: %w", readmePath, err)
 	}
-	if err := readme.Close(); err != nil {
-		log.Fatalf("Closing README file %s failed: %v", readmePath, err)
-	}
+	return nil
 }

@@ -35,7 +35,10 @@ func main() {
 	oldFingerprint := readCurrentFingerprint(keyFileName)
 
 	log.Printf("Fetching key from %s ...", upstreamKeyURL)
-	keyBytes, newFingerprint := fetchKey(upstreamKeyURL)
+	keyBytes, newFingerprint, err := fetchKey(upstreamKeyURL)
+	if err != nil {
+		log.Fatalf("fetching key: %v", err)
+	}
 
 	if err := os.WriteFile(keyFileName, keyBytes, 0o644); err != nil {
 		log.Fatalf("writing %s: %v", keyFileName, err)
@@ -62,31 +65,34 @@ func main() {
 
 // fetchKey downloads the armored GPG key from url, validates it parses as an
 // OpenPGP public key, and returns the raw bytes and its fingerprint.
-func fetchKey(url string) ([]byte, string) {
+func fetchKey(url string) ([]byte, string, error) {
 	resp, err := http.Get(url) //nolint:noctx
 	if err != nil {
-		log.Fatalf("GET %s: %v", url, err)
+		return nil, "", fmt.Errorf("GET %s: %w", url, err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close() // log.Fatalf exits the process; defer would not run.
-		log.Fatalf("GET %s: unexpected status %d", url, resp.StatusCode)
+		return nil, "", fmt.Errorf("GET %s: unexpected status %d", url, resp.StatusCode)
 	}
 	data, err := io.ReadAll(resp.Body)
-	resp.Body.Close() // both log.Fatalf (exit) and normal return are below; defer would not run.
 	if err != nil {
-		log.Fatalf("reading response body: %v", err)
+		return nil, "", fmt.Errorf("reading response body: %w", err)
 	}
-	return data, mustFingerprint(data)
+	fp, err := fingerprint(data)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, fp, nil
 }
 
-// mustFingerprint parses keyBytes as an armored OpenPGP public key and returns
-// the primary key fingerprint. Calls log.Fatal on any parse error.
-func mustFingerprint(keyBytes []byte) string {
+// fingerprint parses keyBytes as an armored OpenPGP public key and returns
+// the primary key fingerprint.
+func fingerprint(keyBytes []byte) (string, error) {
 	key, err := crypto.NewKeyFromArmored(string(keyBytes))
 	if err != nil {
-		log.Fatalf("parsing GPG key: %v", err)
+		return "", fmt.Errorf("parsing GPG key: %w", err)
 	}
-	return strings.ToUpper(key.GetFingerprint())
+	return strings.ToUpper(key.GetFingerprint()), nil
 }
 
 // readCurrentFingerprint returns the fingerprint of the key currently stored
