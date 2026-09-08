@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -98,9 +99,11 @@ func generateReadme(readmeTmpl *template.Template, cmdsDoc string) (err error) {
 		return fmt.Errorf("opening README file %s: %w", readmePath, err)
 	}
 	defer func() {
-		if cerr := readme.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("closing README file %s: %w", readmePath, cerr)
+		cerr := readme.Close()
+		if cerr != nil {
+			cerr = fmt.Errorf("closing README file %s: %w", readmePath, cerr)
 		}
+		err = errors.Join(err, cerr)
 	}()
 
 	r := readmeVars{cmdsDoc}
