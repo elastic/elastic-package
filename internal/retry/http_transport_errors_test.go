@@ -89,10 +89,10 @@ func TestCheckRetryUnrecoverableTransportErrors(t *testing.T) {
 	}
 }
 
-// flakyConnectionServer accepts TCP connections and closes the first
-// failures of them without writing a response — the observable behavior of a
-// server-side keep-alive close race — and serves a minimal HTTP 200 response
-// afterwards. It returns the address and a counter of accepted connections.
+// flakyConnectionServer accepts TCP connections and closes the first N without
+// responding — the observable behavior of a server-side keep-alive close race —
+// then serves a minimal HTTP 200 response for all subsequent connections.
+// It returns the listener address and an atomic counter of accepted connections.
 func flakyConnectionServer(t *testing.T, failures int32) (addr string, attempts *atomic.Int32) {
 	t.Helper()
 

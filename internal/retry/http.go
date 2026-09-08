@@ -104,7 +104,7 @@ func checkRetry(ctx context.Context, resp *http.Response, err error) (bool, erro
 			// Go's stdlib does not export a typed error for unsupported protocol
 			// scheme, so match on the inner error string only (not the full
 			// url.Error string which embeds the URL and could produce false matches).
-			if strings.Contains(urlErr.Err.Error(), "unsupported protocol scheme") {
+			if urlErr.Err != nil && strings.Contains(urlErr.Err.Error(), "unsupported protocol scheme") {
 				return false, nil
 			}
 
