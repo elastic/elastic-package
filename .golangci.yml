@@ -26,6 +26,7 @@ linters:
       disable-all: true
       enabled-checks:
         - appendAssign
+        - exitAfterDefer
         - offBy1
 
         # Enabled for the custom rules below.
