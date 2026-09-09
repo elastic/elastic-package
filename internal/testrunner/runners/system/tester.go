@@ -856,7 +856,17 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		return &hits{}, nil
 	}
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
+		body := resp.String()
+		if resp.StatusCode == http.StatusBadRequest {
+			var errBody elasticsearch.ErrorBody
+			if err := json.Unmarshal([]byte(body), &errBody); err == nil {
+				if errBody.Error.Type == "search_phase_execution_exception" && errBody.Error.Reason == "all shards failed" {
+					// Transient shard failure during index creation, retry.
+					return &hits{}, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, body)
 	}
 
 	var results FieldsQueryResult
