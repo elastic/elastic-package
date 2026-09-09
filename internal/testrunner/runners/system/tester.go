@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -856,18 +857,21 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		return &hits{}, nil
 	}
 	if resp.IsError() {
-		body := resp.String()
+		// Read raw bytes instead of resp.String(): resp.String() prepends "[STATUS_CODE STATUS_TEXT] "
+		// to the body, making json.Unmarshal fail on the prefixed string.
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode == http.StatusBadRequest {
 			var errBody elasticsearch.ErrorBody
-			if err := json.Unmarshal([]byte(body), &errBody); err == nil {
-				if errBody.Error.Type == "search_phase_execution_exception" && errBody.Error.Reason == "all shards failed" {
-					// Transient shard failure during index creation, retry.
-					logger.Debugf("Transient shard failure while searching %s, retrying: %s", dataStream, body)
-					return &hits{}, nil
-				}
+			if json.Unmarshal(bodyBytes, &errBody) == nil &&
+				errBody.Error.Type == "search_phase_execution_exception" &&
+				errBody.Error.Reason == "all shards failed" {
+				// Transient shard failure during index creation, retry.
+				logger.Debugf("Transient shard failure while searching %s, retrying: %s", dataStream, string(bodyBytes))
+				return &hits{}, nil
 			}
 		}
-		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, body)
+		return nil, fmt.Errorf("failed to search docs for data stream %s: [%d %s] %s",
+			dataStream, resp.StatusCode, http.StatusText(resp.StatusCode), string(bodyBytes))
 	}
 
 	var results FieldsQueryResult
