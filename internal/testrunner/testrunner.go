@@ -499,7 +499,7 @@ func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
 	switch manifest.Type {
 	case "integration":
 		return true, nil
-	case "input", "content":
+	case "input", "content", "blueprint":
 		return false, nil
 	default:
 		return false, fmt.Errorf("unexpected package type %q", manifest.Type)

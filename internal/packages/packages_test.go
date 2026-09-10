@@ -6,6 +6,7 @@ package packages
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -382,4 +383,62 @@ latest:
 			}
 		})
 	}
+}
+
+func TestFindPackageRootFrom_AllowedPackageTypes(t *testing.T) {
+	for _, pkgType := range AllowedPackageTypes {
+		t.Run(pkgType, func(t *testing.T) {
+			packageDir := t.TempDir()
+			manifest := fmt.Sprintf(`format_version: 3.6.6
+name: test_%s_pkg
+title: Test %s Package
+description: Test package for FindPackageRootFrom.
+version: 0.0.1
+type: %s
+owner:
+  github: elastic/integrations
+  type: elastic
+`, pkgType, pkgType, pkgType)
+			err := os.WriteFile(filepath.Join(packageDir, PackageManifestFile), []byte(manifest), 0o644)
+			require.NoError(t, err)
+
+			root, err := FindPackageRootFrom(packageDir)
+			require.NoError(t, err)
+			assert.Equal(t, packageDir, root)
+		})
+	}
+
+	t.Run("unknown type is not a package root", func(t *testing.T) {
+		packageDir := t.TempDir()
+		manifest := `format_version: 3.6.6
+name: test_unknown_pkg
+title: Test Unknown Package
+description: Should not be recognized as a package root.
+version: 0.0.1
+type: unknown
+owner:
+  github: elastic/integrations
+  type: elastic
+`
+		err := os.WriteFile(filepath.Join(packageDir, PackageManifestFile), []byte(manifest), 0o644)
+		require.NoError(t, err)
+
+		_, err = FindPackageRootFrom(packageDir)
+		require.ErrorIs(t, err, ErrPackageRootNotFound)
+	})
+}
+
+func TestAllowedPackageTypesIncludesBlueprint(t *testing.T) {
+	assert.Contains(t, AllowedPackageTypes, "blueprint")
+}
+
+func TestFindPackageRootFrom_BlueprintFixture(t *testing.T) {
+	packageRoot := filepath.Join("testdata", "blueprint")
+	root, err := FindPackageRootFrom(packageRoot)
+	require.NoError(t, err)
+	assert.Equal(t, packageRoot, root)
+
+	manifest, err := ReadPackageManifestFromPackageRoot(root)
+	require.NoError(t, err)
+	assert.Equal(t, "blueprint", manifest.Type)
 }
