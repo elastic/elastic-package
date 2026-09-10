@@ -108,6 +108,15 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			expectedErr:   "cannot load config",
 		},
 		{
+			title:      "context cancellation from runTest is returned directly without re-attempt",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: context.Canceled},
+			},
+			expectedCalls: 1,
+			expectedErr:   "context canceled",
+		},
+		{
 			title:      "no re-attempt if teardown of the failed attempt failed",
 			reattempts: 3,
 			outcomes: []attemptOutcome{

@@ -2196,6 +2196,9 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 		if errors.As(err, &tcf) {
 			return results, nil
 		}
+		if ctx.Err() != nil {
+			return results, ctx.Err()
+		}
 		return results, errSetupFailed{err: err}
 	}
 
