@@ -2188,14 +2188,13 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 		// report all other errors as error entries in the xUnit file
 		results, _ := result.WithError(err)
 
-		// Test case failures (e.g. expected documents did not arrive) are
-		// real test signal, never re-attempted. Any other error during the
-		// preparation of the scenario is considered an environment issue and
-		// returned as a sentinel error so the caller can re-attempt the test.
-		var tcf testrunner.ErrTestCaseFailed
-		if errors.As(err, &tcf) {
-			return results, nil
-		}
+		// All errors from prepareScenario are environment issues and should be
+		// re-attempted. Note: ErrTestCaseFailed can reach here from
+		// verifyDataStream (service exited non-zero) or waitForDocs (no hits
+		// within the timeout), both of which are setup-phase events.
+		// validateTestScenario failures are never returned as Go errors — they
+		// are captured in result.FailureMsg via result.WithError — so there is
+		// no validation signal to guard against here.
 		if ctx.Err() != nil {
 			return results, ctx.Err()
 		}

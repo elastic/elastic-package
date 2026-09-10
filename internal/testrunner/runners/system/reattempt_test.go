@@ -83,12 +83,39 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			},
 		},
 		{
-			title:      "validation failure is never re-attempted",
+			// validateTestScenario failures surface as FailureMsg in the result
+			// (nil runErr), not as errSetupFailed, so they are never re-attempted.
+			title:      "validateTestScenario failure (FailureMsg set, nil error) is never re-attempted",
 			reattempts: 3,
 			outcomes: []attemptOutcome{
 				{result: failedResult},
 			},
 			expectedCalls: 1,
+		},
+		{
+			// A bare ErrTestCaseFailed Go error (not wrapped in errSetupFailed) is
+			// treated as a hard error and returned immediately without re-attempt.
+			// validateTestScenario never produces this shape (it uses result.WithError
+			// which returns nil), but the boundary is explicit here for safety.
+			title:      "bare ErrTestCaseFailed Go error is a hard error, not re-attempted",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: failedResult, runErr: testrunner.ErrTestCaseFailed{Reason: "field mismatch"}},
+			},
+			expectedCalls: 1,
+			expectedErr:   "field mismatch",
+		},
+		{
+			// ErrTestCaseFailed from prepareScenario (service exit, no hits found)
+			// is a setup-phase environment failure and must be re-attempted.
+			title:      "prepareScenario ErrTestCaseFailed (service exit) is re-attempted",
+			reattempts: 1,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: errSetupFailed{err: testrunner.ErrTestCaseFailed{Reason: "the test service svc unexpectedly exited with code 143"}}},
+				{result: passResult},
+			},
+			expectedCalls: 2,
+			expectedFlaky: true,
 		},
 		{
 			title:      "re-attempts disabled",
