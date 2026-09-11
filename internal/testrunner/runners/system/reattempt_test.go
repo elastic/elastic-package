@@ -106,12 +106,12 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			expectedErr:   "field mismatch",
 		},
 		{
-			// Service exit during verifyDataStream is a plain error wrapped as
-			// errSetupFailed (not ErrTestCaseFailed) so it is re-attempted.
+			// Service exit during verifyDataStream is classified by runTest as
+			// errSetupFailed (see setupReattemptError) so it is re-attempted.
 			title:      "service exit during setup is re-attempted",
 			reattempts: 1,
 			outcomes: []attemptOutcome{
-				{result: setupResult, runErr: errSetupFailed{err: fmt.Errorf("the test service svc unexpectedly exited with code 143")}},
+				{result: setupResult, runErr: errSetupFailed{err: errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service svc unexpectedly exited with code 143"}}}},
 				{result: passResult},
 			},
 			expectedCalls: 2,
@@ -219,4 +219,50 @@ func TestErrSetupFailedWrapping(t *testing.T) {
 	require.ErrorAs(t, err, &setupErr)
 	assert.ErrorIs(t, err, cause)
 	assert.Equal(t, cause, setupErr.Unwrap())
+}
+
+func TestSetupReattemptError(t *testing.T) {
+	serviceExited := errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service failing unexpectedly exited with code 1"}}
+
+	cases := []struct {
+		title       string
+		err         error
+		reattempted bool
+	}{
+		{"environment error", errors.New("service is unhealthy: container exited with code 143"), true},
+		{"wrapped environment error", fmt.Errorf("can't check enrolled agents: %w", context.DeadlineExceeded), true},
+		{"service exited", serviceExited, true},
+		{"wrapped service exited", fmt.Errorf("finalize: %w", serviceExited), true},
+		{"no hits found", testrunner.ErrTestCaseFailed{Reason: "could not find the expected hits in logs-foo data stream"}, false},
+		{"wrapped test case failure", fmt.Errorf("finalize: %w", testrunner.ErrTestCaseFailed{Reason: "no data streams matching logs-foo-* appeared"}), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			err := setupReattemptError(c.err)
+			if !c.reattempted {
+				assert.NoError(t, err, "test signal must not be re-attempted")
+				return
+			}
+			var setupErr errSetupFailed
+			require.ErrorAs(t, err, &setupErr, "environment failures must be marked for re-attempt")
+			assert.Equal(t, c.err, setupErr.Unwrap())
+		})
+	}
+}
+
+// TestServiceExitedReportedAsFailure guards the reporting contract checked by
+// the docker_failing_test_service false-positive test: a service exiting
+// unexpectedly is still a test case failure (xUnit <failure>) with the same
+// message as before, even though it is now re-attemptable.
+func TestServiceExitedReportedAsFailure(t *testing.T) {
+	err := errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service failing unexpectedly exited with code 1"}}
+
+	result := testrunner.NewResultComposer(testrunner.TestResult{Name: "fail"})
+	results, resultErr := result.WithError(err)
+	require.NoError(t, resultErr)
+	require.Len(t, results, 1)
+
+	assert.Equal(t, "test case failed: the test service failing unexpectedly exited with code 1", results[0].FailureMsg)
+	assert.Empty(t, results[0].ErrorMsg)
 }

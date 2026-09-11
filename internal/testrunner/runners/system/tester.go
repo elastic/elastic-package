@@ -758,6 +758,46 @@ func (e errSetupFailed) Unwrap() error {
 	return e.err
 }
 
+// errServiceExited marks a test service that exited with a non-zero code
+// while waiting for data. It unwraps to an ErrTestCaseFailed so it keeps
+// being reported as a test case failure, as it has always been, but it is
+// classified as a setup-phase environment failure for re-attempt purposes.
+type errServiceExited struct {
+	err testrunner.ErrTestCaseFailed
+}
+
+func (e errServiceExited) Error() string {
+	return e.err.Error()
+}
+
+func (e errServiceExited) Unwrap() error {
+	return e.err
+}
+
+// setupReattemptError classifies an error returned by prepareScenario. It
+// returns errSetupFailed when the test can be re-attempted, and nil when the
+// error is real test signal that must only be reported in the results.
+//
+// ErrTestCaseFailed from prepareScenario (e.g. waitForDocs timeout: no hits,
+// assert.hit_count/min_count/fields_present not satisfied; or no data streams
+// discovered) is never re-attempted. The only exception is the test service
+// exiting unexpectedly (errServiceExited), which is an environment failure.
+//
+// validateTestScenario failures are never returned as Go errors, they are
+// captured in result.FailureMsg via result.WithError, so there is no risk of
+// re-attempting real validation failures here.
+func setupReattemptError(err error) error {
+	var svcExited errServiceExited
+	if errors.As(err, &svcExited) {
+		return errSetupFailed{err: err}
+	}
+	var tcf testrunner.ErrTestCaseFailed
+	if errors.As(err, &tcf) {
+		return nil
+	}
+	return errSetupFailed{err: err}
+}
+
 // runTestPerVariant runs the test for the given config file and variant,
 // re-attempting it if it fails during setup. It also returns the time when the
 // last attempt started, so callers only inspect logs produced by that attempt
@@ -1256,7 +1296,7 @@ func (r *tester) verifyDataStream(ctx context.Context, config *testConfig, servi
 			return err
 		}
 		if exited && code > 0 {
-			return fmt.Errorf("the test service %s unexpectedly exited with code %d", config.Service, code)
+			return errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}}
 		}
 	}
 
@@ -2194,23 +2234,11 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
 			return result.WithError(err)
 		}
-		// report all other errors as error entries in the xUnit file
+		// Report all other errors as failure or error entries in the xUnit
+		// file, exactly as before, and let the caller know whether the test
+		// can be re-attempted.
 		results, _ := result.WithError(err)
-
-		// ErrTestCaseFailed from prepareScenario (e.g. waitForDocs timeout:
-		// no hits, assert.hit_count/min_count/fields_present not satisfied;
-		// or no data streams discovered) is real test signal that should not
-		// be re-attempted. The service-exit case that used to return
-		// ErrTestCaseFailed was changed to a plain error above so it goes
-		// through errSetupFailed and is retried as an environment failure.
-		// validateTestScenario failures are never returned as Go errors — they
-		// are captured in result.FailureMsg via result.WithError — so there is
-		// no risk of retrying real validation failures here.
-		var tcf testrunner.ErrTestCaseFailed
-		if errors.As(err, &tcf) {
-			return results, nil
-		}
-		return results, errSetupFailed{err: err}
+		return results, setupReattemptError(err)
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
