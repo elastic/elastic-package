@@ -1,0 +1,268 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package system
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/testrunner"
+)
+
+// attemptOutcome describes what a single test attempt should produce in the
+// stub used by these tests.
+type attemptOutcome struct {
+	result testrunner.TestResult
+	runErr error
+	tdErr  error
+}
+
+func stubAttempts(t *testing.T, outcomes []attemptOutcome, calls *int) func() ([]testrunner.TestResult, error, error) {
+	t.Helper()
+	return func() ([]testrunner.TestResult, error, error) {
+		require.Less(t, *calls, len(outcomes), "more attempts than expected")
+		outcome := outcomes[*calls]
+		*calls++
+		return []testrunner.TestResult{outcome.result}, outcome.runErr, outcome.tdErr
+	}
+}
+
+func TestRunWithSetupReattempts(t *testing.T) {
+	setupErr := errSetupFailed{err: errors.New("service is unhealthy: container exited with code 143")}
+	setupResult := testrunner.TestResult{Name: "test", ErrorMsg: setupErr.Error()}
+	passResult := testrunner.TestResult{Name: "test"}
+	failedResult := testrunner.TestResult{Name: "test", FailureMsg: "could not find the expected hits"}
+
+	cases := []struct {
+		title           string
+		reattempts      int
+		outcomes        []attemptOutcome
+		expectedCalls   int
+		expectedErr     string
+		expectedFlaky   bool
+		expectedResults func(t *testing.T, results []testrunner.TestResult)
+	}{
+		{
+			title:         "pass on first attempt",
+			reattempts:    1,
+			outcomes:      []attemptOutcome{{result: passResult}},
+			expectedCalls: 1,
+		},
+		{
+			title:      "setup failure then pass is marked flaky",
+			reattempts: 1,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: setupErr},
+				{result: passResult},
+			},
+			expectedCalls: 2,
+			expectedFlaky: true,
+		},
+		{
+			title:      "setup failures until attempts are exhausted",
+			reattempts: 2,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: setupErr},
+				{result: setupResult, runErr: setupErr},
+				{result: setupResult, runErr: setupErr},
+			},
+			expectedCalls: 3,
+			expectedResults: func(t *testing.T, results []testrunner.TestResult) {
+				// The last failure is reported as an error entry, without
+				// aborting the run, and it is not marked as flaky.
+				require.Len(t, results, 1)
+				assert.NotEmpty(t, results[0].ErrorMsg)
+				assert.Empty(t, results[0].FlakyMsg)
+			},
+		},
+		{
+			// validateTestScenario failures surface as FailureMsg in the result
+			// (nil runErr), not as errSetupFailed, so they are never re-attempted.
+			title:      "validateTestScenario failure (FailureMsg set, nil error) is never re-attempted",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: failedResult},
+			},
+			expectedCalls: 1,
+		},
+		{
+			// A bare ErrTestCaseFailed Go error (not wrapped in errSetupFailed) is
+			// treated as a hard error and returned immediately without re-attempt.
+			// validateTestScenario never produces this shape (it uses result.WithError
+			// which returns nil), but the boundary is explicit here for safety.
+			title:      "bare ErrTestCaseFailed Go error is a hard error, not re-attempted",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: failedResult, runErr: testrunner.ErrTestCaseFailed{Reason: "field mismatch"}},
+			},
+			expectedCalls: 1,
+			expectedErr:   "field mismatch",
+		},
+		{
+			// Service exit during verifyDataStream is classified by runTest as
+			// errSetupFailed (see setupReattemptError) so it is re-attempted.
+			title:      "service exit during setup is re-attempted",
+			reattempts: 1,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: errSetupFailed{err: errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service svc unexpectedly exited with code 143"}}}},
+				{result: passResult},
+			},
+			expectedCalls: 2,
+			expectedFlaky: true,
+		},
+		{
+			title:      "re-attempts disabled",
+			reattempts: 0,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: setupErr},
+			},
+			expectedCalls: 1,
+		},
+		{
+			title:      "hard errors are returned without re-attempt",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: passResult, runErr: errors.New("cannot load config")},
+			},
+			expectedCalls: 1,
+			expectedErr:   "cannot load config",
+		},
+		{
+			// context.Canceled as a plain (non-errSetupFailed) hard error is
+			// returned immediately without re-attempt.
+			title:      "hard context.Canceled error is returned without re-attempt",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: context.Canceled},
+			},
+			expectedCalls: 1,
+			expectedErr:   "context canceled",
+		},
+		{
+			title:      "no re-attempt if teardown of the failed attempt failed",
+			reattempts: 3,
+			outcomes: []attemptOutcome{
+				{result: setupResult, runErr: setupErr, tdErr: errors.New("could not remove policy")},
+			},
+			expectedCalls: 1,
+			expectedErr:   "failed to tear down runner",
+		},
+		{
+			title:      "teardown failure after passing test is returned",
+			reattempts: 1,
+			outcomes: []attemptOutcome{
+				{result: passResult, tdErr: errors.New("could not remove policy")},
+			},
+			expectedCalls: 1,
+			expectedErr:   "failed to tear down runner",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			var calls int
+			results, err := runWithSetupReattempts(context.Background(), c.reattempts, stubAttempts(t, c.outcomes, &calls))
+
+			assert.Equal(t, c.expectedCalls, calls)
+			if c.expectedErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), c.expectedErr)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if c.expectedResults != nil {
+				c.expectedResults(t, results)
+				return
+			}
+
+			require.Len(t, results, 1)
+			if c.expectedFlaky {
+				assert.NotEmpty(t, results[0].FlakyMsg, "test passing after re-attempts should be marked as flaky")
+			} else {
+				assert.Empty(t, results[0].FlakyMsg)
+			}
+		})
+	}
+}
+
+func TestRunWithSetupReattemptsCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	setupErr := errSetupFailed{err: errors.New("context deadline exceeded")}
+	var calls int
+	attempt := func() ([]testrunner.TestResult, error, error) {
+		calls++
+		cancel() // The context is cancelled while the attempt runs.
+		return []testrunner.TestResult{{Name: "test", ErrorMsg: setupErr.Error()}}, setupErr, nil
+	}
+
+	results, err := runWithSetupReattempts(ctx, 3, attempt)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, calls, "cancelled context should not be re-attempted")
+	require.Len(t, results, 1)
+	assert.Empty(t, results[0].FlakyMsg)
+}
+
+func TestErrSetupFailedWrapping(t *testing.T) {
+	cause := errors.New("service is unhealthy")
+	err := fmt.Errorf("attempt failed: %w", errSetupFailed{err: cause})
+
+	var setupErr errSetupFailed
+	require.ErrorAs(t, err, &setupErr)
+	assert.ErrorIs(t, err, cause)
+	assert.Equal(t, cause, setupErr.Unwrap())
+}
+
+func TestSetupReattemptError(t *testing.T) {
+	serviceExited := errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service failing unexpectedly exited with code 1"}}
+
+	cases := []struct {
+		title       string
+		err         error
+		reattempted bool
+	}{
+		{"environment error", errors.New("service is unhealthy: container exited with code 143"), true},
+		{"wrapped environment error", fmt.Errorf("can't check enrolled agents: %w", context.DeadlineExceeded), true},
+		{"service exited", serviceExited, true},
+		{"wrapped service exited", fmt.Errorf("finalize: %w", serviceExited), true},
+		{"no hits found", testrunner.ErrTestCaseFailed{Reason: "could not find the expected hits in logs-foo data stream"}, false},
+		{"wrapped test case failure", fmt.Errorf("finalize: %w", testrunner.ErrTestCaseFailed{Reason: "no data streams matching logs-foo-* appeared"}), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			err := setupReattemptError(c.err)
+			if !c.reattempted {
+				assert.NoError(t, err, "test signal must not be re-attempted")
+				return
+			}
+			var setupErr errSetupFailed
+			require.ErrorAs(t, err, &setupErr, "environment failures must be marked for re-attempt")
+			assert.Equal(t, c.err, setupErr.Unwrap())
+		})
+	}
+}
+
+// TestServiceExitedReportedAsFailure guards the reporting contract checked by
+// the docker_failing_test_service false-positive test: a service exiting
+// unexpectedly is still a test case failure (xUnit <failure>) with the same
+// message as before, even though it is now re-attemptable.
+func TestServiceExitedReportedAsFailure(t *testing.T) {
+	err := errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service failing unexpectedly exited with code 1"}}
+
+	result := testrunner.NewResultComposer(testrunner.TestResult{Name: "fail"})
+	results, resultErr := result.WithError(err)
+	require.NoError(t, resultErr)
+	require.Len(t, results, 1)
+
+	assert.Equal(t, "test case failed: the test service failing unexpectedly exited with code 1", results[0].FailureMsg)
+	assert.Empty(t, results[0].ErrorMsg)
+}

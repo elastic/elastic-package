@@ -41,12 +41,19 @@ type testCase struct {
 	ClassName     string  `xml:"classname,attr"`
 	TimeInSeconds float64 `xml:"time,attr"`
 
-	Error   string   `xml:"error,omitempty"`
-	Failure string   `xml:"failure,omitempty"`
-	Skipped *skipped `xml:"skipped,omitempty"`
+	Error        string        `xml:"error,omitempty"`
+	Failure      string        `xml:"failure,omitempty"`
+	Skipped      *skipped      `xml:"skipped,omitempty"`
+	FlakyFailure *flakyFailure `xml:"flakyFailure,omitempty"`
 }
 
 type skipped struct {
+	Message string `xml:"message,attr"`
+}
+
+// flakyFailure reports a failure of a previous attempt of a test that
+// eventually passed, following the schema used by Maven Surefire.
+type flakyFailure struct {
 	Message string `xml:"message,attr"`
 }
 
@@ -102,6 +109,10 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 
 		if r.Skipped != nil {
 			c.Skipped = &skipped{r.Skipped.String()}
+		}
+
+		if r.FlakyMsg != "" {
+			c.FlakyFailure = &flakyFailure{Message: r.FlakyMsg}
 		}
 
 		numTests++
