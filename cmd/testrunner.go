@@ -11,11 +11,13 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
@@ -483,7 +485,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
-	cmd.Flags().Int(cobraext.SetupReattemptsFlagName, 1, cobraext.SetupReattemptsFlagDescription)
+	cmd.Flags().Int(cobraext.SetupReattemptsFlagName, 0, cobraext.SetupReattemptsFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -552,6 +554,19 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	setupReattempts, err := cmd.Flags().GetInt(cobraext.SetupReattemptsFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.SetupReattemptsFlagName)
+	}
+	if !cmd.Flags().Changed(cobraext.SetupReattemptsFlagName) {
+		if v, ok := os.LookupEnv(environment.WithElasticPackagePrefix("TEST_SETUP_REATTEMPTS")); ok {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("invalid value for %s env var: %w", environment.WithElasticPackagePrefix("TEST_SETUP_REATTEMPTS"), err)
+			}
+			setupReattempts = n
+		}
+	}
+	const maxSetupReattempts = 5
+	if setupReattempts < 0 || setupReattempts > maxSetupReattempts {
+		return fmt.Errorf("--%s must be between 0 and %d, got %d", cobraext.SetupReattemptsFlagName, maxSetupReattempts, setupReattempts)
 	}
 
 	variantFlag, err := cmd.Flags().GetString(cobraext.VariantFlagName)

@@ -999,17 +999,20 @@ under test.
 
 To reduce the noise caused by these failures, when a system test fails during
 the setup phase, its resources are torn down and the failing test is
-re-attempted from scratch, once by default. The number of re-attempts can be
-adjusted with the `--setup-reattempts` flag, and re-attempts can be disabled
-with `--setup-reattempts=0`.
+re-attempted from scratch. Setup re-attempts are disabled by default; enable
+them with `--setup-reattempts=N` (maximum 5). For example:
+
+```sh
+elastic-package test system -v --setup-reattempts 1
+```
 
 Failures during data validation (missing documents, field or mapping problems,
 unexpected hit counts) are real test signal and are never re-attempted.
 
-A test that passes only after being re-attempted is still reported as passed,
-but it is annotated as flaky: the failures of the previous attempts are
-reported in a `<flakyFailure>` element in the xUnit report, so the instability
-of the environment remains visible in aggregate.
+A test that passes only after being re-attempted is still reported as passed.
+The failures of the previous attempts are recorded in a `<flakyFailure>`
+element in the xUnit report, so the instability of the environment remains
+visible in aggregate even though the build does not fail.
 
 ### Running system tests without cleanup (technical preview)
 

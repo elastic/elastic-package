@@ -106,12 +106,12 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			expectedErr:   "field mismatch",
 		},
 		{
-			// ErrTestCaseFailed from prepareScenario (service exit, no hits found)
-			// is a setup-phase environment failure and must be re-attempted.
-			title:      "prepareScenario ErrTestCaseFailed (service exit) is re-attempted",
+			// Service exit during verifyDataStream is a plain error wrapped as
+			// errSetupFailed (not ErrTestCaseFailed) so it is re-attempted.
+			title:      "service exit during setup is re-attempted",
 			reattempts: 1,
 			outcomes: []attemptOutcome{
-				{result: setupResult, runErr: errSetupFailed{err: testrunner.ErrTestCaseFailed{Reason: "the test service svc unexpectedly exited with code 143"}}},
+				{result: setupResult, runErr: errSetupFailed{err: fmt.Errorf("the test service svc unexpectedly exited with code 143")}},
 				{result: passResult},
 			},
 			expectedCalls: 2,
@@ -135,7 +135,9 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			expectedErr:   "cannot load config",
 		},
 		{
-			title:      "context cancellation from runTest is returned directly without re-attempt",
+			// context.Canceled as a plain (non-errSetupFailed) hard error is
+			// returned immediately without re-attempt.
+			title:      "hard context.Canceled error is returned without re-attempt",
 			reattempts: 3,
 			outcomes: []attemptOutcome{
 				{result: setupResult, runErr: context.Canceled},
