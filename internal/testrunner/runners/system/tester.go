@@ -696,9 +696,10 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 
-	startTesting := time.Now()
-
-	results, err = r.runTestPerVariant(ctx, stackConfig, result, r.configFileName, r.serviceVariant)
+	// startTesting is the start of the last attempt of the test, so the agent
+	// logs check below doesn't consider logs from previous failed attempts.
+	var startTesting time.Time
+	results, startTesting, err = r.runTestPerVariant(ctx, stackConfig, result, r.configFileName, r.serviceVariant)
 	if err != nil {
 		return results, err
 	}
@@ -757,8 +758,15 @@ func (e errSetupFailed) Unwrap() error {
 	return e.err
 }
 
-func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
+// runTestPerVariant runs the test for the given config file and variant,
+// re-attempting it if it fails during setup. It also returns the time when the
+// last attempt started, so callers only inspect logs produced by that attempt
+// and not by previous, already torn down, failed attempts.
+func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, time.Time, error) {
+	var startTesting time.Time
 	attempt := func() (partial []testrunner.TestResult, runErr, tdErr error) {
+		startTesting = time.Now()
+
 		svcInfo, err := r.createServiceInfo()
 		if err != nil {
 			partial, err := result.WithError(err)
@@ -777,7 +785,8 @@ func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config
 		skipDeferCleanup := len(partial) > 0 && partial[0].Skipped != nil
 		return partial, err, r.tearDownTest(ctx, skipDeferCleanup)
 	}
-	return runWithSetupReattempts(ctx, r.setupReattempts, attempt)
+	results, err := runWithSetupReattempts(ctx, r.setupReattempts, attempt)
+	return results, startTesting, err
 }
 
 // runWithSetupReattempts runs a test attempt and, if it fails during the setup
