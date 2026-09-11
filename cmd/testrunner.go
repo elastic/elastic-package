@@ -17,8 +17,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
