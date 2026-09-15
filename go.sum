@@ -95,8 +95,8 @@ github.com/elastic/go-licenser v0.4.2 h1:bPbGm8bUd8rxzSswFOqvQh1dAkKGkgAmrPxbUi+
 github.com/elastic/go-licenser v0.4.2/go.mod h1:W8eH6FaZDR8fQGm+7FnVa7MxI1b/6dAqxz+zPB8nm5c=
 github.com/elastic/go-resource v0.2.0 h1:T92tw+THqISnCKaZBijlZMpEpCYkFkwsOgLQxKX6pqA=
 github.com/elastic/go-resource v0.2.0/go.mod h1:KySNvn044vVpPCX1osrkB5MQHemDM5RnkeBFW51CiRo=
-github.com/elastic/go-ucfg v0.9.1 h1:OwbVLC9pAmHqlBDq5owRC7HbfldsLuqPqrwg23n17BQ=
-github.com/elastic/go-ucfg v0.9.1/go.mod h1:6Z66LNkFK5xAlWg3Ny7qgtrvBUadaAcor+kYxw2pXBk=
+github.com/elastic/go-ucfg v0.9.2 h1:dPsyXR6bAswZw+YW7cl8ZM95POyF6lVrrSi/+KOg2b0=
+github.com/elastic/go-ucfg v0.9.2/go.mod h1:6Z66LNkFK5xAlWg3Ny7qgtrvBUadaAcor+kYxw2pXBk=
 github.com/elastic/gojsonschema v1.2.2 h1:d1/NJKMr8vr9sEuxRTVOj+QFJi5Utd8PnvRqJJWqmIo=
 github.com/elastic/gojsonschema v1.2.2/go.mod h1:TauCTd1z3UuJAMOWitMEYPgxFAH7f+1smAcr82AVmgY=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
