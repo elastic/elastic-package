@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -835,6 +836,21 @@ func (h hits) size() int {
 	return len(h.Source)
 }
 
+// hasTransientRootCause reports whether the error body contains a root cause
+// that indicates a transient shard condition safe to retry. Currently this
+// covers the case where Elasticsearch internally computes a negative minDoc
+// value (illegal_argument_exception with "minDoc must be >= 0") during index
+// shard initialization.
+func hasTransientRootCause(errBody elasticsearch.ErrorBody) bool {
+	for _, rc := range errBody.Error.RootCause {
+		if rc.Type == "illegal_argument_exception" &&
+			strings.Contains(rc.Reason, "minDoc must be") {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) {
 	resp, err := r.esAPI.Search(
 		r.esAPI.Search.WithContext(ctx),
@@ -856,7 +872,22 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		return &hits{}, nil
 	}
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
+		// Read raw bytes instead of resp.String(): resp.String() prepends "[STATUS_CODE STATUS_TEXT] "
+		// to the body, making json.Unmarshal fail on the prefixed string.
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusBadRequest {
+			var errBody elasticsearch.ErrorBody
+			if json.Unmarshal(bodyBytes, &errBody) == nil &&
+				errBody.Error.Type == "search_phase_execution_exception" &&
+				errBody.Error.Reason == "all shards failed" &&
+				hasTransientRootCause(errBody) {
+				// Transient shard failure during index creation, retry.
+				logger.Debugf("Transient shard failure while searching %s, retrying: %s", dataStream, string(bodyBytes))
+				return &hits{}, nil
+			}
+		}
+		return nil, fmt.Errorf("failed to search docs for data stream %s: [%d %s] %s",
+			dataStream, resp.StatusCode, http.StatusText(resp.StatusCode), string(bodyBytes))
 	}
 
 	var results FieldsQueryResult
