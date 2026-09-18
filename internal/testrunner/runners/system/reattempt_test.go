@@ -40,20 +40,46 @@ func TestRunWithSetupReattempts(t *testing.T) {
 	passResult := testrunner.TestResult{Name: "test"}
 	failedResult := testrunner.TestResult{Name: "test", FailureMsg: "could not find the expected hits"}
 
+	// Expectations on the single result returned by every case.
+	expectPass := func(t *testing.T, results []testrunner.TestResult) {
+		require.Len(t, results, 1)
+		assert.Empty(t, results[0].ErrorMsg)
+		assert.Empty(t, results[0].FailureMsg)
+		assert.Empty(t, results[0].FlakyMsg)
+	}
+	expectFlakyPass := func(t *testing.T, results []testrunner.TestResult) {
+		require.Len(t, results, 1)
+		assert.Empty(t, results[0].ErrorMsg)
+		assert.Empty(t, results[0].FailureMsg)
+		assert.NotEmpty(t, results[0].FlakyMsg, "test passing after re-attempts should be marked as flaky")
+	}
+	expectSetupError := func(t *testing.T, results []testrunner.TestResult) {
+		require.Len(t, results, 1)
+		assert.Equal(t, setupErr.Error(), results[0].ErrorMsg)
+		assert.Empty(t, results[0].FailureMsg)
+		assert.Empty(t, results[0].FlakyMsg)
+	}
+	expectFailure := func(t *testing.T, results []testrunner.TestResult) {
+		require.Len(t, results, 1)
+		assert.Empty(t, results[0].ErrorMsg)
+		assert.Equal(t, "could not find the expected hits", results[0].FailureMsg)
+		assert.Empty(t, results[0].FlakyMsg)
+	}
+
 	cases := []struct {
 		title           string
 		reattempts      int
 		outcomes        []attemptOutcome
 		expectedCalls   int
 		expectedErr     string
-		expectedFlaky   bool
 		expectedResults func(t *testing.T, results []testrunner.TestResult)
 	}{
 		{
-			title:         "pass on first attempt",
-			reattempts:    1,
-			outcomes:      []attemptOutcome{{result: passResult}},
-			expectedCalls: 1,
+			title:           "pass on first attempt",
+			reattempts:      1,
+			outcomes:        []attemptOutcome{{result: passResult}},
+			expectedCalls:   1,
+			expectedResults: expectPass,
 		},
 		{
 			title:      "setup failure then pass is marked flaky",
@@ -62,10 +88,12 @@ func TestRunWithSetupReattempts(t *testing.T) {
 				{result: setupResult, runErr: setupErr},
 				{result: passResult},
 			},
-			expectedCalls: 2,
-			expectedFlaky: true,
+			expectedCalls:   2,
+			expectedResults: expectFlakyPass,
 		},
 		{
+			// The last failure is reported as an error entry, without
+			// aborting the run, and it is not marked as flaky.
 			title:      "setup failures until attempts are exhausted",
 			reattempts: 2,
 			outcomes: []attemptOutcome{
@@ -73,14 +101,8 @@ func TestRunWithSetupReattempts(t *testing.T) {
 				{result: setupResult, runErr: setupErr},
 				{result: setupResult, runErr: setupErr},
 			},
-			expectedCalls: 3,
-			expectedResults: func(t *testing.T, results []testrunner.TestResult) {
-				// The last failure is reported as an error entry, without
-				// aborting the run, and it is not marked as flaky.
-				require.Len(t, results, 1)
-				assert.NotEmpty(t, results[0].ErrorMsg)
-				assert.Empty(t, results[0].FlakyMsg)
-			},
+			expectedCalls:   3,
+			expectedResults: expectSetupError,
 		},
 		{
 			// validateTestScenario failures surface as FailureMsg in the result
@@ -90,7 +112,8 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			outcomes: []attemptOutcome{
 				{result: failedResult},
 			},
-			expectedCalls: 1,
+			expectedCalls:   1,
+			expectedResults: expectFailure,
 		},
 		{
 			// A bare ErrTestCaseFailed Go error (not wrapped in errSetupFailed) is
@@ -102,8 +125,9 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			outcomes: []attemptOutcome{
 				{result: failedResult, runErr: testrunner.ErrTestCaseFailed{Reason: "field mismatch"}},
 			},
-			expectedCalls: 1,
-			expectedErr:   "field mismatch",
+			expectedCalls:   1,
+			expectedErr:     "field mismatch",
+			expectedResults: expectFailure,
 		},
 		{
 			// Service exit during verifyDataStream is classified by runTest as
@@ -114,16 +138,20 @@ func TestRunWithSetupReattempts(t *testing.T) {
 				{result: setupResult, runErr: errSetupFailed{err: errServiceExited{err: testrunner.ErrTestCaseFailed{Reason: "the test service svc unexpectedly exited with code 143"}}}},
 				{result: passResult},
 			},
-			expectedCalls: 2,
-			expectedFlaky: true,
+			expectedCalls:   2,
+			expectedResults: expectFlakyPass,
 		},
 		{
+			// With re-attempts disabled a setup failure is still reported as an
+			// error entry, as it is in the exhausted-attempts case, and it is
+			// never marked as flaky.
 			title:      "re-attempts disabled",
 			reattempts: 0,
 			outcomes: []attemptOutcome{
 				{result: setupResult, runErr: setupErr},
 			},
-			expectedCalls: 1,
+			expectedCalls:   1,
+			expectedResults: expectSetupError,
 		},
 		{
 			title:      "hard errors are returned without re-attempt",
@@ -131,8 +159,9 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			outcomes: []attemptOutcome{
 				{result: passResult, runErr: errors.New("cannot load config")},
 			},
-			expectedCalls: 1,
-			expectedErr:   "cannot load config",
+			expectedCalls:   1,
+			expectedErr:     "cannot load config",
+			expectedResults: expectPass,
 		},
 		{
 			// context.Canceled as a plain (non-errSetupFailed) hard error is
@@ -142,8 +171,9 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			outcomes: []attemptOutcome{
 				{result: setupResult, runErr: context.Canceled},
 			},
-			expectedCalls: 1,
-			expectedErr:   "context canceled",
+			expectedCalls:   1,
+			expectedErr:     "context canceled",
+			expectedResults: expectSetupError,
 		},
 		{
 			title:      "no re-attempt if teardown of the failed attempt failed",
@@ -151,8 +181,9 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			outcomes: []attemptOutcome{
 				{result: setupResult, runErr: setupErr, tdErr: errors.New("could not remove policy")},
 			},
-			expectedCalls: 1,
-			expectedErr:   "failed to tear down runner",
+			expectedCalls:   1,
+			expectedErr:     "failed to tear down runner",
+			expectedResults: expectSetupError,
 		},
 		{
 			title:      "teardown failure after passing test is returned",
@@ -160,13 +191,16 @@ func TestRunWithSetupReattempts(t *testing.T) {
 			outcomes: []attemptOutcome{
 				{result: passResult, tdErr: errors.New("could not remove policy")},
 			},
-			expectedCalls: 1,
-			expectedErr:   "failed to tear down runner",
+			expectedCalls:   1,
+			expectedErr:     "failed to tear down runner",
+			expectedResults: expectPass,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
+			require.NotNil(t, c.expectedResults, "every case must state its expected results")
+
 			var calls int
 			results, err := runWithSetupReattempts(context.Background(), c.reattempts, stubAttempts(t, c.outcomes, &calls))
 
@@ -178,17 +212,7 @@ func TestRunWithSetupReattempts(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			if c.expectedResults != nil {
-				c.expectedResults(t, results)
-				return
-			}
-
-			require.Len(t, results, 1)
-			if c.expectedFlaky {
-				assert.NotEmpty(t, results[0].FlakyMsg, "test passing after re-attempts should be marked as flaky")
-			} else {
-				assert.Empty(t, results[0].FlakyMsg)
-			}
+			c.expectedResults(t, results)
 		})
 	}
 }

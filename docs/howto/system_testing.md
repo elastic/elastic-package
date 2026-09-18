@@ -1006,13 +1006,23 @@ them with `--setup-reattempts=N` (maximum 5). For example:
 elastic-package test system -v --setup-reattempts 1
 ```
 
+The number of re-attempts can also be set with the
+`ELASTIC_PACKAGE_TEST_SETUP_REATTEMPTS` environment variable, which is useful
+to enable them in CI without modifying the commands. The flag takes precedence
+over the environment variable when both are set.
+
+```sh
+ELASTIC_PACKAGE_TEST_SETUP_REATTEMPTS=1 elastic-package test system -v
+```
+
 Failures during data validation (missing documents, field or mapping problems,
 unexpected hit counts) are real test signal and are never re-attempted.
 
 A test that passes only after being re-attempted is still reported as passed.
 The failures of the previous attempts are recorded in a `<flakyFailure>`
-element in the xUnit report, so the instability of the environment remains
-visible in aggregate even though the build does not fail.
+element in the xUnit report, and in a `flaky_details` field in the JSON
+report, so the instability of the environment remains visible in aggregate
+even though the build does not fail.
 
 ### Running system tests without cleanup (technical preview)
 

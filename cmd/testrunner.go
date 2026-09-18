@@ -39,6 +39,14 @@ import (
 	"github.com/elastic/elastic-package/internal/version"
 )
 
+// systemTestSetupReattemptsEnvVar allows setting the number of setup
+// re-attempts of system tests without the --setup-reattempts flag, so it can
+// be enabled in CI without changing the scripts. The flag takes precedence.
+var systemTestSetupReattemptsEnvVar = environment.WithElasticPackagePrefix("TEST_SETUP_REATTEMPTS")
+
+// maxSetupReattempts is the maximum number of setup re-attempts of a system test.
+const maxSetupReattempts = 5
+
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
 #### Asset Loading Tests
@@ -556,17 +564,16 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.SetupReattemptsFlagName)
 	}
 	if !cmd.Flags().Changed(cobraext.SetupReattemptsFlagName) {
-		if v, ok := os.LookupEnv(environment.WithElasticPackagePrefix("TEST_SETUP_REATTEMPTS")); ok {
+		if v, ok := os.LookupEnv(systemTestSetupReattemptsEnvVar); ok {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				return fmt.Errorf("invalid value for %s env var: %w", environment.WithElasticPackagePrefix("TEST_SETUP_REATTEMPTS"), err)
+				return fmt.Errorf("invalid value for %s environment variable: %w", systemTestSetupReattemptsEnvVar, err)
 			}
 			setupReattempts = n
 		}
 	}
-	const maxSetupReattempts = 5
 	if setupReattempts < 0 || setupReattempts > maxSetupReattempts {
-		return fmt.Errorf("--%s must be between 0 and %d, got %d", cobraext.SetupReattemptsFlagName, maxSetupReattempts, setupReattempts)
+		return fmt.Errorf("--%s flag (or %s environment variable) must be between 0 and %d, got %d", cobraext.SetupReattemptsFlagName, systemTestSetupReattemptsEnvVar, maxSetupReattempts, setupReattempts)
 	}
 
 	variantFlag, err := cmd.Flags().GetString(cobraext.VariantFlagName)
