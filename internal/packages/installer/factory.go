@@ -91,7 +91,7 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	target, err := builder.BuildPackage(context.TODO(), builder.BuildOptions{
 		PackageRoot:            options.PackageRoot,
 		CreateZip:              supportsUploadZip,
 		SignPackage:            false,
@@ -100,6 +100,7 @@ func NewForPackage(options Options) (Installer, error) {
 		UpdateReadmes:          false,
 		SchemaURLs:             options.SchemaURLs,
 		RequiredInputsResolver: options.RequiredInputsResolver,
+		KibanaClient:           options.Kibana,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %w", err)
