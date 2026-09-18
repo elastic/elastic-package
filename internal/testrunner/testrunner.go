@@ -117,6 +117,11 @@ type TestResult struct {
 	// to an unexpected runtime error in the test execution.
 	ErrorMsg string
 
+	// If the test passed only after being re-attempted, description of the
+	// failures observed in previous attempts. The test is reported as
+	// passed, but flagged as flaky in reports that support it.
+	FlakyMsg string
+
 	// If the test was skipped, the reason it was skipped and a link for more
 	// details.
 	Skipped *SkipConfig

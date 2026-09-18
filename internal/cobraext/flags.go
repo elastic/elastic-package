@@ -298,6 +298,9 @@ const (
 	SetupFlagName        = "setup"
 	SetupFlagDescription = "trigger just the setup phase of testing"
 
+	SetupReattemptsFlagName        = "setup-reattempts"
+	SetupReattemptsFlagDescription = "number of times a test that fails during the setup phase is re-attempted from scratch (0 disables re-attempts, max 5); can also be set via ELASTIC_PACKAGE_TEST_SETUP_REATTEMPTS env var"
+
 	TearDownFlagName        = "tear-down"
 	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 
