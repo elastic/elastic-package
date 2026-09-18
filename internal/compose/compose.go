@@ -206,20 +206,39 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	}
 	logger.Tracef("Determined Docker Compose version: %v", ver)
 
+	// Compose does not get a terminal on stdout: it is discarded unless in debug mode. On
+	// Unix it does get one on stderr, the pseudo-terminal that runDockerComposeCmd uses to
+	// capture its messages. Docker Compose v5.5.1 decides to render interactive progress
+	// from stderr being a terminal and then requires stdout to be one as well, failing
+	// every build with "failed to get console: provided file is not a console"
+	// (docker/compose#14182, fixed upstream after v5.5.1 by docker/compose#14194). Plain
+	// progress is also what ends up in logs and error messages, so it is the right default
+	// and not only a CI setting.
+	c.progressOutput = composeProgressOutput(ver)
+
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if ok && strings.ToLower(v) != "false" {
-		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
+		if ver.LessThan(semver.MustParse("2.19.0")) {
+			// --progress does not exist yet; --ansi never is the closest thing.
 			c.disableANSI = true
-		} else {
-			// --ansi never looks is ignored by "docker compose" and latest versions of "docker-compose"
-			// adding --progress plain is a similar result as --ansi never
-			// if set to "--progress quiet", there is no output at all from docker compose commands
-			c.progressOutput = defaultComposeProgressOutput
 		}
 		c.disablePullProgressInformation = true
 	}
 
 	return &c, nil
+}
+
+// composeProgressOutput is the value for the --progress flag, or empty for versions that
+// do not have the flag.
+//
+// The flag was added in Docker Compose 2.19.0. "plain" is the only mode that works with
+// stdout that is not a terminal; "quiet" would also work but produces no output at all,
+// which loses the messages that are reported back on errors.
+func composeProgressOutput(composeVersion *semver.Version) string {
+	if composeVersion.LessThan(semver.MustParse("2.19.0")) {
+		return ""
+	}
+	return defaultComposeProgressOutput
 }
 
 // Up brings up a Docker Compose project.
