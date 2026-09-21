@@ -13,7 +13,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/creack/pty v1.1.19
-	github.com/dustin/go-humanize v1.0.1
+	github.com/dustin/go-humanize v1.1.0
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.12.4
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.2
