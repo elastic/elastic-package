@@ -33,7 +33,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/magefile/mage v1.17.2
 	github.com/maxmind/mmdbwriter v1.2.0
-	github.com/olekukonko/tablewriter v1.1.4
+	github.com/olekukonko/tablewriter v1.1.5
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/rogpeppe/go-internal v1.16.0
