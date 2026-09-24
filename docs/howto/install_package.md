@@ -26,14 +26,9 @@ From Kibana 8.7.0 version, `elastic-package install` is able to install packages
     - build the package
     - upload the zip file built to Kibana.
 
-Starting with Kibana 9.6.0, `elastic-package stack up` automatically sets `xpack.fleet.internal.skipUploadPackageValidation: true` in the generated Kibana configuration. This allows uploading packages even when the package name already exists in the Elastic Package Registry (EPR), which is required for local development of published integrations.
+Starting with Kibana 9.6.0 (elastic/kibana#286094), `elastic-package stack up` automatically sets `xpack.fleet.internal.skipUploadPackageValidation: true` in the generated Kibana configuration. This allows uploading packages even when the package name already exists in the Elastic Package Registry (EPR), which is required for local development of published integrations.
 
-The setting is also available for the backport branches (elastic/kibana#287670, elastic/kibana#287671, elastic/kibana#287672) for ongoing CI snapshot builds: `>= 8.19.22-SNAPSHOT`, `>= 9.4.7-SNAPSHOT`, and `>= 9.5.4-SNAPSHOT`. To activate it, set `ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true` — this enables the flag only for those specific snapshot versions and above within each branch, so it is safe to set in a shared CI environment:
-
-```bash
-export ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION=true
-elastic-package stack up -d
-```
+The setting is also automatically applied for the backport releases: `>= 8.19.22` (elastic/kibana#287670), `>= 9.4.7` (elastic/kibana#287671), and `>= 9.5.4` (elastic/kibana#287672).
 
 When using a stack version that does not yet include the setting, you can apply it manually via your elastic-package profile:
 

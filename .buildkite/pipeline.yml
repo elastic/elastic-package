@@ -20,10 +20,6 @@ env:
   ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: 3
   # Enable/Disable the usage of wolfi images for Elastic Agent
   ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI: "${ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI:-false}"
-  # Required to install packages via API even if they are already present in EPR.
-  # Version-gated in internal/stack/_static/kibana.yml.tmpl, so this is a no-op
-  # for stack versions without the fix (elastic/kibana#286094 and backports).
-  ELASTIC_PACKAGE_KIBANA_SKIP_UPLOAD_PACKAGE_VALIDATION: "true"
 
 
 steps:
