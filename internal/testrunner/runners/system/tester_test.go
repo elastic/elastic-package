@@ -26,6 +26,10 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
+func TestFieldsQueryReadsIgnoredFieldsFromDocValues(t *testing.T) {
+	assert.Contains(t, FieldsQuery, `"source": "for (def v : doc['_ignored']) { emit(v); }"`)
+}
+
 func TestFindPolicyTemplateForInput(t *testing.T) {
 	const policyTemplateName = "my_policy_template"
 	const dataStreamName = "my_data_stream"
