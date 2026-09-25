@@ -34,6 +34,7 @@ func TestSkipUploadPackageValidationGating(t *testing.T) {
 		{"8.19.21", false},
 		// 8.19.x backport (elastic/kibana#287670): enabled from 8.19.22-SNAPSHOT
 		{"8.19.22-SNAPSHOT", true},
+		{"8.19.22", true},
 		// 9.x — disabled outside the backport branches
 		{"9.0.0", false},
 		{"9.0.0-SNAPSHOT", false},
@@ -54,6 +55,7 @@ func TestSkipUploadPackageValidationGating(t *testing.T) {
 		{"9.5.3", false},
 		// 9.5.x backport: enabled from 9.5.4-SNAPSHOT
 		{"9.5.4-SNAPSHOT", true},
+		{"9.5.4", true},
 		// 9.6.0-SNAPSHOT+ — always enabled (elastic/kibana#286094 merged on main)
 		{"9.6.0-SNAPSHOT", true},
 		{"9.6.0", true},
