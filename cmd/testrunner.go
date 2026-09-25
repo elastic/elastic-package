@@ -11,12 +11,14 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -36,6 +38,14 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/script"
 	"github.com/elastic/elastic-package/internal/version"
 )
+
+// systemTestSetupReattemptsEnvVar allows setting the number of setup
+// re-attempts of system tests without the --setup-reattempts flag, so it can
+// be enabled in CI without changing the scripts. The flag takes precedence.
+var systemTestSetupReattemptsEnvVar = environment.WithElasticPackagePrefix("TEST_SETUP_REATTEMPTS")
+
+// maxSetupReattempts is the maximum number of setup re-attempts of a system test.
+const maxSetupReattempts = 5
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
 
@@ -483,6 +493,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
+	cmd.Flags().Int(cobraext.SetupReattemptsFlagName, 0, cobraext.SetupReattemptsFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -546,6 +557,23 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
+	}
+
+	setupReattempts, err := cmd.Flags().GetInt(cobraext.SetupReattemptsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.SetupReattemptsFlagName)
+	}
+	if !cmd.Flags().Changed(cobraext.SetupReattemptsFlagName) {
+		if v, ok := os.LookupEnv(systemTestSetupReattemptsEnvVar); ok {
+			n, err := strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("invalid value for %s environment variable: %w", systemTestSetupReattemptsEnvVar, err)
+			}
+			setupReattempts = n
+		}
+	}
+	if setupReattempts < 0 || setupReattempts > maxSetupReattempts {
+		return fmt.Errorf("--%s flag (or %s environment variable) must be between 0 and %d, got %d", cobraext.SetupReattemptsFlagName, systemTestSetupReattemptsEnvVar, maxSetupReattempts, setupReattempts)
 	}
 
 	variantFlag, err := cmd.Flags().GetString(cobraext.VariantFlagName)
@@ -677,6 +705,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		FailOnMissingTests:     failOnMissing,
 		GenerateTestResult:     generateTestResult,
 		DeferCleanup:           deferCleanup,
+		SetupReattempts:        setupReattempts,
 		GlobalTestConfig:       globalTestConfig.System,
 		WithCoverage:           testCoverage,
 		CoverageType:           testCoverageFormat,

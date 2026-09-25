@@ -28,6 +28,11 @@ type jsonResult struct {
 	Result         string `json:"result"`
 	TimeElapsed    string `json:"time_elapsed"`
 	FailureDetails string `json:"failure_details,omitempty"`
+
+	// FlakyDetails describes the failures of previous attempts of a test
+	// that eventually passed. The result is still reported as PASS; this
+	// mirrors the flakyFailure element of the xUnit format.
+	FlakyDetails string `json:"flaky_details,omitempty"`
 }
 
 func reportJSONFormat(results []testrunner.TestResult) (string, error) {
@@ -47,6 +52,10 @@ func reportJSONFormat(results []testrunner.TestResult) (string, error) {
 
 		if r.FailureMsg != "" {
 			jsonResult.FailureDetails = fmt.Sprintf("%s/%s %s:\n%s\n", r.Package, r.DataStream, r.Name, r.FailureDetails)
+		}
+
+		if r.FlakyMsg != "" {
+			jsonResult.FlakyDetails = r.FlakyMsg
 		}
 
 		var result string
