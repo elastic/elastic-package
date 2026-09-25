@@ -51,7 +51,7 @@ const FieldsQuery = `{
     "my_ignored": {
       "type": "keyword",
       "script": {
-        "source": "for (def v : params['_fields']._ignored.values) { emit(v); }"
+        "source": "for (def v : doc['_ignored']) { emit(v); }"
       }
     }
   },
