@@ -95,6 +95,35 @@ func TestCreatePackageDescriptorFromAnswers_InputWithSubobjects(t *testing.T) {
 	assert.Nil(t, descriptor.Manifest.Elasticsearch)
 }
 
+func TestCreatePackageDescriptorFromAnswers_Blueprint(t *testing.T) {
+	answers := newPackageAnswers{
+		Type:                "blueprint",
+		Name:                "my_blueprint",
+		Version:             "0.0.1",
+		SourceLicense:       licenses.Elastic20,
+		Title:               "my_blueprint",
+		Description:         "This is a new package.",
+		Categories:          []string{"custom"},
+		KibanaVersion:       tui.DefaultKibanaVersionConditionValue(),
+		ElasticSubscription: "basic",
+		GithubOwner:         "elastic/integrations",
+		OwnerType:           "elastic",
+		DataStreamType:      "logs",
+		Subobjects:          false,
+	}
+
+	descriptor := createPackageDescriptorFromAnswers(answers)
+
+	assert.Equal(t, "blueprint", descriptor.Manifest.Type)
+	assert.Equal(t, "my_blueprint", descriptor.Manifest.Name)
+	assert.Equal(t, "0.0.1", descriptor.Manifest.Version)
+	assert.Equal(t, licenses.Elastic20, descriptor.Manifest.Source.License)
+	// Blueprint packages have no data streams and no Elasticsearch overrides,
+	// even if the wizard collected default data-stream answers.
+	assert.Empty(t, descriptor.InputDataStreamType)
+	assert.Nil(t, descriptor.Manifest.Elasticsearch)
+}
+
 func TestCreatePackageDescriptorFromAnswers_NoLicense(t *testing.T) {
 	answers := newPackageAnswers{
 		Type:                "integration",
@@ -116,7 +145,7 @@ func TestCreatePackageDescriptorFromAnswers_NoLicense(t *testing.T) {
 }
 
 func TestAllowedPackageTypes(t *testing.T) {
-	valid := []string{"input", "integration", "content"}
+	valid := []string{"input", "integration", "content", "blueprint"}
 	for _, v := range valid {
 		assert.Contains(t, packages.AllowedPackageTypes, v, "expected %q to be in AllowedPackageTypes", v)
 	}

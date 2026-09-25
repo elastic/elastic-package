@@ -8,9 +8,11 @@ source:
 {[ end ]}
 description: "{[.Manifest.Description]}"
 type: {[.Manifest.Type]}
+{[- if ne .Manifest.Type "blueprint" ]}
 categories:{[range $category := .Manifest.Categories]}
   - {[$category]}
 {[- end]}
+{[- end ]}
 conditions:
   kibana:
     version: "{[.Manifest.Conditions.Kibana.Version]}"
@@ -20,6 +22,7 @@ conditions:
 discovery:
   fields: []
 {[- end ]}
+{[- if ne .Manifest.Type "blueprint" ]}
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot
@@ -30,6 +33,7 @@ icons:
     title: Sample logo
     size: 32x32
     type: image/svg+xml
+{[- end ]}
 {[- if (or (eq .Manifest.Type "integration") (eq .Manifest.Type "input")) ]}
 policy_templates:
 {[- if eq .Manifest.Type "integration" ]}
