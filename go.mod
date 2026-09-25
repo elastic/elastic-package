@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/ProtonMail/go-crypto v1.4.1
+	github.com/ProtonMail/go-crypto v1.5.0
 	github.com/ProtonMail/gopenpgp/v2 v2.10.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.5.0
