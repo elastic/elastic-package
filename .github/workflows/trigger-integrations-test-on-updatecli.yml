@@ -15,7 +15,6 @@ jobs:
     if: >-
       github.event.context == 'buildkite/elastic-package' &&
       github.event.state == 'success' &&
-      (github.event.commit.commit.message == null || true) &&
       contains(fromJSON('["updatecli_main_bump-terraform-version","updatecli_main_bump-gcloud-cli-version"]'), github.event.branches[0].name)
     runs-on: ubuntu-latest
     permissions:
@@ -54,19 +53,25 @@ jobs:
             exit 0
           fi
 
+          # Skip if any check on the PR is still failing or pending.
+          if ! gh pr checks "${pr_number}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "Not all PR checks are passing yet, skipping."
+            exit 0
+          fi
+
           # Deduplicate: skip if a "test integrations" comment was already
           # posted after this commit was pushed.
+          # gh --jq has no --arg flag; pass values via env vars readable as env.VAR in jq.
           committed_at=$(gh pr view "${pr_number}" \
             --repo "${REPO}" \
             --json commits \
-            --jq --arg sha "${SHA}" \
-            '.commits[] | select(.oid == $sha) | .committedDate')
+            --jq '.commits[] | select(.oid == env.SHA) | .committedDate')
+          export COMMITTED_AT="${committed_at}"
 
           already_posted=$(gh pr view "${pr_number}" \
             --repo "${REPO}" \
             --json comments \
-            --jq --arg since "${committed_at}" \
-            '[.comments[] | select(.createdAt >= $since and (.body | test("^test integrations$")))] | length')
+            --jq '[.comments[] | select(.createdAt >= env.COMMITTED_AT and (.body | test("^test integrations$")))] | length')
 
           if [[ "${already_posted}" -gt 0 ]]; then
             echo "Comment already posted for commit ${SHA}, skipping."
