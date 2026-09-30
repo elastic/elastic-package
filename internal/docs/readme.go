@@ -11,11 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+	"text/template/parse"
 
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // ReadmeFile contains file name and status of each readme file.
@@ -24,6 +26,7 @@ type ReadmeFile struct {
 	UpToDate bool
 	Diff     string
 	Error    error
+	Warning  string
 }
 
 const (
@@ -38,27 +41,49 @@ func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string, schemaURLs 
 		return nil, fmt.Errorf("locating links file failed: %w", err)
 	}
 
-	files, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
+	templateFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("reading directory entries failed: %w", err)
 	}
 
+	composable, err := hasRequiredInputs(packageRoot)
+	if err != nil {
+		return nil, fmt.Errorf("checking required inputs failed: %w", err)
+	}
+
 	var readmeFiles []ReadmeFile
-	for _, filePath := range files {
+	hasError := false
+	for _, filePath := range templateFiles {
 		fileName := filepath.Base(filePath)
+
+		if composable {
+			usesBundled, err := templateUsesBundledData(filePath)
+			if err != nil {
+				return nil, fmt.Errorf("checking template %s for bundled data functions failed: %w", fileName, err)
+			}
+			if usesBundled {
+				readmeFiles = append(readmeFiles, ReadmeFile{
+					FileName: fileName,
+					UpToDate: true,
+					Warning:  "README content depends on required input packages and can't be verified statically; run 'elastic-package build' to regenerate it",
+				})
+				continue
+			}
+		}
+
 		ok, diff, err := isReadmeUpToDate(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
 		if !ok || err != nil {
-			readmeFile := ReadmeFile{
+			readmeFiles = append(readmeFiles, ReadmeFile{
 				FileName: fileName,
 				UpToDate: ok,
 				Diff:     diff,
 				Error:    err,
-			}
-			readmeFiles = append(readmeFiles, readmeFile)
+			})
+			hasError = true
 		}
 	}
 
-	if readmeFiles != nil {
+	if hasError {
 		return readmeFiles, fmt.Errorf("files do not match")
 	}
 	return readmeFiles, nil
@@ -69,7 +94,7 @@ func isReadmeUpToDate(repositoryRoot *os.Root, fileName, linksFilePath, packageR
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
 	// the readme is generated within the package root, so source should be the packageRoot files too
-	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
+	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, "", schemaURLs)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -132,7 +157,7 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string
 func updateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot, buildPackageRoot string, schemaURLs fields.SchemaURLs) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
+	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, buildPackageRoot, schemaURLs)
 	if err != nil {
 		return "", err
 	}
@@ -152,10 +177,12 @@ func updateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot,
 	return target, nil
 }
 
-// GenerateReadme function generates the readme file content
-// the readme takes a template that lives under the _dev/build/docs directory at the packageRoot.
-// the readme template reads data from the packageRoot directory.
-func GenerateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot string, schemaURLs fields.SchemaURLs) ([]byte, bool, error) {
+// GenerateReadme generates the readme file content.
+// The template lives under _dev/build/docs in packageRoot.
+// For composable packages (those with requires.input), pass buildPackageRoot so that
+// {{ inputDocs }} and {{ fields }} read from the bundled build output instead of the source tree.
+// Pass "" for buildPackageRoot to always render from source (e.g. in lint or preview).
+func GenerateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot, buildPackageRoot string, schemaURLs fields.SchemaURLs) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -172,9 +199,7 @@ func GenerateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoo
 		return nil, false, err
 	}
 
-	// templatePath lives under the _dev/build/docs directory at the package root.
-	// builtPackageRoot is the root directory of the built package.
-	rendered, err := renderReadme(repositoryRoot, fileName, packageRoot, templatePath, linksMap, schemaURLs)
+	rendered, err := renderReadme(repositoryRoot, fileName, packageRoot, buildPackageRoot, templatePath, linksMap, schemaURLs)
 	if err != nil {
 		return nil, true, fmt.Errorf("rendering Readme failed: %w", err)
 	}
@@ -194,9 +219,24 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-// renderReadme function renders the readme file reading from
-func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath string, linksMap linkMap, schemaURLs fields.SchemaURLs) ([]byte, error) {
+// renderReadme renders the readme template.
+// packageRoot is always the source package directory; it is used for all functions except
+// inputDocs and fields, which switch to buildPackageRoot for composable packages so that
+// bundled content (resolved input types, merged field definitions) is included.
+// Pass "" for buildPackageRoot to always render from source.
+func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, buildPackageRoot, templatePath string, linksMap linkMap, schemaURLs fields.SchemaURLs) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
+
+	dataRoot := packageRoot
+	if buildPackageRoot != "" {
+		composable, err := hasRequiredInputs(packageRoot)
+		if err != nil {
+			return nil, fmt.Errorf("checking required inputs: %w", err)
+		}
+		if composable {
+			dataRoot = buildPackageRoot
+		}
+	}
 
 	t := template.New(fileName)
 	t, err := t.Funcs(template.FuncMap{
@@ -207,10 +247,12 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath s
 			return renderSampleEvent(packageRoot, "")
 		},
 		"fields": func(args ...string) (string, error) {
-			fieldsDir := filepath.Join(packageRoot, "fields")
+			fieldsDir := filepath.Join(dataRoot, "fields")
 			if len(args) > 0 {
-				fieldsDir = filepath.Join(packageRoot, "data_stream", args[0], "fields")
+				fieldsDir = filepath.Join(dataRoot, "data_stream", args[0], "fields")
 			}
+			// Always pass the source packageRoot so the validator can read _dev/build/build.yml
+			// and resolve external ECS references.
 			return renderExportedFields(repositoryRoot, packageRoot, fieldsDir, schemaURLs)
 		},
 		"url": func(args ...string) (string, error) {
@@ -221,7 +263,7 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath s
 			return linksMap.RenderLink(args[0], options)
 		},
 		"inputDocs": func() (string, error) {
-			return renderInputDocs(packageRoot)
+			return renderInputDocs(dataRoot)
 		},
 		"ilm": func(args ...string) (string, error) {
 			logger.Debug("renderILMPaths")
@@ -293,4 +335,95 @@ func readmePath(fileName, packageRoot string) string {
 
 func docsPath(packageRoot string) string {
 	return filepath.Join(packageRoot, "docs")
+}
+
+// hasRequiredInputs reports whether the package at packageRoot is a composable integration,
+// i.e. type == "integration" with at least one requires.input entry.
+func hasRequiredInputs(packageRoot string) (bool, error) {
+	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return false, fmt.Errorf("reading package manifest: %w", err)
+	}
+	return m.Type == "integration" && m.Requires != nil && len(m.Requires.Input) > 0, nil
+}
+
+// templateUsesBundledData reports whether the template at templatePath references
+// the {{ inputDocs }} or {{ fields }} functions, which depend on bundled build output
+// for composable packages and therefore can't be verified statically by lint.
+func templateUsesBundledData(templatePath string) (bool, error) {
+	src, err := os.ReadFile(templatePath)
+	if err != nil {
+		return false, fmt.Errorf("reading template file: %w", err)
+	}
+
+	// Stub every known func name so text/template/parse doesn't reject them.
+	noop := func(args ...string) (string, error) { return "", nil }
+	funcs := template.FuncMap{
+		"event":              noop,
+		"fields":             noop,
+		"url":                noop,
+		"inputDocs":          func() (string, error) { return "", nil },
+		"ilm":                noop,
+		"transform":          func() (string, error) { return "", nil },
+		"generatedHeader":    func() string { return "" },
+		"alertRuleTemplates": func() (string, error) { return "", nil },
+		"sloTemplates":       func() (string, error) { return "", nil },
+	}
+	treeSet, err := parse.Parse(filepath.Base(templatePath), string(src), "", "", funcs)
+	if err != nil {
+		return false, fmt.Errorf("parsing template %s: %w", templatePath, err)
+	}
+	for _, tree := range treeSet {
+		if nodeUsesBundledData(tree.Root) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// nodeUsesBundledData walks a parse.Node tree and returns true if it finds
+// a call to "inputDocs" or "fields".
+func nodeUsesBundledData(node parse.Node) bool {
+	if node == nil {
+		return false
+	}
+	switch n := node.(type) {
+	case *parse.ListNode:
+		if n == nil {
+			return false
+		}
+		for _, child := range n.Nodes {
+			if nodeUsesBundledData(child) {
+				return true
+			}
+		}
+	case *parse.IdentifierNode:
+		return n.Ident == "inputDocs" || n.Ident == "fields"
+	case *parse.ActionNode:
+		return nodeUsesBundledData(n.Pipe)
+	case *parse.PipeNode:
+		if n == nil {
+			return false
+		}
+		for _, cmd := range n.Cmds {
+			if nodeUsesBundledData(cmd) {
+				return true
+			}
+		}
+	case *parse.CommandNode:
+		for _, arg := range n.Args {
+			if nodeUsesBundledData(arg) {
+				return true
+			}
+		}
+	case *parse.IfNode:
+		return nodeUsesBundledData(n.List) || nodeUsesBundledData(n.ElseList) || nodeUsesBundledData(n.Pipe)
+	case *parse.RangeNode:
+		return nodeUsesBundledData(n.List) || nodeUsesBundledData(n.ElseList) || nodeUsesBundledData(n.Pipe)
+	case *parse.WithNode:
+		return nodeUsesBundledData(n.List) || nodeUsesBundledData(n.ElseList) || nodeUsesBundledData(n.Pipe)
+	case *parse.TemplateNode:
+		return nodeUsesBundledData(n.Pipe)
+	}
+	return false
 }
