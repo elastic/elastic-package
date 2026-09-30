@@ -65,6 +65,11 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot, appConfig.SchemaURLs())
+	for _, f := range readmeFiles {
+		if f.Warning != "" {
+			logger.Warnf("%s: %s", f.FileName, f.Warning)
+		}
+	}
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {
