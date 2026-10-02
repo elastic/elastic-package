@@ -263,7 +263,15 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, buildPackageRo
 			return linksMap.RenderLink(args[0], options)
 		},
 		"inputDocs": func() (string, error) {
-			return renderInputDocs(dataRoot)
+			var inputTypes map[string]string
+			if dataRoot != packageRoot {
+				builtManifest, err := packages.ReadPackageManifestFromPackageRoot(dataRoot)
+				if err != nil {
+					return "", fmt.Errorf("reading built package manifest: %w", err)
+				}
+				inputTypes = inputTypesByName(builtManifest)
+			}
+			return renderInputDocs(dataRoot, inputTypes)
 		},
 		"ilm": func(args ...string) (string, error) {
 			logger.Debug("renderILMPaths")
