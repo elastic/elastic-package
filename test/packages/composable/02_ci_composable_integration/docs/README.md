@@ -37,6 +37,7 @@ To collect logs via logfile, select **Collect logs via the logfile input** and c
 | data_stream.dataset | Data stream dataset. | constant_keyword |
 | data_stream.namespace | Data stream namespace. | constant_keyword |
 | data_stream.type | Data stream type. | constant_keyword |
+| host.name | Name of the host. It can contain what `hostname` returns on Unix systems, the fully qualified domain name, or a name specified by the user. The sender decides which value to use. | keyword |
 | log.level | Log level. | keyword |
 | message | Log message. | text |
 
