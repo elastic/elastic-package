@@ -1,0 +1,82 @@
+---
+name: Trigger integrations test on updatecli PRs
+
+on:
+  status:
+
+permissions:
+  contents: read
+
+jobs:
+  trigger:
+    # Run only when the main Buildkite pipeline succeeds on one of the two
+    # terraform-deployer updatecli branches. The comment body must match the
+    # buildkite-pr-bot regex exactly so the integrations pipeline is triggered.
+    if: >-
+      github.event.context == 'buildkite/elastic-package' &&
+      github.event.state == 'success' &&
+      contains(fromJSON('["updatecli_main_bump-terraform-version","updatecli_main_bump-gcloud-cli-version"]'), github.event.branches[0].name)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post "test integrations" comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.sha }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.branches[0].name }}
+        run: |
+          set -euo pipefail
+
+          # Find the open PR for this branch.
+          pr_number=$(gh pr list \
+            --repo "${REPO}" \
+            --head "${BRANCH}" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [[ -z "${pr_number}" ]]; then
+            echo "No open PR found for branch ${BRANCH}, skipping."
+            exit 0
+          fi
+
+          # Verify the status is for the PR's current head commit.
+          head_sha=$(gh pr view "${pr_number}" \
+            --repo "${REPO}" \
+            --json headRefOid \
+            --jq '.headRefOid')
+
+          if [[ "${SHA}" != "${head_sha}" ]]; then
+            echo "Status SHA ${SHA} does not match PR head ${head_sha}, skipping."
+            exit 0
+          fi
+
+          # Skip if any check on the PR is still failing or pending.
+          if ! gh pr checks "${pr_number}" --repo "${REPO}" > /dev/null 2>&1; then
+            echo "Not all PR checks are passing yet, skipping."
+            exit 0
+          fi
+
+          # Deduplicate: skip if a "test integrations" comment was already
+          # posted after this commit was pushed.
+          # gh --jq has no --arg flag; pass values via env vars readable as env.VAR in jq.
+          committed_at=$(gh pr view "${pr_number}" \
+            --repo "${REPO}" \
+            --json commits \
+            --jq '.commits[] | select(.oid == env.SHA) | .committedDate')
+          export COMMITTED_AT="${committed_at}"
+
+          already_posted=$(gh pr view "${pr_number}" \
+            --repo "${REPO}" \
+            --json comments \
+            --jq '[.comments[] | select(.createdAt >= env.COMMITTED_AT and (.body | test("^test integrations$")))] | length')
+
+          if [[ "${already_posted}" -gt 0 ]]; then
+            echo "Comment already posted for commit ${SHA}, skipping."
+            exit 0
+          fi
+
+          echo "Posting 'test integrations' on PR #${pr_number}."
+          gh pr comment "${pr_number}" --repo "${REPO}" --body "test integrations"

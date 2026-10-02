@@ -4,7 +4,8 @@ name: Run updatecli
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 1 * * 1-5'
+    - cron: '0 1 * * 1-5'   # daily: all pipelines except terraform/gcloud
+    - cron: '0 2 1,15 * *'  # biweekly (1st and 15th): terraform and gcloud only
   pull_request:
     paths:
       - .github/workflows/updatecli/**
@@ -34,11 +35,29 @@ jobs:
         run: |
           echo "UPDATECLI_ACTION=apply" >> $GITHUB_ENV
 
+      - name: Select config
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          case "$SCHEDULE" in
+            '0 1 * * 1-5')
+              cfg='--config .github/workflows/updatecli/updatecli.d'
+              ;;
+            '0 2 1,15 * *')
+              cfg='--config .github/workflows/updatecli/biweekly.d'
+              ;;
+            *)
+              # PR diff or workflow_dispatch: run all pipelines
+              cfg='--config .github/workflows/updatecli/updatecli.d --config .github/workflows/updatecli/biweekly.d'
+              ;;
+          esac
+          echo "UPDATECLI_CONFIG=$cfg" >> "$GITHUB_ENV"
+
       - name: Install Updatecli in the runner
         uses: updatecli/updatecli-action@ca8c01bf875e2520512c344a71dd02f3dc3326a7 #v3.7.0
 
       - name: Run updatecli
         # --experimental needed for commitusingapi option.
-        run: updatecli --experimental ${{ env.UPDATECLI_ACTION }} --config .github/workflows/updatecli --values .github/workflows/updatecli/values.d/scm.yml
+        run: updatecli --experimental ${{ env.UPDATECLI_ACTION }} ${{ env.UPDATECLI_CONFIG }} --values .github/workflows/updatecli/values.d/scm.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
