@@ -369,12 +369,16 @@ func templateUsesBundledData(templatePath string) (bool, error) {
 		"alertRuleTemplates": func() (string, error) { return "", nil },
 		"sloTemplates":       func() (string, error) { return "", nil },
 	}
-	treeSet, err := parse.Parse(filepath.Base(templatePath), string(src), "", "", funcs)
+	// Parse through text/template so builtins (eq, len, ...) are registered too.
+	t, err := template.New(filepath.Base(templatePath)).Funcs(funcs).Parse(string(src))
 	if err != nil {
 		return false, fmt.Errorf("parsing template %s: %w", templatePath, err)
 	}
-	for _, tree := range treeSet {
-		if nodeUsesBundledData(tree.Root) {
+	for _, tmpl := range t.Templates() {
+		if tmpl.Tree == nil {
+			continue
+		}
+		if nodeUsesBundledData(tmpl.Root) {
 			return true, nil
 		}
 	}

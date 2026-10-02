@@ -1175,6 +1175,16 @@ func TestTemplateUsesBundledData(t *testing.T) {
 			want:     true,
 		},
 		{
+			name:     "fields inside builtin condition",
+			template: `{{- if eq "a" "a" }}{{ fields }}{{- end }}`,
+			want:     true,
+		},
+		{
+			name:     "fields inside define block with builtin",
+			template: `{{- define "x" }}{{ if gt (len "abc") 1 }}{{ inputDocs }}{{ end }}{{ end }}`,
+			want:     true,
+		},
+		{
 			name:     "no bundled functions",
 			template: `# README\n{{ generatedHeader }}\n{{ event "ds" }}`,
 			want:     false,
