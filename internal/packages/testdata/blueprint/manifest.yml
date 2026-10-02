@@ -1,0 +1,16 @@
+format_version: 3.6.6
+name: blueprint
+title: Blueprint
+description: Minimal blueprint package fixture for elastic-package package-root detection and scaffolding.
+version: 0.0.1
+type: blueprint
+source:
+  license: "Elastic-2.0"
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+owner:
+  github: elastic/integrations
+  type: elastic

@@ -54,10 +54,13 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 		return fmt.Errorf("can't render package README: %w", err)
 	}
 
-	logger.Debugf("Write docs readme template to _dev")
-	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "_dev", "build", "docs", "README.md"))
-	if err != nil {
-		return fmt.Errorf("can't render package README in _dev: %w", err)
+	// Blueprint packages do not allow a `_dev` directory in package-spec.
+	if packageDescriptor.Manifest.Type != "blueprint" {
+		logger.Debugf("Write docs readme template to _dev")
+		err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "_dev", "build", "docs", "README.md"))
+		if err != nil {
+			return fmt.Errorf("can't render package README in _dev: %w", err)
+		}
 	}
 
 	if license := packageDescriptor.Manifest.Source.License; license != "" {
@@ -68,20 +71,23 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 		}
 	}
 
-	logger.Debugf("Write sample icon")
-	err = writeRawResourceFile(packageImgSampleIcon, filepath.Join(baseDir, "img", "sample-logo.svg"))
-	if err != nil {
-		return fmt.Errorf("can't render sample icon: %w", err)
-	}
+	// Blueprint packages do not ship Kibana assets or package icons.
+	if packageDescriptor.Manifest.Type != "blueprint" {
+		logger.Debugf("Write sample icon")
+		err = writeRawResourceFile(packageImgSampleIcon, filepath.Join(baseDir, "img", "sample-logo.svg"))
+		if err != nil {
+			return fmt.Errorf("can't render sample icon: %w", err)
+		}
 
-	logger.Debugf("Write sample screenshot")
-	decodedSampleScreenshot, err := decodeBase64Resource(packageImgSampleScreenshot)
-	if err != nil {
-		return fmt.Errorf("can't decode sample screenshot: %w", err)
-	}
-	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
-	if err != nil {
-		return fmt.Errorf("can't render sample screenshot: %w", err)
+		logger.Debugf("Write sample screenshot")
+		decodedSampleScreenshot, err := decodeBase64Resource(packageImgSampleScreenshot)
+		if err != nil {
+			return fmt.Errorf("can't decode sample screenshot: %w", err)
+		}
+		err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
+		if err != nil {
+			return fmt.Errorf("can't render sample screenshot: %w", err)
+		}
 	}
 
 	if packageDescriptor.Manifest.Type == "integration" {
@@ -104,6 +110,14 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 		err = renderResourceFile(inputAgentConfigTemplate, &packageDescriptor, filepath.Join(baseDir, "agent", "input", "input.yml.hbs"))
 		if err != nil {
 			return fmt.Errorf("can't render agent stream: %w", err)
+		}
+	}
+
+	if packageDescriptor.Manifest.Type == "blueprint" {
+		logger.Debugf("Write sample blueprint")
+		err = writeRawResourceFile(blueprintSampleCloudFormation, filepath.Join(baseDir, "blueprints", "aws", "federated-identity", "account.cloudformation.json"))
+		if err != nil {
+			return fmt.Errorf("can't render sample blueprint: %w", err)
 		}
 	}
 

@@ -119,7 +119,7 @@ const (
 	CreatePackageNameFlagDescription = "set to create an empty package with the given name in a non-interactive way"
 
 	CreatePackageTypeFlagName        = "type"
-	CreatePackageTypeFlagDescription = "set to 'input', 'integration' or 'content' to create an empty package of the given type in a non-interactive way"
+	CreatePackageTypeFlagDescription = "set to 'input', 'integration', 'content' or 'blueprint' to create an empty package of the given type in a non-interactive way"
 
 	CreateDataStreamNameFlagName        = "name"
 	CreateDataStreamNameFlagDescription = "set to create a data stream with the given name in a non-interactive way"
