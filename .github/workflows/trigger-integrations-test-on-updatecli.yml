@@ -53,9 +53,15 @@ jobs:
             exit 0
           fi
 
-          # Skip if any check on the PR is still failing or pending.
-          if ! gh pr checks "${pr_number}" --repo "${REPO}" > /dev/null 2>&1; then
-            echo "Not all PR checks are passing yet, skipping."
+          # Only act on PRs opened by the updatecli workflow, not on a branch
+          # with the same name pushed from a fork.
+          pr_author=$(gh pr view "${pr_number}" \
+            --repo "${REPO}" \
+            --json author \
+            --jq '.author.login')
+
+          if [[ "${pr_author}" != "app/github-actions" ]]; then
+            echo "PR #${pr_number} was opened by ${pr_author}, skipping."
             exit 0
           fi
 
@@ -66,6 +72,11 @@ jobs:
             --repo "${REPO}" \
             --json commits \
             --jq '.commits[] | select(.oid == env.SHA) | .committedDate')
+
+          if [[ -z "${committed_at}" ]]; then
+            echo "Commit ${SHA} not found in PR #${pr_number}, skipping."
+            exit 0
+          fi
           export COMMITTED_AT="${committed_at}"
 
           already_posted=$(gh pr view "${pr_number}" \
