@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Tests the build and install flow for composable packages.
+# Tests the check (lint and build) and install flow for composable packages.
 #
 # Bootstrap input packages (01_ci_input_pkg, 05_ci_input_pkg_a, 06_ci_input_pkg_b)
 # are built before the stack so the local registry can serve them when composable
@@ -73,7 +73,7 @@ for bootstrap_name in "${COMPOSABLE_BOOTSTRAP_PKGS[@]}"; do
   echo "--- Building bootstrap input package: ${COMPOSABLE_PACKAGES_PATH}/${bootstrap_name}"
   # Bootstrap packages have no (or satisfied) requires.input; no registry yet.
   # After build, artifacts land in build/packages/ for the stack local registry.
-  elastic-package build -C "${COMPOSABLE_PACKAGES_PATH}/${bootstrap_name}" -v
+  elastic-package check -C "${COMPOSABLE_PACKAGES_PATH}/${bootstrap_name}" -v
 done
 
 echo "--- Prepare Elastic stack"
@@ -99,7 +99,9 @@ for bootstrap_name in "${COMPOSABLE_BOOTSTRAP_PKGS[@]}"; do
 done
 
 # Build and install each composable package that is not a bootstrap input.
-# build may download required inputs from the local registry and bundle them.
+# check lints and builds the package: the build may download required inputs from the local
+# registry and bundle them, and the check fails if the regenerated README differs from the
+# committed one.
 # install verifies the fully-composed package can be loaded by Fleet.
 for d in "${COMPOSABLE_PACKAGES_PATH}"/*/; do
   package_to_test=$(basename "${d}")
@@ -108,8 +110,8 @@ for d in "${COMPOSABLE_PACKAGES_PATH}"/*/; do
     continue
   fi
 
-  echo "--- Building package ${d}"
-  elastic-package build -C "$d" -v
+  echo "--- Checking package ${d}"
+  elastic-package check -C "$d" -v
 
   echo "--- Installing package ${d}"
   elastic-package install -C "$d" -v
