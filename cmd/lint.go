@@ -22,7 +22,7 @@ const lintLongDescription = `Use this command to validate the contents of a pack
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
 
-For packages that declare required input packages ("requires.input" in manifest.yml), the sections of the README generated from those packages ({{ fields }} and {{ inputDocs }}) can't be verified without building the package, so lint only checks the rest of the README. Run "elastic-package check" or "elastic-package build" to verify them.`
+For packages that declare required input packages ("requires.input" in manifest.yml), the sections of the README generated from those packages ({{ fields }} and {{ inputDocs }}) can't be verified without building the package, so lint only checks the rest of the README. Run "elastic-package check" to verify them: it builds the package and fails if the regenerated README differs from the committed one.`
 
 func setupLintCommand() *cobraext.Command {
 	cmd := &cobra.Command{
