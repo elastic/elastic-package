@@ -291,7 +291,7 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.
 
-When the package declares required input packages ("requires.input" in manifest.yml), the build downloads those input packages from the configured package registry (see "package_registry.base_url" in ~/.elastic-package/config.yml). The build then incorporates their policy and data stream templates, merges variable definitions into the integration manifest, bundles data stream field definitions, and resolves package: references on inputs and streams to the effective input types expected by Fleet. For details on using a local or custom registry during development, see the [HOWTO guide](./docs/howto/local_package_registry.md).
+When the package declares required input packages ("requires.input" in manifest.yml), the build downloads those input packages from the configured package registry (see "package_registry.base_url" in ~/.elastic-package/config.yml). The build then incorporates their policy and data stream templates, merges variable definitions into the integration manifest, bundles data stream field definitions, and resolves package: references on inputs and streams to the effective input types expected by Fleet. For details on using a local or custom registry during development, see the [HOWTO guide](./docs/howto/local_package_registry.md). The README of these packages is rendered with the bundled content, and the build fails, after regenerating the README, if the committed one was out of date, so the changes can be reviewed and committed.
 
 If a required input package declares a "data_stream.dataset" var, it is dropped from the bundled data stream vars: an integration fixes its dataset by data stream name, so this var must not be left user-configurable. If the integration needs to declare "data_stream.dataset" itself, it can: either promoted to the input level ("policy_templates[].inputs[].vars"), or directly on the data stream. Both are bundled normally, and if both are declared, Fleet's usual variable-scope precedence applies at policy-render time, with the data-stream-level value taking precedence over the input-level one.
 
@@ -495,6 +495,8 @@ _Context: package_
 Use this command to validate the contents of a package using the package specification (see: https://github.com/elastic/package-spec).
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
+
+For packages that declare required input packages ("requires.input" in manifest.yml), the sections of the README generated from those packages ({{ fields }} and {{ inputDocs }}) can't be verified without building the package, so lint only checks the rest of the README. Run "elastic-package check" or "elastic-package build" to verify them.
 
 ### `elastic-package modify`
 
