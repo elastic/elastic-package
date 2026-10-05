@@ -5,9 +5,12 @@
 package docs
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -699,8 +702,9 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot, urls)
+			readmePath, diff, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot, urls)
 			require.NoError(t, err)
+			assert.Empty(t, diff, "non-composable packages don't report drift")
 			require.NotEmpty(t, readmePath)
 			d, err := os.ReadFile(readmePath)
 			require.NoError(t, err)
@@ -977,6 +981,8 @@ func createTransformFolder(t *testing.T, packageRoot, transformName string) stri
 	return transformFolder
 }
 
+const composableDataStreamName = "ci_composable_logs"
+
 // createComposableManifestFile writes a manifest.yml that declares requires.input.
 func createComposableManifestFile(t *testing.T, packageRoot string) {
 	t.Helper()
@@ -994,18 +1000,18 @@ requires:
 	require.NoError(t, err)
 }
 
-// createDataStreamManifestWithInput writes a data stream manifest.yml with a resolved input type.
-func createDataStreamManifestWithInput(t *testing.T, root, dsName, inputType string) {
+// createDataStreamManifestWithLogfileInput writes a data stream manifest.yml with a resolved logfile input.
+func createDataStreamManifestWithLogfileInput(t *testing.T, root string) {
 	t.Helper()
-	dir := filepath.Join(root, "data_stream", dsName)
+	dir := filepath.Join(root, "data_stream", composableDataStreamName)
 	err := os.MkdirAll(dir, 0o755)
 	require.NoError(t, err)
-	manifest := fmt.Sprintf(`title: Test DS
+	manifest := `title: Test DS
 type: logs
 streams:
-  - input: %s
+  - input: logfile
     title: Test stream
-`, inputType)
+`
 	err = os.WriteFile(filepath.Join(dir, "manifest.yml"), []byte(manifest), 0o644)
 	require.NoError(t, err)
 }
@@ -1030,7 +1036,7 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 	linksMap := newEmptyLinkMap()
 	urls := fields.SchemaURLs{}
 
-	const dsName = "ci_composable_logs"
+	const dsName = composableDataStreamName
 	const bundledFieldYAML = `
 - name: bundled.field
   type: keyword
@@ -1064,7 +1070,7 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 
 		// Build root has resolved input and bundled fields.
 		createManifestFile(t, buildRoot)
-		createDataStreamManifestWithInput(t, buildRoot, dsName, "logfile")
+		createDataStreamManifestWithLogfileInput(t, buildRoot)
 		createFieldsFile(t, buildRoot, dsName, bundledFieldYAML)
 
 		tmpl := `{{- generatedHeader }}
@@ -1121,12 +1127,12 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 
 		createManifestFile(t, srcRoot) // non-composable
 		createBuildFile(t, srcRoot)
-		createDataStreamManifestWithInput(t, srcRoot, dsName, "logfile")
+		createDataStreamManifestWithLogfileInput(t, srcRoot)
 		createFieldsFile(t, srcRoot, dsName, sourceFieldYAML)
 
 		// Build root has different fields — should NOT be used.
 		createManifestFile(t, buildRoot)
-		createDataStreamManifestWithInput(t, buildRoot, dsName, "logfile")
+		createDataStreamManifestWithLogfileInput(t, buildRoot)
 		createFieldsFile(t, buildRoot, dsName, bundledFieldYAML)
 
 		tmpl := `# README
@@ -1148,77 +1154,48 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 	})
 }
 
-func TestTemplateUsesBundledData(t *testing.T) {
-	cases := []struct {
-		name     string
-		template string
-		want     bool
-	}{
-		{
-			name:     "inputDocs only",
-			template: `# README\n{{ inputDocs }}`,
-			want:     true,
-		},
-		{
-			name:     "fields with arg",
-			template: `# README\n{{- fields "myds" }}`,
-			want:     true,
-		},
-		{
-			name:     "fields inside if block",
-			template: `{{- if true }}{{ fields "ds" }}{{- end }}`,
-			want:     true,
-		},
-		{
-			name:     "fields inside range block",
-			template: `{{- range . }}{{ fields }}{{- end }}`,
-			want:     true,
-		},
-		{
-			name:     "fields inside builtin condition",
-			template: `{{- if eq "a" "a" }}{{ fields }}{{- end }}`,
-			want:     true,
-		},
-		{
-			name:     "fields inside define block with builtin",
-			template: `{{- define "x" }}{{ if gt (len "abc") 1 }}{{ inputDocs }}{{ end }}{{ end }}`,
-			want:     true,
-		},
-		{
-			name:     "no bundled functions",
-			template: `# README\n{{ generatedHeader }}\n{{ event "ds" }}`,
-			want:     false,
-		},
-		{
-			name:     "plain markdown",
-			template: `# README\nNo template functions here.`,
-			want:     false,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			f, err := os.CreateTemp(t.TempDir(), "README*.md")
-			require.NoError(t, err)
-			_, err = f.WriteString(c.template)
-			require.NoError(t, err)
-			require.NoError(t, f.Close())
-
-			got, err := templateUsesBundledData(f.Name())
-			require.NoError(t, err)
-			assert.Equal(t, c.want, got)
-		})
-	}
+func writeCommittedReadme(t *testing.T, packageRoot, contents string) {
+	t.Helper()
+	docsDir := filepath.Join(packageRoot, "docs")
+	require.NoError(t, os.MkdirAll(docsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "README.md"), []byte(contents), 0o644))
 }
 
-func TestAreReadmesUpToDate_ComposableWarning(t *testing.T) {
+func TestAreReadmesUpToDateComposable(t *testing.T) {
 	urls := fields.SchemaURLs{}
+	const dsName = composableDataStreamName
+	const template = `{{- generatedHeader }}
+# README
 
-	const dsName = "ci_composable_logs"
+Static prose.
 
-	t.Run("composable package with bundled function → warning, no error", func(t *testing.T) {
+## Input types
+
+{{ inputDocs }}
+## Fields
+
+{{ fields "` + dsName + `" }}
+Closing prose.
+`
+	const committed = doNotModifyStr + `
+# README
+
+Static prose.
+
+## Input types
+
+### logfile
+Bundled input docs.
+## Fields
+
+| Field | Type |
+| bundled.field | keyword |
+Closing prose.
+`
+
+	setup := func(t *testing.T) (*os.Root, string) {
+		t.Helper()
 		packageRoot := t.TempDir()
-
 		createComposableManifestFile(t, packageRoot)
 		createBuildFile(t, packageRoot)
 		createDataStreamManifestWithPackageRef(t, packageRoot, dsName, "ci_input_pkg")
@@ -1227,71 +1204,180 @@ func TestAreReadmesUpToDate_ComposableWarning(t *testing.T) {
   type: keyword
   description: Source field.
 `)
-		// Template uses {{ fields }} which is a bundled function.
-		tmpl := `# README
-{{ fields "` + dsName + `" }}
-`
-		createReadmeTemplateFile(t, packageRoot, tmpl)
-		// Write a committed README that differs from the source render.
-		docsDir := filepath.Join(packageRoot, "docs")
-		require.NoError(t, os.MkdirAll(docsDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(docsDir, "README.md"), []byte("outdated content"), 0o644))
+		createReadmeTemplateFile(t, packageRoot, template)
+		root, err := os.OpenRoot(packageRoot)
+		require.NoError(t, err)
+		t.Cleanup(func() { root.Close() })
+		return root, packageRoot
+	}
 
+	t.Run("bundled regions are not verified", func(t *testing.T) {
+		root, packageRoot := setup(t)
+		writeCommittedReadme(t, packageRoot, committed)
+
+		readmeFiles, err := AreReadmesUpToDate(root, packageRoot, urls)
+		assert.NoError(t, err)
+		assert.Empty(t, readmeFiles)
+	})
+
+	t.Run("warns that bundled regions are not verified", func(t *testing.T) {
+		root, packageRoot := setup(t)
+		writeCommittedReadme(t, packageRoot, committed)
+
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+		_, err := AreReadmesUpToDate(root, packageRoot, urls)
+		require.NoError(t, err)
+		assert.Contains(t, logs.String(), "WARN")
+		assert.Contains(t, logs.String(), "README.md")
+		assert.Contains(t, logs.String(), "elastic-package check")
+	})
+
+	t.Run("no warning without bundled regions", func(t *testing.T) {
+		root, packageRoot := setup(t)
+		createReadmeTemplateFile(t, packageRoot, "{{- generatedHeader }}\n# README\n")
+		writeCommittedReadme(t, packageRoot, doNotModifyStr+"\n# README\n")
+
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+		_, err := AreReadmesUpToDate(root, packageRoot, urls)
+		require.NoError(t, err)
+		assert.NotContains(t, logs.String(), "WARN")
+	})
+
+	t.Run("prose outside bundled regions is verified", func(t *testing.T) {
+		root, packageRoot := setup(t)
+		writeCommittedReadme(t, packageRoot, strings.Replace(committed, "Closing prose.", "Outdated prose.", 1))
+
+		readmeFiles, err := AreReadmesUpToDate(root, packageRoot, urls)
+		require.Error(t, err)
+		require.Len(t, readmeFiles, 1)
+		assert.False(t, readmeFiles[0].UpToDate)
+		assert.Contains(t, readmeFiles[0].Diff, "Outdated prose.")
+		assert.Contains(t, readmeFiles[0].Diff, "Closing prose.")
+		assert.Contains(t, readmeFiles[0].Diff, bundledPlaceholder)
+	})
+
+	t.Run("missing readme", func(t *testing.T) {
+		root, packageRoot := setup(t)
+
+		readmeFiles, err := AreReadmesUpToDate(root, packageRoot, urls)
+		require.Error(t, err)
+		require.Len(t, readmeFiles, 1)
+		assert.False(t, readmeFiles[0].UpToDate)
+	})
+
+	t.Run("template without bundled functions is compared exactly", func(t *testing.T) {
+		root, packageRoot := setup(t)
+		createReadmeTemplateFile(t, packageRoot, "{{- generatedHeader }}\n# README\nStatic.\n")
+		writeCommittedReadme(t, packageRoot, "outdated content")
+
+		_, err := AreReadmesUpToDate(root, packageRoot, urls)
+		assert.Error(t, err)
+	})
+
+	t.Run("non-composable package is compared exactly", func(t *testing.T) {
+		packageRoot := t.TempDir()
+		createManifestFile(t, packageRoot)
+		createBuildFile(t, packageRoot)
+		createReadmeTemplateFile(t, packageRoot, "{{- generatedHeader }}\n# README\nContent.\n")
+		writeCommittedReadme(t, packageRoot, "outdated content")
 		root, err := os.OpenRoot(packageRoot)
 		require.NoError(t, err)
 		t.Cleanup(func() { root.Close() })
 
-		readmeFiles, err := AreReadmesUpToDate(root, packageRoot, urls)
-		assert.NoError(t, err, "composable+bundled function should not produce an error")
-		require.Len(t, readmeFiles, 1)
-		assert.True(t, readmeFiles[0].UpToDate)
-		assert.NotEmpty(t, readmeFiles[0].Warning)
-		assert.Empty(t, readmeFiles[0].Diff)
+		_, err = AreReadmesUpToDate(root, packageRoot, urls)
+		assert.Error(t, err)
 	})
+}
 
-	t.Run("composable package with no bundled function → strict check (error when outdated)", func(t *testing.T) {
-		packageRoot := t.TempDir()
+func TestUpdateReadmesComposableDrift(t *testing.T) {
+	urls := fields.SchemaURLs{}
+	const dsName = composableDataStreamName
+	const template = `{{- generatedHeader }}
+# README
+{{ fields "` + dsName + `" }}`
+
+	setup := func(t *testing.T) (*os.Root, string, string) {
+		t.Helper()
+		parent := t.TempDir()
+		packageRoot := filepath.Join(parent, "src")
+		buildRoot := filepath.Join(parent, "build")
+		require.NoError(t, os.MkdirAll(packageRoot, 0o755))
+		require.NoError(t, os.MkdirAll(buildRoot, 0o755))
 
 		createComposableManifestFile(t, packageRoot)
 		createBuildFile(t, packageRoot)
-		// Template uses only generatedHeader — no bundled function.
-		tmpl := `{{- generatedHeader }}
-# README
-Static content.
-`
-		createReadmeTemplateFile(t, packageRoot, tmpl)
-		// Write a committed README that differs.
-		docsDir := filepath.Join(packageRoot, "docs")
-		require.NoError(t, os.MkdirAll(docsDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(docsDir, "README.md"), []byte("outdated content"), 0o644))
+		createReadmeTemplateFile(t, packageRoot, template)
 
-		root, err := os.OpenRoot(packageRoot)
+		createManifestFile(t, buildRoot)
+		createDataStreamManifestWithLogfileInput(t, buildRoot)
+		createFieldsFile(t, buildRoot, dsName, `
+- name: bundled.field
+  type: keyword
+  description: A field bundled from the input package.
+`)
+		root, err := os.OpenRoot(parent)
 		require.NoError(t, err)
 		t.Cleanup(func() { root.Close() })
+		return root, packageRoot, buildRoot
+	}
 
-		_, err = AreReadmesUpToDate(root, packageRoot, urls)
-		assert.Error(t, err, "composable but no bundled functions → still strict")
+	t.Run("outdated readme is regenerated and reported", func(t *testing.T) {
+		root, packageRoot, buildRoot := setup(t)
+		writeCommittedReadme(t, packageRoot, "outdated content")
+
+		err := UpdateReadmes(root, packageRoot, buildRoot, urls)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "README.md")
+		assert.Contains(t, err.Error(), "outdated content")
+
+		for _, dir := range []string{packageRoot, buildRoot} {
+			d, err := os.ReadFile(filepath.Join(dir, "docs", "README.md"))
+			require.NoError(t, err)
+			assert.Contains(t, string(d), "bundled.field")
+		}
+
+		// The regenerated readme is in sync, so running again succeeds.
+		require.NoError(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
 	})
 
-	t.Run("non-composable package with outdated README → error", func(t *testing.T) {
-		packageRoot := t.TempDir()
+	t.Run("missing readme is generated and reported", func(t *testing.T) {
+		root, packageRoot, buildRoot := setup(t)
 
-		createManifestFile(t, packageRoot)
-		createBuildFile(t, packageRoot)
-		tmpl := `{{- generatedHeader }}
-# README
-Content.
-`
-		createReadmeTemplateFile(t, packageRoot, tmpl)
-		docsDir := filepath.Join(packageRoot, "docs")
-		require.NoError(t, os.MkdirAll(docsDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(docsDir, "README.md"), []byte("outdated content"), 0o644))
+		err := UpdateReadmes(root, packageRoot, buildRoot, urls)
+		require.Error(t, err)
 
-		root, err := os.OpenRoot(packageRoot)
+		d, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
 		require.NoError(t, err)
-		t.Cleanup(func() { root.Close() })
+		assert.Contains(t, string(d), "bundled.field")
+	})
 
-		_, err = AreReadmesUpToDate(root, packageRoot, urls)
-		assert.Error(t, err, "non-composable outdated README should fail")
+	t.Run("up to date readme", func(t *testing.T) {
+		root, packageRoot, buildRoot := setup(t)
+		require.Error(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
+
+		require.NoError(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
+	})
+
+	t.Run("non-composable package is regenerated silently", func(t *testing.T) {
+		root, packageRoot, buildRoot := setup(t)
+		createManifestFile(t, packageRoot)
+		createFieldsFile(t, packageRoot, dsName, `
+- name: source.field
+  type: keyword
+  description: Source field.
+`)
+		writeCommittedReadme(t, packageRoot, "outdated content")
+
+		require.NoError(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
+
+		d, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
+		require.NoError(t, err)
+		assert.Contains(t, string(d), "source.field")
 	})
 }
