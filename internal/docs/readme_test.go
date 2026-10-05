@@ -702,9 +702,8 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			readmePath, diff, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot, urls)
+			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot, urls)
 			require.NoError(t, err)
-			assert.Empty(t, diff, "non-composable packages don't report drift")
 			require.NotEmpty(t, readmePath)
 			d, err := os.ReadFile(readmePath)
 			require.NoError(t, err)
@@ -1292,92 +1291,5 @@ Closing prose.
 
 		_, err = AreReadmesUpToDate(root, packageRoot, urls)
 		assert.Error(t, err)
-	})
-}
-
-func TestUpdateReadmesComposableDrift(t *testing.T) {
-	urls := fields.SchemaURLs{}
-	const dsName = composableDataStreamName
-	const template = `{{- generatedHeader }}
-# README
-{{ fields "` + dsName + `" }}`
-
-	setup := func(t *testing.T) (*os.Root, string, string) {
-		t.Helper()
-		parent := t.TempDir()
-		packageRoot := filepath.Join(parent, "src")
-		buildRoot := filepath.Join(parent, "build")
-		require.NoError(t, os.MkdirAll(packageRoot, 0o755))
-		require.NoError(t, os.MkdirAll(buildRoot, 0o755))
-
-		createComposableManifestFile(t, packageRoot)
-		createBuildFile(t, packageRoot)
-		createReadmeTemplateFile(t, packageRoot, template)
-
-		createManifestFile(t, buildRoot)
-		createDataStreamManifestWithLogfileInput(t, buildRoot)
-		createFieldsFile(t, buildRoot, dsName, `
-- name: bundled.field
-  type: keyword
-  description: A field bundled from the input package.
-`)
-		root, err := os.OpenRoot(parent)
-		require.NoError(t, err)
-		t.Cleanup(func() { root.Close() })
-		return root, packageRoot, buildRoot
-	}
-
-	t.Run("outdated readme is regenerated and reported", func(t *testing.T) {
-		root, packageRoot, buildRoot := setup(t)
-		writeCommittedReadme(t, packageRoot, "outdated content")
-
-		err := UpdateReadmes(root, packageRoot, buildRoot, urls)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "README.md")
-		assert.Contains(t, err.Error(), "outdated content")
-
-		for _, dir := range []string{packageRoot, buildRoot} {
-			d, err := os.ReadFile(filepath.Join(dir, "docs", "README.md"))
-			require.NoError(t, err)
-			assert.Contains(t, string(d), "bundled.field")
-		}
-
-		// The regenerated readme is in sync, so running again succeeds.
-		require.NoError(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
-	})
-
-	t.Run("missing readme is generated and reported", func(t *testing.T) {
-		root, packageRoot, buildRoot := setup(t)
-
-		err := UpdateReadmes(root, packageRoot, buildRoot, urls)
-		require.Error(t, err)
-
-		d, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
-		require.NoError(t, err)
-		assert.Contains(t, string(d), "bundled.field")
-	})
-
-	t.Run("up to date readme", func(t *testing.T) {
-		root, packageRoot, buildRoot := setup(t)
-		require.Error(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
-
-		require.NoError(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
-	})
-
-	t.Run("non-composable package is regenerated silently", func(t *testing.T) {
-		root, packageRoot, buildRoot := setup(t)
-		createManifestFile(t, packageRoot)
-		createFieldsFile(t, packageRoot, dsName, `
-- name: source.field
-  type: keyword
-  description: Source field.
-`)
-		writeCommittedReadme(t, packageRoot, "outdated content")
-
-		require.NoError(t, UpdateReadmes(root, packageRoot, buildRoot, urls))
-
-		d, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
-		require.NoError(t, err)
-		assert.Contains(t, string(d), "source.field")
 	})
 }
