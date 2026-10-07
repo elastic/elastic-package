@@ -219,17 +219,12 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-// renderReadme renders the readme template.
+// renderReadmeTemplate renders the readme template.
 // packageRoot is always the source package directory; it is used for all functions except
 // inputDocs and fields, which switch to buildPackageRoot for composable packages so that
 // bundled content (resolved input types, merged field definitions) is included.
 // Pass "" for buildPackageRoot to always render from source.
-// Lint doesn't use this function, see isReadmeUpToDate.
-func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, buildPackageRoot, templatePath string, linksMap linkMap, schemaURLs fields.SchemaURLs) ([]byte, error) {
-	return renderReadmeTemplate(repositoryRoot, fileName, packageRoot, buildPackageRoot, templatePath, false, linksMap, schemaURLs)
-}
-
-// renderReadmeTemplate implements renderReadme. When maskBundled is set and the package
+// When maskBundled is set and the package
 // is composable, {{ fields }} and {{ inputDocs }} render bundledSentinel instead of reading data.
 func renderReadmeTemplate(repositoryRoot *os.Root, fileName, packageRoot, buildPackageRoot, templatePath string, maskBundled bool, linksMap linkMap, schemaURLs fields.SchemaURLs) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)

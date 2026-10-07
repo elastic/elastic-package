@@ -1016,19 +1016,76 @@ streams:
 }
 
 // createDataStreamManifestWithPackageRef writes a data stream manifest.yml with a package reference (source form).
-func createDataStreamManifestWithPackageRef(t *testing.T, root, dsName, pkgName string) {
+func createDataStreamManifestWithPackageRef(t *testing.T, root string) {
 	t.Helper()
-	dir := filepath.Join(root, "data_stream", dsName)
+	dir := filepath.Join(root, "data_stream", composableDataStreamName)
 	err := os.MkdirAll(dir, 0o755)
 	require.NoError(t, err)
-	manifest := fmt.Sprintf(`title: Test DS
+	manifest := `title: Test DS
 type: logs
 streams:
-  - package: %s
+  - package: ci_input_pkg
     title: Test stream
-`, pkgName)
+`
 	err = os.WriteFile(filepath.Join(dir, "manifest.yml"), []byte(manifest), 0o644)
 	require.NoError(t, err)
+}
+
+func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, buildPackageRoot, templatePath string, linksMap linkMap, schemaURLs fields.SchemaURLs) ([]byte, error) {
+	return renderReadmeTemplate(repositoryRoot, fileName, packageRoot, buildPackageRoot, templatePath, false, linksMap, schemaURLs)
+}
+
+func TestRenderReadmeTemplateMaskBundled(t *testing.T) {
+	linksMap := newEmptyLinkMap()
+	urls := fields.SchemaURLs{}
+
+	const dsName = composableDataStreamName
+	const tmpl = `# README
+{{ inputDocs }}
+{{ fields }}
+{{ fields "` + dsName + `" }}
+`
+	const fieldYAML = `
+- name: source.field
+  type: keyword
+  description: A field present only in the source tree.
+`
+
+	render := func(t *testing.T, packageRoot string) string {
+		t.Helper()
+		createBuildFile(t, packageRoot)
+		createFieldsFile(t, packageRoot, dsName, fieldYAML)
+		createReadmeTemplateFile(t, packageRoot, tmpl)
+		templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", "README.md")
+
+		root, err := os.OpenRoot(packageRoot)
+		require.NoError(t, err)
+		t.Cleanup(func() { root.Close() })
+
+		rendered, err := renderReadmeTemplate(root, "README.md", packageRoot, "", templatePath, true, linksMap, urls)
+		require.NoError(t, err)
+		return string(rendered)
+	}
+
+	t.Run("composable package renders the sentinel", func(t *testing.T) {
+		packageRoot := t.TempDir()
+		createComposableManifestFile(t, packageRoot)
+		createDataStreamManifestWithPackageRef(t, packageRoot)
+
+		out := render(t, packageRoot)
+		assert.Equal(t, 3, strings.Count(out, bundledSentinel), "inputDocs, fields and fields with data stream should be masked")
+		assert.NotContains(t, out, "source.field")
+	})
+
+	t.Run("non-composable package is not masked", func(t *testing.T) {
+		packageRoot := t.TempDir()
+		createManifestFile(t, packageRoot)
+		createDataStreamManifestWithLogfileInput(t, packageRoot)
+
+		out := render(t, packageRoot)
+		assert.NotContains(t, out, bundledSentinel)
+		assert.Contains(t, out, "source.field")
+	})
 }
 
 func TestRenderReadmeComposableBuildRoot(t *testing.T) {
@@ -1064,7 +1121,7 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 
 		createComposableManifestFile(t, srcRoot)
 		createBuildFile(t, srcRoot)
-		createDataStreamManifestWithPackageRef(t, srcRoot, dsName, "ci_input_pkg")
+		createDataStreamManifestWithPackageRef(t, srcRoot)
 		createFieldsFile(t, srcRoot, dsName, sourceFieldYAML)
 
 		// Build root has resolved input and bundled fields.
@@ -1098,7 +1155,7 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 
 		createComposableManifestFile(t, srcRoot)
 		createBuildFile(t, srcRoot)
-		createDataStreamManifestWithPackageRef(t, srcRoot, dsName, "ci_input_pkg")
+		createDataStreamManifestWithPackageRef(t, srcRoot)
 		createFieldsFile(t, srcRoot, dsName, sourceFieldYAML)
 
 		tmpl := `# README
@@ -1197,7 +1254,7 @@ Closing prose.
 		packageRoot := t.TempDir()
 		createComposableManifestFile(t, packageRoot)
 		createBuildFile(t, packageRoot)
-		createDataStreamManifestWithPackageRef(t, packageRoot, dsName, "ci_input_pkg")
+		createDataStreamManifestWithPackageRef(t, packageRoot)
 		createFieldsFile(t, packageRoot, dsName, `
 - name: source.field
   type: keyword
