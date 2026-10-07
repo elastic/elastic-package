@@ -29,7 +29,7 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 				return nil, err
 			}
 		case len(entry.mapValues) > 0:
-			if err := applyMapValuesCleaning(v, entry.mapValues); err != nil {
+			if err := applyMapValuesCleaning(v, entry.keyPattern, entry.mapValues); err != nil {
 				return nil, err
 			}
 		case entry.memberReplace != nil:
@@ -109,13 +109,17 @@ func applyElementsEntriesCleaning(policyMap common.MapStr, key string, v any, fi
 }
 
 // applyMapValuesCleaning recurses into each value of the nested map stored in v,
-// applying filters to every child (whether map or slice).
-func applyMapValuesCleaning(v any, filters []policyEntryFilter) error {
+// applying filters to every child (whether map or slice). When keyPattern is not nil,
+// only children whose map key matches the pattern are cleaned.
+func applyMapValuesCleaning(v any, keyPattern *regexp.Regexp, filters []policyEntryFilter) error {
 	mapStr, err := common.ToMapStr(v)
 	if err != nil {
 		return err
 	}
 	for k, child := range mapStr {
+		if keyPattern != nil && !keyPattern.MatchString(k) {
+			continue
+		}
 		cleaned, err := cleanNestedPolicyValue(child, filters)
 		if err != nil {
 			return err

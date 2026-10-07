@@ -122,6 +122,7 @@ type policyEntryFilter struct {
 	name               string
 	elementsEntries    []policyEntryFilter
 	mapValues          []policyEntryFilter
+	keyPattern         *regexp.Regexp
 	memberReplace      *policyEntryReplace
 	stringValueReplace *policyEntryReplace
 	deletePattern      *regexp.Regexp
@@ -181,6 +182,25 @@ var policyEntryFilters = []policyEntryFilter{
 		// auth is injected by Fleet since 9.4.0 and may appear in any exporter, not just
 		// elasticsearch. Removed for backwards compatibility with older stacks.
 		{name: "auth"},
+	}},
+
+	// Elasticsearch output settings translated by Fleet into explicit OTel elasticsearch
+	// exporter fields since 9.6.0 (kibana#288039, buildOtelEsExporterConfig in Fleet's
+	// otel_output_settings.ts — the source of truth for this list). Their values depend on
+	// the output preset and deployment, not on the package, and they are absent on older
+	// stacks, so they are removed for backwards compatibility.
+	{name: "exporters", keyPattern: regexp.MustCompile(`^elasticsearch/`), mapValues: []policyEntryFilter{
+		{name: "bulk_response_filter_path"},
+		{name: "compression"},
+		{name: "compression_params"},
+		{name: "headers"},
+		{name: "include_source_on_error"},
+		{name: "logs_dynamic_id"},
+		{name: "logs_dynamic_pipeline"},
+		{name: "max_conns_per_host"},
+		{name: "retry"},
+		{name: "sending_queue"},
+		{name: "suppress_conflict_errors"},
 	}},
 
 	// Fields injected by Fleet into OTel policies since 9.4.0 (beatsauth extension).
