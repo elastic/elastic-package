@@ -107,6 +107,16 @@ func TestReadmeSnapshot(t *testing.T) {
 		assert.Contains(t, err.Error(), "README.md")
 		assert.Contains(t, err.Error(), "-outdated")
 		assert.Contains(t, err.Error(), "+bundled")
+
+		restored, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
+		require.NoError(t, err)
+		assert.Equal(t, "outdated\n", string(restored), "the committed readme should be restored")
+
+		// A second run starts from the restored readme, so the regenerated one differs again.
+		snapshot, err = SnapshotComposableReadmes(packageRoot)
+		require.NoError(t, err)
+		writeCommittedReadme(t, packageRoot, "bundled\n")
+		assert.Error(t, snapshot.VerifyUnchanged())
 	})
 
 	t.Run("readme didn't exist", func(t *testing.T) {
@@ -119,6 +129,7 @@ func TestReadmeSnapshot(t *testing.T) {
 		err = snapshot.VerifyUnchanged()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "+bundled")
+		assert.NoFileExists(t, filepath.Join(packageRoot, "docs", "README.md"))
 	})
 
 	t.Run("readme not generated", func(t *testing.T) {
