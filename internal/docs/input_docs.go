@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -32,7 +33,7 @@ type DataStreamManifest struct {
 // renderInputDocs renders the documentation of the inputs used by the data streams
 // of the package. inputTypes maps qualified input names to their input type and is
 // used to resolve streams referencing an input by name; it may be nil.
-func renderInputDocs(packageRoot string, inputTypes map[string]string) (string, error) {
+func renderInputDocs(packageRoot string, inputTypes map[string][]string) (string, error) {
 	streamInputs, err := findDataStreamInputs(packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("could not find data stream inputs: %w", err)
@@ -62,15 +63,17 @@ func renderInputDocs(packageRoot string, inputTypes map[string]string) (string, 
 	return renderedDocs.String(), nil
 }
 
-// inputTypesByName returns the input type of every policy template input that
-// carries a name qualifier.
-func inputTypesByName(manifest *packages.PackageManifest) map[string]string {
-	types := make(map[string]string)
+// inputTypesByName returns the input types of the policy template inputs that carry
+// a name qualifier. The name is only unique within a policy template, so all the types
+// found for a qualifier are kept.
+func inputTypesByName(manifest *packages.PackageManifest) map[string][]string {
+	types := make(map[string][]string)
 	for _, pt := range manifest.PolicyTemplates {
 		for _, input := range pt.Inputs {
-			if input.Name != "" && input.Type != "" {
-				types[input.Name] = input.Type
+			if input.Name == "" || input.Type == "" || slices.Contains(types[input.Name], input.Type) {
+				continue
 			}
+			types[input.Name] = append(types[input.Name], input.Type)
 		}
 	}
 	return types
@@ -78,13 +81,16 @@ func inputTypesByName(manifest *packages.PackageManifest) map[string]string {
 
 // resolveInputTypes maps stream inputs to input types, falling back to the raw
 // value when it is not a known qualifier, and removes duplicates.
-func resolveInputTypes(streamInputs []string, inputTypes map[string]string) []string {
+func resolveInputTypes(streamInputs []string, inputTypes map[string][]string) []string {
 	unique := make(map[string]struct{}, len(streamInputs))
 	for _, input := range streamInputs {
-		if inputType, ok := inputTypes[input]; ok {
-			input = inputType
+		resolvedTypes, ok := inputTypes[input]
+		if !ok {
+			resolvedTypes = []string{input}
 		}
-		unique[input] = struct{}{}
+		for _, resolved := range resolvedTypes {
+			unique[resolved] = struct{}{}
+		}
 	}
 	resolved := make([]string, 0, len(unique))
 	for input := range unique {

@@ -272,7 +272,7 @@ func renderReadmeTemplate(repositoryRoot *os.Root, fileName, packageRoot, buildP
 			if maskBundled {
 				return bundledSentinel, nil
 			}
-			var inputTypes map[string]string
+			var inputTypes map[string][]string
 			if dataRoot != packageRoot {
 				builtManifest, err := packages.ReadPackageManifestFromPackageRoot(dataRoot)
 				if err != nil {

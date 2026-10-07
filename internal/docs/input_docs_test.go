@@ -29,3 +29,20 @@ func TestRenderInputDocsQualifiedInputs(t *testing.T) {
 	assert.Contains(t, rendered, "<summary>logfile</summary>")
 	assert.Equal(t, 1, strings.Count(rendered, "<summary>logfile</summary>"))
 }
+
+func TestInputTypesByNameAcrossPolicyTemplates(t *testing.T) {
+	manifest := &packages.PackageManifest{
+		PolicyTemplates: []packages.PolicyTemplate{
+			{Name: "a", Inputs: []packages.Input{{Name: "shared", Type: "logfile"}, {Name: "only_a", Type: "tcp"}}},
+			{Name: "b", Inputs: []packages.Input{{Name: "shared", Type: "udp"}, {Name: "unnamed"}}},
+		},
+	}
+
+	types := inputTypesByName(manifest)
+	assert.Equal(t, []string{"logfile", "udp"}, types["shared"])
+	assert.Equal(t, []string{"tcp"}, types["only_a"])
+	assert.NotContains(t, types, "unnamed")
+
+	resolved := resolveInputTypes([]string{"shared", "only_a", "winlog"}, types)
+	assert.ElementsMatch(t, []string{"logfile", "udp", "tcp", "winlog"}, resolved)
+}
