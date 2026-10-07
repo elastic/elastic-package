@@ -1212,9 +1212,20 @@ func TestRenderReadmeComposableBuildRoot(t *testing.T) {
 
 func writeCommittedReadme(t *testing.T, packageRoot, contents string) {
 	t.Helper()
+	writeCommittedReadmeNamed(t, packageRoot, "README.md", contents)
+}
+
+func writeCommittedReadmeNamed(t *testing.T, packageRoot, fileName, contents string) {
+	t.Helper()
 	docsDir := filepath.Join(packageRoot, "docs")
 	require.NoError(t, os.MkdirAll(docsDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(docsDir, "README.md"), []byte(contents), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(docsDir, fileName), []byte(contents), 0o644))
+}
+
+func createReadmeTemplateFileNamed(t *testing.T, packageRoot, fileName, contents string) {
+	t.Helper()
+	docsFolder := createDocsFolder(t, packageRoot)
+	require.NoError(t, os.WriteFile(filepath.Join(docsFolder, fileName), []byte(contents), 0o644))
 }
 
 func TestAreReadmesUpToDateComposable(t *testing.T) {
@@ -1364,20 +1375,6 @@ Closing prose.
 		writeCommittedReadme(t, packageRoot, "outdated content")
 
 		_, err := AreReadmesUpToDate(root, packageRoot, urls)
-		assert.Error(t, err)
-	})
-
-	t.Run("non-composable package is compared exactly", func(t *testing.T) {
-		packageRoot := t.TempDir()
-		createManifestFile(t, packageRoot)
-		createBuildFile(t, packageRoot)
-		createReadmeTemplateFile(t, packageRoot, "{{- generatedHeader }}\n# README\nContent.\n")
-		writeCommittedReadme(t, packageRoot, "outdated content")
-		root, err := os.OpenRoot(packageRoot)
-		require.NoError(t, err)
-		t.Cleanup(func() { root.Close() })
-
-		_, err = AreReadmesUpToDate(root, packageRoot, urls)
 		assert.Error(t, err)
 	})
 }

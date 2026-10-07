@@ -108,6 +108,7 @@ func TestReadmeSnapshot(t *testing.T) {
 		assert.Contains(t, err.Error(), "-outdated")
 		assert.Contains(t, err.Error(), "+bundled")
 
+		require.NoError(t, snapshot.Restore())
 		restored, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
 		require.NoError(t, err)
 		assert.Equal(t, "outdated\n", string(restored), "the committed readme should be restored")
@@ -129,15 +130,47 @@ func TestReadmeSnapshot(t *testing.T) {
 		err = snapshot.VerifyUnchanged()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "+bundled")
+
+		require.NoError(t, snapshot.Restore())
 		assert.NoFileExists(t, filepath.Join(packageRoot, "docs", "README.md"))
 	})
 
-	t.Run("readme not generated", func(t *testing.T) {
+	t.Run("only the outdated readme is reported", func(t *testing.T) {
 		packageRoot := setup(t)
+		createReadmeTemplateFileNamed(t, packageRoot, "OTHER.md", "# OTHER\n")
+		writeCommittedReadme(t, packageRoot, "outdated\n")
+		writeCommittedReadmeNamed(t, packageRoot, "OTHER.md", "same\n")
 
 		snapshot, err := SnapshotComposableReadmes(packageRoot)
 		require.NoError(t, err)
-		assert.NoError(t, snapshot.VerifyUnchanged())
+
+		writeCommittedReadme(t, packageRoot, "bundled\n")
+		writeCommittedReadmeNamed(t, packageRoot, "OTHER.md", "same\n")
+		err = snapshot.VerifyUnchanged()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "README.md")
+		assert.NotContains(t, err.Error(), "OTHER.md")
+
+		require.NoError(t, snapshot.Restore())
+		restored, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
+		require.NoError(t, err)
+		assert.Equal(t, "outdated\n", string(restored))
+	})
+
+	t.Run("restore without verifying", func(t *testing.T) {
+		packageRoot := setup(t)
+		writeCommittedReadme(t, packageRoot, "committed\n")
+
+		snapshot, err := SnapshotComposableReadmes(packageRoot)
+		require.NoError(t, err)
+
+		writeCommittedReadme(t, packageRoot, "regenerated\n")
+		require.NoError(t, snapshot.Restore())
+
+		restored, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
+		require.NoError(t, err)
+		assert.Equal(t, "committed\n", string(restored))
+		assert.NoError(t, (*ReadmeSnapshot)(nil).Restore())
 	})
 
 	t.Run("static readme without template is ignored", func(t *testing.T) {

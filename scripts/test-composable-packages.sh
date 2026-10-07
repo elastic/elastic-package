@@ -70,8 +70,9 @@ mv ~/.elastic-package/profiles/composable/config.yml.example \
    ~/.elastic-package/profiles/composable/config.yml
 
 for bootstrap_name in "${COMPOSABLE_BOOTSTRAP_PKGS[@]}"; do
-  echo "--- Building bootstrap input package: ${COMPOSABLE_PACKAGES_PATH}/${bootstrap_name}"
+  echo "--- Checking bootstrap input package: ${COMPOSABLE_PACKAGES_PATH}/${bootstrap_name}"
   # Bootstrap packages have no (or satisfied) requires.input; no registry yet.
+  # The README is only verified for packages that require inputs, so check lints and builds these.
   # After build, artifacts land in build/packages/ for the stack local registry.
   elastic-package check -C "${COMPOSABLE_PACKAGES_PATH}/${bootstrap_name}" -v
 done

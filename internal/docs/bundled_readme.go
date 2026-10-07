@@ -140,9 +140,8 @@ func SnapshotComposableReadmes(packageRoot string) (*ReadmeSnapshot, error) {
 
 // VerifyUnchanged returns an error with the differences if any of the readme files was
 // regenerated with a different content, or didn't exist, since the snapshot was taken.
-// The committed readme files are restored before returning the error, so the check doesn't
-// pass when it is run again without regenerating them with the build.
-// It is meant to be used after the package is built.
+// It is meant to be used after the package is built, followed by Restore if it fails, so the
+// check doesn't pass when it is run again without regenerating the readme files with the build.
 func (s *ReadmeSnapshot) VerifyUnchanged() error {
 	if s == nil {
 		return nil
@@ -165,17 +164,27 @@ func (s *ReadmeSnapshot) VerifyUnchanged() error {
 			return fmt.Errorf("comparing README file failed: %w", err)
 		}
 		outdated = append(outdated, fmt.Sprintf("%s:\n%s", fileName, diff))
-
-		err = s.restore(fileName, committed)
-		if err != nil {
-			return fmt.Errorf("restoring README file failed: %w", err)
-		}
 	}
 	if len(outdated) == 0 {
 		return nil
 	}
 	sort.Strings(outdated)
 	return fmt.Errorf("the README files are out of date, run \"elastic-package build\" to regenerate them and commit the changes:\n%s", strings.Join(outdated, "\n"))
+}
+
+// Restore writes back the committed readme files, removing the ones that didn't exist.
+// It is meant to be used when the check fails, as the build may have regenerated the readme files.
+func (s *ReadmeSnapshot) Restore() error {
+	if s == nil {
+		return nil
+	}
+	for fileName, committed := range s.files {
+		err := s.restore(fileName, committed)
+		if err != nil {
+			return fmt.Errorf("restoring README file failed: %w", err)
+		}
+	}
+	return nil
 }
 
 // restore writes back the committed content of a readme file, or removes it if it didn't exist.
