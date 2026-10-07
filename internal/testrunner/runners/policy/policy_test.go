@@ -836,9 +836,9 @@ exporters:
 		},
 		{
 			// Fleet injects the Elasticsearch output settings as explicit exporter fields
-			// since 9.6.0 (kibana#288039). Fixtures generated on older stacks must keep
+			// since 9.5.5 (kibana#288039). Fixtures generated on older stacks must keep
 			// passing against newer stacks.
-			title: "strip elasticsearch exporter output defaults injected by Fleet on 9.6.0+",
+			title: "strip elasticsearch exporter output defaults injected by Fleet on 9.5.5+",
 			expected: `
 exporters:
     elasticsearch/default:
@@ -891,9 +891,9 @@ inputs: []
 			equal: true,
 		},
 		{
-			// Fixtures dumped on 9.6.0+ stacks are stripped at dump time, but ensure the
+			// Fixtures dumped on 9.5.5+ stacks are stripped at dump time, but ensure the
 			// comparison is symmetric for fixtures that still carry the injected fields.
-			title: "strip elasticsearch exporter output defaults from expected dumped on 9.6.0+",
+			title: "strip elasticsearch exporter output defaults from expected dumped on 9.5.5+",
 			expected: `
 exporters:
     elasticsearch/default:

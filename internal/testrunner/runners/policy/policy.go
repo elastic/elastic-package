@@ -185,7 +185,7 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 
 	// Elasticsearch output settings translated by Fleet into explicit OTel elasticsearch
-	// exporter fields since 9.6.0 (kibana#288039, buildOtelEsExporterConfig in Fleet's
+	// exporter fields since 9.5.5 (kibana#288039, buildOtelEsExporterConfig in Fleet's
 	// otel_output_settings.ts — the source of truth for this list). Their values depend on
 	// the output preset and deployment, not on the package, and they are absent on older
 	// stacks, so they are removed for backwards compatibility.
