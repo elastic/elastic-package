@@ -77,9 +77,7 @@ for bootstrap_name in "${COMPOSABLE_BOOTSTRAP_PKGS[@]}"; do
 done
 
 echo "--- Prepare Elastic stack"
-# TODO: Remove --version below when composable tests pass on elastic-package's default stack
-# (Fleet/Kibana no longer require this snapshot).
-stack_args="--version 9.4.0-SNAPSHOT"
+stack_args=""
 stack_args="${stack_args} $(set +x; stack_provider_args)"
 elastic-package stack update -v ${stack_args}
 # The local registry container serves packages from build/packages/, including the
