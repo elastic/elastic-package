@@ -199,8 +199,9 @@ This content is only available in the built package, so the commands treat these
 - `elastic-package build` renders the full README and writes it to the package folder (`docs/README.md`) and to the
   built package, as for any other package.
 - `elastic-package check` runs `lint` and `build`, and then fails if the regenerated `docs/README.md` differs from the
-  one that was committed (or it didn't exist). The README is already regenerated at that point: review the changes
-  and commit them. This is how pending changes in the bundled sections are caught.
+  one that was committed (or it didn't exist). The committed README is restored before failing: run
+  `elastic-package build` to regenerate it, review the changes and commit them. This is how pending changes in the
+  bundled sections are caught.
 
 ## Requirements
 
