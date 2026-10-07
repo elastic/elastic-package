@@ -1327,6 +1327,37 @@ Closing prose.
 		assert.False(t, readmeFiles[0].UpToDate)
 	})
 
+	t.Run("conditional on inputDocs is evaluated against the sentinel", func(t *testing.T) {
+		root, packageRoot := setup(t)
+		createReadmeTemplateFile(t, packageRoot, `{{- generatedHeader }}
+# README
+
+{{ if inputDocs }}## Input types
+
+{{ inputDocs }}{{ else }}No input documentation available.
+{{ end }}
+Closing prose.
+`)
+		// The built package has no input docs, so the build renders the else branch.
+		writeCommittedReadme(t, packageRoot, doNotModifyStr+`
+# README
+
+No input documentation available.
+
+Closing prose.
+`)
+
+		// Known gap: lint can't know whether the bundled content is empty, and the sentinel is
+		// always truthy, so lint renders the if branch and can't match the else branch that the
+		// build produces. The result is unreliable in both directions and is only settled by
+		// `elastic-package check`, which compares against the README rendered from the built package.
+		readmeFiles, err := AreReadmesUpToDate(root, packageRoot, urls)
+		require.Error(t, err)
+		require.Len(t, readmeFiles, 1)
+		assert.False(t, readmeFiles[0].UpToDate)
+		assert.Contains(t, readmeFiles[0].Diff, "No input documentation available.")
+	})
+
 	t.Run("template without bundled functions is compared exactly", func(t *testing.T) {
 		root, packageRoot := setup(t)
 		createReadmeTemplateFile(t, packageRoot, "{{- generatedHeader }}\n# README\nStatic.\n")

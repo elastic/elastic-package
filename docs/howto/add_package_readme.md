@@ -203,6 +203,12 @@ This content is only available in the built package, so the commands treat these
   `elastic-package build` to regenerate it, review the changes and commit them. This is how pending changes in the
   bundled sections are caught.
 
+Known gap: `lint` can't evaluate a template condition that depends on the bundled content, for example
+`{{ if inputDocs }}...{{ else }}...{{ end }}`, because it doesn't know whether the bundled content is empty. It
+renders the placeholder as non-empty, so it always takes the `if` branch, and it can report a correct README as
+out of date, or miss a stale one. `elastic-package check` is the authoritative verification, as it compares against
+the README rendered from the built package.
+
 ## Requirements
 
 ### Links definitions file
