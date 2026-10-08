@@ -74,6 +74,7 @@ const (
 	configSelfMonitorEnabled                     = "stack.self_monitor_enabled"
 	configElasticEPRProxyTo                      = "stack.epr.proxy_to"
 	configElasticEPRURL                          = "stack.epr.base_url"
+	configElasticEPRBaseImage                    = "stack.epr.base_image" // PROTOTYPE: override EPR base image
 	configElasticSubscription                    = "stack.elastic_subscription"
 	configFleetAutoInstallTaskInterval           = "stack.fleet_auto_install_task_interval"
 	configFleetAutoInstallContentPackagesEnabled = "stack.fleet_auto_install_content_packages_enabled"
@@ -186,7 +187,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"registry_base_image":   PackageRegistryBaseImage,
+		"registry_base_image":   profile.Config(configElasticEPRBaseImage, PackageRegistryBaseImage),
 		"elasticsearch_version": stackVersion,
 		"kibana_version":        stackVersion,
 		"agent_version":         agentVersion,
