@@ -7,6 +7,7 @@ package docs
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -174,6 +175,9 @@ func TestReadmeSnapshot(t *testing.T) {
 	})
 
 	t.Run("restore keeps the committed file mode", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("windows does not support unix file permission bits")
+		}
 		packageRoot := setup(t)
 		writeCommittedReadme(t, packageRoot, "committed\n")
 		path := filepath.Join(packageRoot, "docs", "README.md")
