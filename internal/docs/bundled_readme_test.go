@@ -173,6 +173,24 @@ func TestReadmeSnapshot(t *testing.T) {
 		assert.NoError(t, (*ReadmeSnapshot)(nil).Restore())
 	})
 
+	t.Run("restore keeps the committed file mode", func(t *testing.T) {
+		packageRoot := setup(t)
+		writeCommittedReadme(t, packageRoot, "committed\n")
+		path := filepath.Join(packageRoot, "docs", "README.md")
+		require.NoError(t, os.Chmod(path, 0o600))
+
+		snapshot, err := SnapshotComposableReadmes(packageRoot)
+		require.NoError(t, err)
+
+		require.NoError(t, os.WriteFile(path, []byte("regenerated\n"), 0o644))
+		require.NoError(t, os.Chmod(path, 0o644))
+		require.NoError(t, snapshot.Restore())
+
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	})
+
 	t.Run("static readme without template is ignored", func(t *testing.T) {
 		packageRoot := t.TempDir()
 		createComposableManifestFile(t, packageRoot)
