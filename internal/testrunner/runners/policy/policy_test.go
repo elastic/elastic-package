@@ -835,6 +835,121 @@ exporters:
 			equal: true,
 		},
 		{
+			// Fleet injects the Elasticsearch output settings as explicit exporter fields
+			// since 9.5.5 (kibana#288039). Fixtures generated on older stacks must keep
+			// passing against newer stacks.
+			title: "strip elasticsearch exporter output defaults injected by Fleet on 9.5.5+",
+			expected: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+inputs: []
+`,
+			found: `
+exporters:
+    elasticsearch/default:
+        bulk_response_filter_path: errors,items.*.error,items.*.status,items.*.failure_store
+        compression: gzip
+        compression_params:
+            level: 1
+        endpoints:
+            - https://elasticsearch:9200
+        headers:
+            X-Custom-Header: value
+        include_source_on_error: true
+        logs_dynamic_id:
+            enabled: true
+        logs_dynamic_pipeline:
+            enabled: true
+        max_conns_per_host: 1
+        retry:
+            enabled: true
+            initial_interval: 1s
+            max_interval: 60s
+            max_retries: 3
+            retry_on_document_status:
+                - 429
+                - 500
+            retry_on_status:
+                - 300
+                - 301
+        sending_queue:
+            batch:
+                flush_timeout: 10s
+                max_size: 1600
+                min_size: 1600
+                sizer: items
+            block_on_overflow: true
+            enabled: true
+            num_consumers: 2
+            queue_size: 6400
+            wait_for_result: true
+        suppress_conflict_errors: true
+inputs: []
+`,
+			equal: true,
+		},
+		{
+			// Fixtures dumped on 9.5.5+ stacks are stripped at dump time, but ensure the
+			// comparison is symmetric for fixtures that still carry the injected fields.
+			title: "strip elasticsearch exporter output defaults from expected dumped on 9.5.5+",
+			expected: `
+exporters:
+    elasticsearch/default:
+        compression: gzip
+        compression_params:
+            level: 1
+        endpoints:
+            - https://elasticsearch:9200
+        include_source_on_error: true
+        max_conns_per_host: 1
+inputs: []
+`,
+			found: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+inputs: []
+`,
+			equal: true,
+		},
+		{
+			title: "keep output-default-like fields in non-elasticsearch exporters",
+			expected: `
+exporters:
+    otlp/default:
+        endpoint: https://otlp.example.com:4317
+`,
+			found: `
+exporters:
+    otlp/default:
+        compression: gzip
+        endpoint: https://otlp.example.com:4317
+        retry:
+            enabled: true
+`,
+			equal: false,
+		},
+		{
+			title: "unknown elasticsearch exporter field is still detected as different",
+			expected: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+			found: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+        pipeline: my-custom-pipeline
+`,
+			equal: false,
+		},
+		{
 			title: "clean policy ensuring ordering",
 			found: `
 id: f3032029-fa01-4072-98f1-ce7d2b51cbf2

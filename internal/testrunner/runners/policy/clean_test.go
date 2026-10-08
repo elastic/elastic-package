@@ -120,7 +120,7 @@ func TestApplyMapValuesCleaning(t *testing.T) {
 			},
 		}
 		v, _ := m.GetValue("section")
-		err := applyMapValuesCleaning(v, []policyEntryFilter{{name: "auth"}})
+		err := applyMapValuesCleaning(v, nil, []policyEntryFilter{{name: "auth"}})
 		require.NoError(t, err)
 
 		section, err := common.ToMapStr(m["section"])
@@ -135,8 +135,58 @@ func TestApplyMapValuesCleaning(t *testing.T) {
 		}
 	})
 
+	t.Run("applies filters only to keys matching keyPattern", func(t *testing.T) {
+		m := common.MapStr{
+			"exporters": common.MapStr{
+				"elasticsearch/default": common.MapStr{"compression": "gzip", "endpoints": []any{"https://elasticsearch:9200"}},
+				"debug/default":         common.MapStr{"compression": "gzip", "verbosity": "detailed"},
+			},
+		}
+		v, _ := m.GetValue("exporters")
+		err := applyMapValuesCleaning(v, regexp.MustCompile(`^elasticsearch/`), []policyEntryFilter{{name: "compression"}})
+		require.NoError(t, err)
+
+		exporters, err := common.ToMapStr(m["exporters"])
+		require.NoError(t, err)
+
+		es, err := common.ToMapStr(exporters["elasticsearch/default"])
+		require.NoError(t, err)
+		_, hasCompression := es["compression"]
+		assert.False(t, hasCompression, "compression should have been removed from matching exporter")
+		_, hasEndpoints := es["endpoints"]
+		assert.True(t, hasEndpoints, "endpoints should be preserved in matching exporter")
+
+		debug, err := common.ToMapStr(exporters["debug/default"])
+		require.NoError(t, err)
+		_, hasCompression = debug["compression"]
+		assert.True(t, hasCompression, "compression should be preserved in non-matching exporter")
+		_, hasVerbosity := debug["verbosity"]
+		assert.True(t, hasVerbosity, "verbosity should be preserved in non-matching exporter")
+	})
+
+	t.Run("nil keyPattern applies filters to all values", func(t *testing.T) {
+		m := common.MapStr{
+			"exporters": common.MapStr{
+				"elasticsearch/default": common.MapStr{"auth": "secret", "endpoints": []any{"https://elasticsearch:9200"}},
+				"debug/default":         common.MapStr{"auth": "secret2", "verbosity": "detailed"},
+			},
+		}
+		v, _ := m.GetValue("exporters")
+		err := applyMapValuesCleaning(v, nil, []policyEntryFilter{{name: "auth"}})
+		require.NoError(t, err)
+
+		exporters, err := common.ToMapStr(m["exporters"])
+		require.NoError(t, err)
+		for key, child := range exporters {
+			childMap, err := common.ToMapStr(child)
+			require.NoError(t, err)
+			_, hasAuth := childMap["auth"]
+			assert.False(t, hasAuth, "auth should have been removed from %q", key)
+		}
+	})
+
 	t.Run("returns error when value is not a map", func(t *testing.T) {
-		err := applyMapValuesCleaning("not-a-map", []policyEntryFilter{{name: "id"}})
+		err := applyMapValuesCleaning("not-a-map", nil, []policyEntryFilter{{name: "id"}})
 		require.Error(t, err)
 	})
 }
