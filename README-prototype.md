@@ -1,12 +1,13 @@
 # Nginx root package prototype - build + serve
 
-PROTOTYPE ONLY. Local branch `nginx-root-prototype` in `~/Workspace/elastic/{package-spec,elastic-package,package-registry,integrations}`. Nothing here is pushed.
+PROTOTYPE ONLY. Branch `nginx-root-prototype` in `~/Workspace/elastic/{package-spec,elastic-package,package-registry,integrations,kibana}`. Draft PRs, for viewing diffs only: elastic/package-spec#1272, elastic/elastic-package#4053, elastic/package-registry#2174, elastic/integrations#21939, elastic/kibana#296761.
 
 What's patched:
 
 - `package-spec` - `schemas` (`default` + schema -> `requires`) and `requires.integration` in the integration manifest spec. Semantic check: `requires.integration` only on packages without policy templates or data streams. Test package `test/packages/good_root`.
-- `elastic-package` - `go.mod` `replace github.com/elastic/package-spec/v3 => ../package-spec`. New profile setting `stack.epr.base_image` (default: stock EPR image).
-- `package-registry` - `schemas` and `requires.integration` exposed on `/search` and `/package/...`.
+- `elastic-package` - no code changes. It's built against the local package-spec through an untracked `go.work`, so `go.mod` doesn't change.
+- `package-registry` - `schemas` and `requires.integration` exposed on `/search` and `/package/...`. Run from source; no custom Docker image.
+- `kibana` - Fleet UI for roots (one tile, OTel/ECS toggle).
 
 ## 1. Build the patched tools
 
@@ -15,27 +16,20 @@ What's patched:
 cd ~/Workspace/elastic/package-spec
 make check
 
-# elastic-package - rebuild every time package-spec changes
+# elastic-package against the local spec. go.work is untracked (listed in .git/info/exclude).
+# Rebuild every time package-spec changes - the spec is embedded in the binary.
 cd ~/Workspace/elastic/elastic-package
+go work init . ../package-spec   # once
 go build -o bin/elastic-package-proto .
 
-# package-registry image used as the stack's EPR base
+# package-registry
 cd ~/Workspace/elastic/package-registry
-docker build -t package-registry:nginx-root-prototype .
+go build -o package-registry .
 ```
 
-## 2. Profile
+Check that the binary uses the local spec: from `integrations/packages/nginx`, a stock elastic-package fails with `Additional property schemas is not allowed`, and `elastic-package-proto` doesn't.
 
-The profile `nginx-proto` is already there. To recreate it:
-
-```sh
-EP=~/Workspace/elastic/elastic-package/bin/elastic-package-proto
-$EP profiles create nginx-proto
-echo 'stack.epr.base_image: package-registry:nginx-root-prototype' \
-  > ~/.elastic-package/profiles/nginx-proto/config.yml
-```
-
-## 3. Build the packages
+## 2. Build the packages
 
 ```sh
 EP=~/Workspace/elastic/elastic-package/bin/elastic-package-proto
@@ -50,94 +44,92 @@ $EP build                                  # root -> nginx_group-0.1.0
 
 Zips land in `~/Workspace/elastic/integrations/build/packages/`. Building from a nested child dir works with no workaround.
 
-## 4. Start the stack
+## 3. Start the stack
+
+Uses the stock profile and stock EPR image. Dev Kibana doesn't use the stack's EPR (see step 4).
 
 ```sh
-cd ~/Workspace/elastic/integrations/packages/nginx
-script -q /dev/null ~/Workspace/elastic/elastic-package/bin/elastic-package-proto \
-  stack up -v -d -p nginx-proto --version 9.6.0-SNAPSHOT
+EP=~/Workspace/elastic/elastic-package/bin/elastic-package-proto
+$EP profiles create nginx-proto   # once
+$EP stack up -v -d -p nginx-proto --version 9.6.0-SNAPSHOT
+docker stop elastic-package-stack-nginx-proto-kibana-1   # dev Kibana replaces it
 ```
 
-- Run it from inside the integrations repo. `stack up` serves whatever is in `integrations/build/packages/`.
-- That dir also holds stale zips from earlier builds (e.g. `nginx-2.0.0`, `elastic_connectors-*`, `logstash-2.7.1`). They get served too. We left them on purpose (Kyle hasn't decided yet).
-- `-v` is needed with Docker Compose v5.5.x. Without it you get `failed to get console: provided file is not a console`: elastic-package sends compose stdout to `io.Discard` and `compose build` wants a console. The `script -q /dev/null` wrapper only matters when there is no TTY (agents, CI). In a normal terminal, `stack up -v ...` is enough.
-- The EPR container is built `FROM package-registry:nginx-root-prototype`, because of `stack.epr.base_image`. It serves the local zips and proxies everything else to https://epr.elastic.co.
-- Stop with `$EP stack down -p nginx-proto`.
+- `-v` is needed with Docker Compose v5.5.x. Without it you get `failed to get console: provided file is not a console`. Without a TTY (agents, CI), wrap the command: `script -q /dev/null $EP stack up ...`.
+- Stop the container Kibana before starting dev Kibana. They share ES, and Kibana main can run saved-object migrations that the 9.6.0-SNAPSHOT container doesn't know about.
+- Stop the stack with `$EP stack down -p nginx-proto`.
 
-## 5. Endpoints + credentials
+## 4. Run package-registry locally
 
-| What | URL | Auth |
-|---|---|---|
-| Elasticsearch | https://127.0.0.1:9200 | `elastic` / `changeme` |
-| Kibana (container) | https://127.0.0.1:5601 | `elastic` / `changeme` |
-| Package registry | https://127.0.0.1:8080 | none |
-| Fleet Server | https://127.0.0.1:8220 | - |
+Create `config.nginx-proto.yml` in the package-registry repo. It's untracked and listed in `.git/info/exclude`:
 
-- CA for all of them: `~/.elastic-package/profiles/nginx-proto/certs/ca-cert.pem`. The certs cover `localhost` and `127.0.0.1`.
-- Kibana service account token (what the container Kibana uses):
+```yaml
+package_paths:
+  - /Users/kylepollich/Workspace/elastic/integrations/build/packages
+cache_time.index: 10s
+cache_time.search: 10s
+cache_time.categories: 10s
+cache_time.catch_all: 10s
+```
 
-  ```sh
-  grep serviceAccountToken ~/.elastic-package/profiles/nginx-proto/stack/kibana.yml
-  ```
+```sh
+cd ~/Workspace/elastic/package-registry
+./package-registry -address localhost:8081 -config config.nginx-proto.yml \
+  -feature-proxy-mode=true -proxy-to=https://epr.elastic.co/ \
+  -disable-package-validation -require-package-signatures=false
+```
 
-- Shell env for elastic-package or curl: `eval "$($EP stack shellinit -p nginx-proto)"`.
+- Port 8081, because the stack EPR has 8080.
+- Proxy mode serves anything not built locally (`fleet_server`, `system`, ...) from epr.elastic.co, same as the stack EPR.
+- Locally built zips aren't signed, so `-require-package-signatures=false` is required.
+- It indexes at startup. Restart it after rebuilding packages.
 
 Verify the root:
 
 ```sh
-CA=~/.elastic-package/profiles/nginx-proto/certs/ca-cert.pem
-curl -s --cacert $CA "https://127.0.0.1:8080/search?package=nginx_group&prerelease=true" | jq '.[0].schemas'
-curl -s --cacert $CA "https://127.0.0.1:8080/package/nginx_group/0.1.0/" | jq '.schemas'
+curl -s "localhost:8081/search?package=nginx_group&prerelease=true" | jq '.[0].schemas'
+curl -s "localhost:8081/package/nginx_group/0.1.0/" | jq '.schemas'
 ```
 
-## 6. Install the children
+## 5. Dev Kibana
 
-Install them in this order (otel requires otel_input, filelog_otel, and otel_content):
-
-```sh
-EP=~/Workspace/elastic/elastic-package/bin/elastic-package-proto
-cd ~/Workspace/elastic/integrations/packages
-for d in nginx/otel_input nginx/otel_content filelog_otel nginx/ecs nginx/otel; do
-  (cd $d && $EP install -p nginx-proto)
-done
-```
-
-The root `nginx_group` is not installed. It only exists in the registry.
-
-## 7. Point a Kibana dev server at this stack
-
-The Kibana source is `~/Workspace/elastic/kibana` (`yarn start`). Put this in `config/kibana.dev.yml` and replace `<TOKEN>` with the token from step 5:
-
-```yaml
-elasticsearch.hosts: ["https://localhost:9200"]
-elasticsearch.serviceAccountToken: "<TOKEN>"
-elasticsearch.ssl.certificateAuthorities: ["/Users/kylepollich/.elastic-package/profiles/nginx-proto/certs/ca-cert.pem"]
-
-xpack.fleet.registryUrl: "https://localhost:8080"
-xpack.fleet.agents.fleet_server.hosts: ["https://localhost:8220"]
-xpack.fleet.internal.skipUploadPackageValidation: true
-xpack.fleet.experimentalFeatures:
-  enableOtelIntegrations: true
-```
-
-Start it with Node trusting the stack CA, so Fleet can reach the HTTPS registry:
+`config/kibana.dev.yml` sets `server.basePath: /kyle`. The Kibana encryption key must match the stack Kibana's. Pass it in a config file, because on the CLI the all-digit key is parsed as a number.
 
 ```sh
 cd ~/Workspace/elastic/kibana
-NODE_EXTRA_CA_CERTS=~/.elastic-package/profiles/nginx-proto/certs/ca-cert.pem yarn start
+CA=~/.elastic-package/profiles/nginx-proto/certs/ca-cert.pem
+S=<scratch dir>
+grep '^xpack.encryptedSavedObjects.encryptionKey' ~/.elastic-package/profiles/nginx-proto/stack/kibana.yml > $S/kbn-proto.yml
+NODE_EXTRA_CA_CERTS=$CA node scripts/kibana --dev -c config/kibana.yml -c $S/kbn-proto.yml \
+  --no-base-path --server.rewriteBasePath=true --server.port=5602 \
+  --xpack.security.authc.providers.basic.basic.order=0 \
+  --elasticsearch.hosts=https://localhost:9200 \
+  --elasticsearch.username=kibana_system --elasticsearch.password=changeme \
+  --elasticsearch.ssl.certificateAuthorities=$CA \
+  --xpack.fleet.registryUrl=http://localhost:8081 \
+  --xpack.fleet.internal.skipUploadPackageValidation=true
 ```
 
-Then log in as `elastic` / `changeme`.
+Open http://localhost:5602/kyle/app/integrations/browse?q=nginx and log in as `elastic` / `changeme`.
 
-Notes:
+Gotchas:
 
-- Kibana refuses the `elastic` superuser in `elasticsearch.username`. Use the service account token, not user/password.
-- The dev Kibana and the container Kibana share the same ES and `.kibana*` indices. Kibana main can run saved-object migrations the 9.6.0-SNAPSHOT container doesn't know about. Before `yarn start`, stop the container Kibana: `docker stop elastic-package-stack-nginx-proto-kibana-1`. Fleet Server and the agent keep running. Bring it back with `docker start` on the same container.
-- If Kibana main has moved past 9.6.0, ES may reject it. Bump `--version` on `stack up`.
-- When Kibana is on the host, the registry is `https://localhost:8080`. Inside the compose network it is `https://package-registry:8080`.
+- Wrong encryption key -> every policy deploy spends ~14s failing to decrypt `fleet-message-signing-keys`.
+- `--dev` conflicts with the service account token. Use `kibana_system` / `changeme` instead (that password is set on the stack ES).
+- Without `rewriteBasePath=true`, URLs return 400. Without `basic.order=0`, `--dev` injects a SAML provider that has no realm, and you get an auth error page.
+
+## 6. Endpoints
+
+| What | URL | Auth |
+|---|---|---|
+| Elasticsearch | https://localhost:9200 | `elastic` / `changeme` |
+| Package registry (local) | http://localhost:8081 | none |
+| Kibana (dev) | http://localhost:5602/kyle | `elastic` / `changeme` |
+| Fleet Server | https://localhost:8220 | - |
+
+CA for the stack: `~/.elastic-package/profiles/nginx-proto/certs/ca-cert.pem`.
 
 ## Known issues
 
-- **ECS + OTel template collision.** `nginx_otel_integ` declares `dataset: nginx.access` / `nginx.error`. Fleet names the index templates `logs-nginx.access` / `logs-nginx.error` (pattern `*.otel-*`), and those are the same names `nginx` (ECS) uses. Whichever child is installed last owns the template and the `@package` component template. After installing `otel`, the ECS `nginx` logs templates are overwritten. Reinstalling `ecs` then fails with `illegal_argument_exception ... composable template [logs-nginx.access] ... is invalid`. The fix belongs in integrations (otel dataset names) or in Fleet (template name for `.otel` data streams). It is not fixed here.
-- `stack up` without `-v` fails on Compose v5.5.x (see step 4).
-- The stale zips in `integrations/build/packages` are served (see step 4).
+- `stack up` without `-v` fails on Compose v5.5.x (see step 3).
+- `elastic-package lint` on the root fails with `item [demo] is not allowed in folder [_dev]`. `build` is fine.
