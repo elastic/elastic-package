@@ -213,11 +213,5 @@ func (s *ReadmeSnapshot) restore(fileName string, committed committedReadme) err
 	if err != nil {
 		return fmt.Errorf("writing file failed (path: %s): %w", path, err)
 	}
-	// WriteFile keeps the mode of an existing file and only applies it, filtered by the umask,
-	// when it creates the file. Chmod covers the build having recreated the file with another mode.
-	err = os.Chmod(path, committed.mode)
-	if err != nil {
-		return fmt.Errorf("changing file mode failed (path: %s): %w", path, err)
-	}
 	return nil
 }

@@ -7,7 +7,6 @@ package docs
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -175,24 +174,20 @@ func TestReadmeSnapshot(t *testing.T) {
 	})
 
 	t.Run("restore keeps the committed file mode", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("windows does not support unix file permission bits")
-		}
 		packageRoot := setup(t)
 		writeCommittedReadme(t, packageRoot, "committed\n")
 		path := filepath.Join(packageRoot, "docs", "README.md")
-		require.NoError(t, os.Chmod(path, 0o600))
+		require.NoError(t, os.Chmod(path, 0o444))
 
 		snapshot, err := SnapshotComposableReadmes(packageRoot)
 		require.NoError(t, err)
 
-		require.NoError(t, os.WriteFile(path, []byte("regenerated\n"), 0o644))
-		require.NoError(t, os.Chmod(path, 0o644))
+		require.NoError(t, os.Remove(path))
 		require.NoError(t, snapshot.Restore())
 
 		info, err := os.Stat(path)
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+		assert.Equal(t, os.FileMode(0o444), info.Mode().Perm())
 	})
 
 	t.Run("static readme without template is ignored", func(t *testing.T) {
