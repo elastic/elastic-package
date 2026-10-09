@@ -136,9 +136,9 @@ func makeFakeEprForFieldBundling(t *testing.T) *fakeEprClient {
 // to <datastream>/fields/<inputPkgName>-fields.yml.
 func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
 	// 02_ci_composable_integration has data_stream/ci_composable_logs/fields/base-fields.yml with
-	// 4 common fields. ci_input_pkg has those same 4 plus "message" and
-	// "log.level". After bundling, only "message" and "log.level" should appear
-	// in the generated file.
+	// 4 common fields. ci_input_pkg has those same 4 plus "message", "log.level"
+	// and the external ECS field "host.name". After bundling, only those three
+	// should appear in the generated file.
 	buildPackageRoot := copyComposableIntegrationFixture(t)
 	resolver := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
 
@@ -150,13 +150,13 @@ func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
 
 	nodes, err := loadFieldNodesFromBytes(data)
 	require.NoError(t, err)
-	require.Len(t, nodes, 2)
+	require.Len(t, nodes, 3)
 
 	names := make([]string, 0, len(nodes))
 	for _, n := range nodes {
 		names = append(names, fieldNodeName(n))
 	}
-	assert.ElementsMatch(t, []string{"message", "log.level"}, names)
+	assert.ElementsMatch(t, []string{"message", "log.level", "host.name"}, names)
 
 	// Original base-fields.yml must be untouched.
 	originalData, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "base-fields.yml"))
@@ -177,6 +177,10 @@ func TestBundleDataStreamFields_AllFieldsOverlap(t *testing.T) {
 	require.NoError(t, err)
 	dsFieldsPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "base-fields.yml")
 	require.NoError(t, os.WriteFile(dsFieldsPath, inputFields, 0644))
+	inputECSFields, err := os.ReadFile(filepath.Join(ciInputFixturePath(), "fields", "ecs.yml"))
+	require.NoError(t, err)
+	dsECSFieldsPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "ecs.yml")
+	require.NoError(t, os.WriteFile(dsECSFieldsPath, inputECSFields, 0644))
 
 	epr := &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {

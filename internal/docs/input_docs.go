@@ -9,12 +9,14 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 type Input struct {
@@ -28,11 +30,15 @@ type DataStreamManifest struct {
 	} `yaml:"streams"`
 }
 
-func renderInputDocs(packageRoot string) (string, error) {
-	inputs, err := findDataStreamInputs(packageRoot)
+// renderInputDocs renders the documentation of the inputs used by the data streams
+// of the package. inputTypes maps qualified input names to their input type and is
+// used to resolve streams referencing an input by name; it may be nil.
+func renderInputDocs(packageRoot string, inputTypes map[string][]string) (string, error) {
+	streamInputs, err := findDataStreamInputs(packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("could not find data stream inputs: %w", err)
 	}
+	inputs := resolveInputTypes(streamInputs, inputTypes)
 	if len(inputs) == 0 {
 		return "", nil
 	}
@@ -55,6 +61,42 @@ func renderInputDocs(packageRoot string) (string, error) {
 		}
 	}
 	return renderedDocs.String(), nil
+}
+
+// inputTypesByName returns the input types of the policy template inputs that carry
+// a name qualifier. The name is only unique within a policy template, so all the types
+// found for a qualifier are kept.
+func inputTypesByName(manifest *packages.PackageManifest) map[string][]string {
+	types := make(map[string][]string)
+	for _, pt := range manifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			if input.Name == "" || input.Type == "" || slices.Contains(types[input.Name], input.Type) {
+				continue
+			}
+			types[input.Name] = append(types[input.Name], input.Type)
+		}
+	}
+	return types
+}
+
+// resolveInputTypes maps stream inputs to input types, falling back to the raw
+// value when it is not a known qualifier, and removes duplicates.
+func resolveInputTypes(streamInputs []string, inputTypes map[string][]string) []string {
+	unique := make(map[string]struct{}, len(streamInputs))
+	for _, input := range streamInputs {
+		resolvedTypes, ok := inputTypes[input]
+		if !ok {
+			resolvedTypes = []string{input}
+		}
+		for _, resolved := range resolvedTypes {
+			unique[resolved] = struct{}{}
+		}
+	}
+	resolved := make([]string, 0, len(unique))
+	for input := range unique {
+		resolved = append(resolved, input)
+	}
+	return resolved
 }
 
 // FindDataStreamInputs scans a given package path for data stream manifests
