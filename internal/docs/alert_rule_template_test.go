@@ -69,6 +69,8 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "Alert rule templates provide pre-defined configurations")
+				assert.Contains(t, result, "require Elastic Stack version 9.2.0 or later")
+				assert.NotContains(t, result, "9.6.0")
 				assert.Contains(t, result, "<details>")
 				assert.Contains(t, result, "<summary>View the alert rule templates</summary>")
 				assert.Contains(t, result, "</details>")
@@ -233,10 +235,8 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 				assert.NotContains(t, result, "<summary>View the alert rule templates</summary>")
 				assert.NotContains(t, result, "</details>")
 				assert.Contains(t, result, "The following alert rule templates are available:")
-				assert.Contains(t, result, "**First Rule Name**")
-				assert.Contains(t, result, "First Rule Description")
-				assert.Contains(t, result, "**Second Rule Name**")
-				assert.Contains(t, result, "Second Rule Description")
+				assert.Contains(t, result, "- **First Rule Name** — First Rule Description")
+				assert.Contains(t, result, "- **Second Rule Name** — Second Rule Description")
 			},
 		},
 		{
@@ -271,6 +271,33 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			},
 		},
 		{
+			name: "table pipes in names are escaped",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				template := `{
+					"attributes": {
+						"engine": "v2",
+						"rule": {
+							"metadata": {
+								"name": "Not ES|QL",
+								"description": "line one\nline | two"
+							}
+						}
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "pipe.json"), []byte(template), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, `| Not ES\|QL | line one line \| two |`)
+			},
+		},
+		{
 			name: "unreadable file",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
@@ -300,6 +327,114 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: true,
 			expectEmpty: false,
 		},
+		{
+			name: "list omits blank descriptions",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.5.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				template := `{
+					"attributes": {
+						"name": "[PostgreSQL] Latency high",
+						"description": "   "
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule.json"), []byte(template), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "- **[PostgreSQL] Latency high**\n")
+				assert.NotContains(t, result, "—")
+			},
+		},
+		{
+			name: "v2 engine template uses metadata and 9.6",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				template := `{
+					"attributes": {
+						"engine": "v2",
+						"name": "Wrong location",
+						"rule": {
+							"metadata": {
+								"name": "V2 Alert Rule",
+								"description": "This is a v2 alert rule description"
+							}
+						}
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "v2_rule.json"), []byte(template), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "| V2 Alert Rule | This is a v2 alert rule description |")
+				assert.NotContains(t, result, "Wrong location")
+				assert.Contains(t, result, "require Elastic Stack version 9.6.0 or later")
+				assert.NotContains(t, result, "9.2.0")
+				assert.NotContains(t, result, "| Engine |")
+			},
+		},
+		{
+			name: "mixed table omits a blank description column",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.4.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "a.json"), []byte(`{"attributes":{"name":"Latency high"}}`), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "b.json"), []byte(`{"attributes":{"engine":"v2","rule":{"metadata":{"name":"Latency high"}}}}`), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "| Name | ES\\|QL | Standard |")
+				assert.Contains(t, result, "|---|:---:|:---:|")
+				assert.NotContains(t, result, "Description")
+				assert.Contains(t, result, "| Latency high | ✓ | ✓ |")
+			},
+		},
+		{
+			name: "mixed engines are split into fleet sections",
+			setupFunc: func(t *testing.T) string {
+				return writeMixedAlertRuleTemplates(t, "3.6.0")
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "| Name | Description | Engine |")
+				assert.Contains(t, result, "| Same name | V2 description | ES\\|QL |")
+				assert.Contains(t, result, "| Same name | Classic description | Standard |")
+				esql := strings.Index(result, "ES\\|QL")
+				standard := strings.Index(result, "| Standard |")
+				assert.Greater(t, standard, esql)
+				assert.NotContains(t, result, "Wrong location")
+				assert.Contains(t, result, "Standard alert rule templates require Elastic Stack version 9.2.0 or later.")
+				assert.Contains(t, result, "ES|QL alert rule templates require Elastic Stack version 9.6.0 or later.")
+			},
+		},
+		{
+			name: "mixed engines use the same sections below spec 3.6.0",
+			setupFunc: func(t *testing.T) string {
+				return writeMixedAlertRuleTemplates(t, "3.5.0")
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "<summary>View the alert rule templates</summary>")
+				assert.Contains(t, result, "| Same name | V2 description | ES\\|QL |")
+				assert.Contains(t, result, "| Same name | Classic description | Standard |")
+				assert.NotContains(t, result, "Wrong location")
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -324,6 +459,38 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func writeMixedAlertRuleTemplates(t *testing.T, specVersion string) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	createPackageManifestFile(t, tmpDir, specVersion)
+	templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+	require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "a.json"), []byte(`{"attributes":{"name":"Same name","description":"Classic description"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "z.json"), []byte(`{"attributes":{"engine":"v2","name":"Wrong location","rule":{"metadata":{"name":"Same name","description":"V2 description"}}}}`), 0o644))
+	return tmpDir
+}
+
+func TestMixedAlertRuleTemplateFileOrder(t *testing.T) {
+	for _, v2First := range []bool{false, true} {
+		root := t.TempDir()
+		createPackageManifestFile(t, root, "3.6.0")
+		dir := filepath.Join(root, "kibana", "alerting_rule_template")
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		classicName, v2Name := "a.json", "z.json"
+		if v2First {
+			classicName, v2Name = v2Name, classicName
+		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, classicName), []byte(`{"attributes":{"name":"Same name","description":"Classic description"}}`), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, v2Name), []byte(`{"attributes":{"engine":"v2","name":"Wrong location","rule":{"metadata":{"name":"Same name","description":"V2 description"}}}}`), 0o644))
+		result, err := renderAlertRuleTemplates(root, newEmptyLinkMap())
+		require.NoError(t, err)
+		require.Contains(t, result, "| Same name | V2 description | ES\\|QL |")
+		require.Contains(t, result, "| Same name | Classic description | Standard |")
+		require.NotContains(t, result, "Wrong location")
+		require.Contains(t, result, "version 9.6.0 or later")
 	}
 }
 

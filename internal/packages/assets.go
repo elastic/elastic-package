@@ -45,6 +45,7 @@ var (
 	AssetTypeKibanaDashboard     = newAssetType("dashboard")
 	AssetTypeKibanaMap           = newAssetType("map")
 	AssetTypeKibanaLens          = newAssetType("lens")
+	AssetTypeAlertRuleTemplate   = newAssetType("alerting_rule_template")
 	AssetTypeSecurityRule        = newAssetTypeWithFolder("security-rule", "security_rule")
 )
 
@@ -91,6 +92,7 @@ func loadKibanaAssets(packageRoot string) ([]Asset, error) {
 			AssetTypeKibanaSavedSearch,
 			AssetTypeKibanaMap,
 			AssetTypeKibanaLens,
+			AssetTypeAlertRuleTemplate,
 			AssetTypeSecurityRule,
 		}
 

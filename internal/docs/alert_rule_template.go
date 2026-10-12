@@ -18,15 +18,57 @@ import (
 )
 
 // alertRuleTemplatesCollapsibleTableMinSpecVersion is the minimum package spec
-// version from which alert rule templates are rendered as a collapsible table.
-// For earlier spec versions, the previous rendering (name and description as a
-// list) is preserved to avoid introducing a breaking change.
+// version from which a single-engine package renders alert rule templates as a
+// collapsible table. Earlier specs keep the list. A package that publishes both
+// engines uses one collapsible table with a column per engine.
 var alertRuleTemplatesCollapsibleTableMinSpecVersion = semver.MustParse("3.6.0")
 
 type alertRuleTemplate struct {
 	Attributes struct {
-		Name        string
-		Description string
+		// Classic templates carry name and description on attributes.
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		// Alerting v2 templates use { engine: "v2", rule: { metadata: {...} } }.
+		Engine string `json:"engine"`
+		Rule   struct {
+			Metadata struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"metadata"`
+		} `json:"rule"`
+	} `json:"attributes"`
+}
+
+func (t alertRuleTemplate) isV2() bool {
+	return t.Attributes.Engine == "v2"
+}
+
+func (t alertRuleTemplate) displayName() string {
+	if t.isV2() {
+		return t.Attributes.Rule.Metadata.Name
+	}
+	return t.Attributes.Name
+}
+
+func (t alertRuleTemplate) displayDescription() string {
+	if t.isV2() {
+		return t.Attributes.Rule.Metadata.Description
+	}
+	return t.Attributes.Description
+}
+
+// alertRuleTemplateCompatibility states the Stack floor for the engines present.
+// Standard (classic) templates require 9.2.0. ES|QL (Alerting v2) requires
+// 9.6.0. A package that publishes both says so separately, so the classic floor
+// is not raised silently and the v2 floor is not omitted.
+func alertRuleTemplateCompatibility(hasV1, hasV2 bool) string {
+	switch {
+	case hasV1 && hasV2:
+		return "Standard alert rule templates require Elastic Stack version 9.2.0 or later. ES|QL alert rule templates require Elastic Stack version 9.6.0 or later.\n"
+	case hasV2:
+		return "Alert rule templates require Elastic Stack version 9.6.0 or later.\n"
+	default:
+		return "Alert rule templates require Elastic Stack version 9.2.0 or later.\n"
 	}
 }
 
@@ -95,15 +137,29 @@ func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, err
 			docsLink = "https://www.elastic.co/docs"
 		}
 
+		hasV1, hasV2 := false, false
+		for _, template := range templates {
+			if template.isV2() {
+				hasV2 = true
+			} else {
+				hasV1 = true
+			}
+		}
+
 		builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
 
 For more information, refer to the [Elastic documentation](` + docsLink + `).
 
-Alert rule templates require Elastic Stack version 9.2.0 or later.
-
 `)
+		builder.WriteString(alertRuleTemplateCompatibility(hasV1, hasV2))
+		builder.WriteString("\n")
 
-		if useCollapsibleTable {
+		// Both engines are listed under the same headings Fleet uses on the Alerting
+		// tab, ES|QL then Standard, so each template name appears once. A single
+		// engine keeps the collapsible table from spec 3.6.0 and the list before that.
+		if hasV1 && hasV2 {
+			renderAlertRuleEngineSections(&builder, templates)
+		} else if useCollapsibleTable {
 			renderAlertRuleCollapsibleTable(&builder, templates)
 		} else {
 			renderAlertRuleList(&builder, templates)
@@ -115,10 +171,167 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 
 func renderAlertRuleList(builder *strings.Builder, templates []alertRuleTemplate) {
 	builder.WriteString("The following alert rule templates are available:\n\n")
-	for _, template := range templates {
-		fmt.Fprintf(builder, "**%s**\n\n", template.Attributes.Name)
-		fmt.Fprintf(builder, "%s\n\n", template.Attributes.Description)
+	writeAlertRuleBullets(builder, templates)
+	builder.WriteString("\n")
+}
+
+// alertRuleGroup is one alert name published on one or both engines.
+type alertRuleGroup struct {
+	name        string
+	description string
+	v2          bool
+	v1          bool
+}
+
+// renderAlertRuleEngineSections renders a dual-publish package as one table.
+// Each alert is a single row, with a centered mark in the ES|QL and Standard
+// columns, so the name is not repeated. When two templates share a name but
+// their descriptions differ, or one engine has two templates with that name,
+// the table falls back to one row per template.
+func renderAlertRuleEngineSections(builder *strings.Builder, templates []alertRuleTemplate) {
+	if groups, ok := groupAlertRules(templates); ok {
+		renderGroupedEngineTable(builder, groups)
+		return
 	}
+	renderPerTemplateEngineTable(builder, templates)
+}
+
+func groupAlertRules(templates []alertRuleTemplate) ([]alertRuleGroup, bool) {
+	order := make([]string, 0)
+	byName := make(map[string]*alertRuleGroup)
+	for _, template := range templates {
+		name := template.displayName()
+		group, seen := byName[name]
+		if !seen {
+			group = &alertRuleGroup{name: name}
+			byName[name] = group
+			order = append(order, name)
+		}
+		description := strings.TrimSpace(strings.ReplaceAll(template.displayDescription(), "\n", " "))
+		if group.description != "" && description != "" && group.description != description {
+			return nil, false
+		}
+		if group.description == "" {
+			group.description = description
+		}
+		if template.isV2() {
+			if group.v2 {
+				return nil, false
+			}
+			group.v2 = true
+			continue
+		}
+		if group.v1 {
+			return nil, false
+		}
+		group.v1 = true
+	}
+	groups := make([]alertRuleGroup, 0, len(order))
+	for _, name := range order {
+		groups = append(groups, *byName[name])
+	}
+	return groups, true
+}
+
+func renderGroupedEngineTable(builder *strings.Builder, groups []alertRuleGroup) {
+	showDescription := false
+	for _, group := range groups {
+		if group.description != "" {
+			showDescription = true
+			break
+		}
+	}
+	writeAlertRuleTableOpen(builder)
+	if showDescription {
+		builder.WriteString("| Name | Description | ES\\|QL | Standard |\n")
+		builder.WriteString("|---|---|:---:|:---:|\n")
+	} else {
+		builder.WriteString("| Name | ES\\|QL | Standard |\n")
+		builder.WriteString("|---|:---:|:---:|\n")
+	}
+	for _, group := range groups {
+		name := escapeAlertRuleTableCell(group.name)
+		v2, v1 := "", ""
+		if group.v2 {
+			v2 = "✓"
+		}
+		if group.v1 {
+			v1 = "✓"
+		}
+		if showDescription {
+			fmt.Fprintf(builder, "| %s | %s | %s | %s |\n", name, escapeAlertRuleTableCell(group.description), v2, v1)
+			continue
+		}
+		fmt.Fprintf(builder, "| %s | %s | %s |\n", name, v2, v1)
+	}
+	writeAlertRuleTableClose(builder)
+}
+
+func renderPerTemplateEngineTable(builder *strings.Builder, templates []alertRuleTemplate) {
+	showDescription := false
+	for _, template := range templates {
+		if strings.TrimSpace(template.displayDescription()) != "" {
+			showDescription = true
+			break
+		}
+	}
+	writeAlertRuleTableOpen(builder)
+	if showDescription {
+		builder.WriteString("| Name | Description | Engine |\n")
+		builder.WriteString("|---|---|---|\n")
+	} else {
+		builder.WriteString("| Name | Engine |\n")
+		builder.WriteString("|---|---|\n")
+	}
+	for _, wantV2 := range []bool{true, false} {
+		for _, template := range templates {
+			if template.isV2() != wantV2 {
+				continue
+			}
+			name := escapeAlertRuleTableCell(template.displayName())
+			engine := escapeAlertRuleTableCell(engineName(template))
+			if showDescription {
+				fmt.Fprintf(builder, "| %s | %s | %s |\n", name, escapeAlertRuleTableCell(template.displayDescription()), engine)
+				continue
+			}
+			fmt.Fprintf(builder, "| %s | %s |\n", name, engine)
+		}
+	}
+	writeAlertRuleTableClose(builder)
+}
+
+func writeAlertRuleTableOpen(builder *strings.Builder) {
+	builder.WriteString("**The following alert rule templates are available:**\n\n")
+	builder.WriteString("<details>\n")
+	builder.WriteString("<summary>View the alert rule templates</summary>\n\n")
+}
+
+func writeAlertRuleTableClose(builder *strings.Builder) {
+	builder.WriteString("\n</details>\n\n")
+}
+
+func engineName(template alertRuleTemplate) string {
+	if template.isV2() {
+		return "ES|QL"
+	}
+	return "Standard"
+}
+
+func writeAlertRuleBullets(builder *strings.Builder, templates []alertRuleTemplate) {
+	for _, template := range templates {
+		name := template.displayName()
+		description := strings.TrimSpace(strings.ReplaceAll(template.displayDescription(), "\n", " "))
+		if description == "" {
+			fmt.Fprintf(builder, "- **%s**\n", name)
+			continue
+		}
+		fmt.Fprintf(builder, "- **%s** — %s\n", name, description)
+	}
+}
+
+func escapeAlertRuleTableCell(value string) string {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\n", " "))
+	return strings.ReplaceAll(escaper.Replace(value), "|", "\\|")
 }
 
 func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
@@ -128,11 +341,9 @@ func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alert
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
-		name := strings.TrimSpace(t.Attributes.Name)
-		description := strings.TrimSpace(strings.ReplaceAll(t.Attributes.Description, "\n", " "))
-		fmt.Fprintf(builder, "| %s | %s |\n",
-			escaper.Replace(name),
-			escaper.Replace(description))
+		name := escapeAlertRuleTableCell(t.displayName())
+		description := escapeAlertRuleTableCell(t.displayDescription())
+		fmt.Fprintf(builder, "| %s | %s |\n", name, description)
 	}
 	builder.WriteString("\n</details>\n")
 	builder.WriteString("\n")

@@ -23,7 +23,8 @@ import (
 // validation.yml config; the first return value is the remaining errors after filtering,
 // the second is the errors that were filtered out.
 func ValidateSourceFromPath(packageRoot string) (error, error) {
-	return validateFromPath(validator.SourceMode, packageRoot)
+	processed, removed := validateFromPath(validator.SourceMode, packageRoot)
+	return errors.Join(processed, validateAlertRuleTemplates(os.DirFS(packageRoot))), removed
 }
 
 // ValidateBuiltFromPath validates a built (unzipped) package directory. Source-only
@@ -32,7 +33,8 @@ func ValidateSourceFromPath(packageRoot string) (error, error) {
 // value is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromPath(packageRoot string) (error, error) {
-	return validateFromPath(validator.BuildMode, packageRoot)
+	processed, removed := validateFromPath(validator.BuildMode, packageRoot)
+	return errors.Join(processed, validateAlertRuleTemplates(os.DirFS(packageRoot))), removed
 }
 
 func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
@@ -59,6 +61,11 @@ func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
 // is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
+	processed, removed := validateBuiltFromZip(zipPackagePath)
+	return errors.Join(processed, validateAlertRuleTemplatesZip(zipPackagePath)), removed
+}
+
+func validateBuiltFromZip(zipPackagePath string) (error, error) {
 	v, err := validator.New(validator.BuildMode)
 	if err != nil {
 		return fmt.Errorf("failed to create validator: %w", err), nil
