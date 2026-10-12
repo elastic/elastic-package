@@ -287,6 +287,132 @@ func templateRule(doc map[string]any) map[string]any {
 	return doc["attributes"].(map[string]any)["rule"].(map[string]any)
 }
 
+func TestV2TemplateOptionalNulls(t *testing.T) {
+	paths := [][]string{
+		{"metadata", "description"}, {"metadata", "tags"},
+		{"schedule", "lookback"}, {"time_field"}, {"query", "breach"},
+		{"query", "format"}, {"grouping"}, {"artifacts"},
+		{"state_transition", "pending"}, {"state_transition", "recovering"},
+		{"state_transition", "pending", "count"}, {"state_transition", "pending", "timeframe"},
+		{"state_transition", "pending", "operator"},
+		{"state_transition", "recovering", "count"}, {"state_transition", "recovering", "timeframe"},
+		{"state_transition", "recovering", "operator"},
+		{"recovery", "query"}, {"recovery", "segment"}, {"no_data", "query"},
+	}
+	for _, path := range paths {
+		t.Run(strings.Join(path, "."), func(t *testing.T) {
+			var doc map[string]any
+			require.NoError(t, json.Unmarshal([]byte(validV2Template), &doc))
+			rule := templateRule(doc)
+			// Each phase remains valid when either threshold is omitted.
+			for _, phase := range []string{"pending", "recovering"} {
+				rule["state_transition"].(map[string]any)[phase].(map[string]any)["timeframe"] = "1m"
+			}
+			parent := rule
+			for _, field := range path[:len(path)-1] {
+				parent = parent[field].(map[string]any)
+			}
+			field := path[len(path)-1]
+			delete(parent, field)
+			raw, err := json.Marshal(doc)
+			require.NoError(t, err)
+			require.NoError(t, validateAlertRuleTemplate(raw), "omission should be accepted")
+			parent[field] = nil
+			raw, err = json.Marshal(doc)
+			require.NoError(t, err)
+			require.Error(t, validateAlertRuleTemplate(raw), "explicit null should be rejected")
+		})
+	}
+	for _, template := range []string{validV2Template, validSignalTemplate} {
+		var doc map[string]any
+		require.NoError(t, json.Unmarshal([]byte(template), &doc))
+		templateRule(doc)["state_transition"] = nil
+		raw, err := json.Marshal(doc)
+		require.NoError(t, err)
+		require.NoError(t, validateAlertRuleTemplate(raw), "state_transition itself is nullable")
+	}
+}
+
+func TestV2SignalTransitions(t *testing.T) {
+	for _, transition := range []string{"missing", "null", "{}", `{"pending":{"count":0}}`, "[]", "2", "false", `"invalid"`} {
+		t.Run(transition, func(t *testing.T) {
+			var doc map[string]any
+			require.NoError(t, json.Unmarshal([]byte(validSignalTemplate), &doc))
+			if transition != "missing" {
+				templateRule(doc)["state_transition"] = json.RawMessage(transition)
+			}
+			raw, err := json.Marshal(doc)
+			require.NoError(t, err)
+			err = validateAlertRuleTemplate(raw)
+			if transition == "missing" || transition == "null" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, "signal rules cannot set state_transition")
+			}
+		})
+	}
+	for _, field := range []string{"recovery", "no_data"} {
+		t.Run(field+"/null", func(t *testing.T) {
+			var doc map[string]any
+			require.NoError(t, json.Unmarshal([]byte(validSignalTemplate), &doc))
+			templateRule(doc)[field] = nil
+			raw, err := json.Marshal(doc)
+			require.NoError(t, err)
+			require.ErrorContains(t, validateAlertRuleTemplate(raw), "signal rules cannot set recovery or no_data")
+		})
+	}
+}
+
+func TestV2TemplateValidationEntryPoints(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		edit     func(map[string]any)
+		want     string
+	}{
+		{"valid", validV2Template, func(rule map[string]any) {}, ""},
+		{"nullable transition", validV2Template, func(rule map[string]any) { rule["state_transition"] = nil }, ""},
+		{"signal array", validSignalTemplate, func(rule map[string]any) { rule["state_transition"] = []any{} }, "state_transition"},
+		{"null description", validV2Template, func(rule map[string]any) { rule["metadata"].(map[string]any)["description"] = nil }, "metadata.description"},
+		{"null lookback", validV2Template, func(rule map[string]any) { rule["schedule"].(map[string]any)["lookback"] = nil }, "schedule.lookback"},
+		{"null count", validV2Template, func(rule map[string]any) {
+			rule["state_transition"].(map[string]any)["pending"] = map[string]any{"count": nil, "timeframe": "1m"}
+		}, "state_transition.pending.count"},
+	}
+	validators := []struct {
+		name     string
+		fixture  string
+		validate func(string) (error, error)
+	}{
+		{"source", sourcePackageDir, ValidateSourceFromPath},
+		{"built", builtPackageDir, ValidateBuiltFromPath},
+		{"zip", builtPackageDir, func(root string) (error, error) { return ValidateBuiltFromZip(makeZipFromDir(t, root)) }},
+	}
+	for _, test := range tests {
+		for _, validator := range validators {
+			t.Run(test.name+"/"+validator.name, func(t *testing.T) {
+				root := t.TempDir()
+				require.NoError(t, os.CopyFS(root, os.DirFS(validator.fixture)))
+				var doc map[string]any
+				require.NoError(t, json.Unmarshal([]byte(test.template), &doc))
+				test.edit(templateRule(doc))
+				raw, err := json.Marshal(doc)
+				require.NoError(t, err)
+				dir := filepath.Join(root, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(dir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, doc["id"].(string)+".json"), raw, 0o644))
+				err, removed := validator.validate(root)
+				require.NoError(t, removed)
+				if test.want == "" {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, test.want)
+				}
+			})
+		}
+	}
+}
+
 func TestIssueReproductionIsStructuralNotQueryParsing(t *testing.T) {
 	invalid := []byte(`{
 	  "id": "invalid-v2-example",

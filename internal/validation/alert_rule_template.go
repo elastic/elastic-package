@@ -158,18 +158,18 @@ func validateTemplateMetadata(raw json.RawMessage, problems *templateProblems) {
 	if strings.TrimSpace(name) == "" || templateStringLength(name) > templateNameMax {
 		problems.add("rule.metadata.name is required and must be at most %d characters", templateNameMax)
 	}
-	if raw, exists := obj["description"]; exists && jsonKind(raw) != "null" {
+	if raw, exists := obj["description"]; exists {
 		description := jsonString(raw)
 		if jsonKind(raw) != "string" || templateStringLength(description) > templateDescriptionMax {
 			problems.add("rule.metadata.description must be a string of at most %d characters", templateDescriptionMax)
 		}
 	}
 	rawTags, exists := obj["tags"]
-	if !exists || jsonKind(rawTags) == "null" {
+	if !exists {
 		return
 	}
 	var tags []string
-	if err := json.Unmarshal(rawTags, &tags); err != nil {
+	if err := json.Unmarshal(rawTags, &tags); jsonKind(rawTags) != "array" || err != nil {
 		problems.add("rule.metadata.tags must be an array of strings")
 		return
 	}
@@ -194,7 +194,7 @@ func validateTemplateSchedule(raw json.RawMessage, problems *templateProblems) {
 	if ms, err := parseTemplateDuration(every); err != nil || ms < templateMinScheduleMS || ms > templateMaxDurationMS {
 		problems.add("rule.schedule.every must be a duration from 5s to 365d")
 	}
-	if lookback, exists := obj["lookback"]; exists && jsonKind(lookback) != "null" {
+	if lookback, exists := obj["lookback"]; exists {
 		if ms, err := parseTemplateDuration(jsonString(lookback)); err != nil || ms > templateMaxDurationMS {
 			problems.add("rule.schedule.lookback must be a duration up to 365d")
 		}
@@ -202,7 +202,7 @@ func validateTemplateSchedule(raw json.RawMessage, problems *templateProblems) {
 }
 
 func validateTemplateTimeField(raw json.RawMessage, problems *templateProblems) {
-	if len(bytes.TrimSpace(raw)) == 0 || jsonKind(raw) == "null" {
+	if !jsonPresent(raw) {
 		return
 	}
 	value := jsonString(raw)
@@ -217,7 +217,7 @@ func validateTemplateQuery(raw json.RawMessage, problems *templateProblems) bool
 		problems.add("rule.query is required")
 		return false
 	}
-	if format, exists := obj["format"]; exists && jsonKind(format) != "null" && jsonString(format) != "" {
+	if _, exists := obj["format"]; exists {
 		problems.add("rule.query.format is not part of Alerting v2; use query.base and optional query.breach.segment. Package validation does not parse ES|QL")
 	}
 	base := jsonString(obj["base"])
@@ -227,7 +227,7 @@ func validateTemplateQuery(raw json.RawMessage, problems *templateProblems) bool
 		problems.add("rule.query.base exceeds %d characters", templateQueryMax)
 	}
 	breach, exists := obj["breach"]
-	if !exists || jsonKind(breach) == "null" {
+	if !exists {
 		return false
 	}
 	breachObj, ok := jsonObject(breach)
@@ -254,7 +254,7 @@ func validateTemplateLifecycle(kind string, hasBreach bool, recoveryRaw, noDataR
 		if recoverySet || noDataSet {
 			problems.add("signal rules cannot set recovery or no_data")
 		}
-		if jsonKind(transitionRaw) == "object" {
+		if jsonPresent(transitionRaw) && jsonKind(transitionRaw) != "null" {
 			problems.add("signal rules cannot set state_transition")
 		}
 		return
@@ -329,7 +329,8 @@ func validateTemplateLifecycle(kind string, hasBreach bool, recoveryRaw, noDataR
 }
 
 func validateTemplateTransition(raw json.RawMessage, problems *templateProblems) {
-	if !jsonPresent(raw) {
+	// The transition object itself is nullable; its phases and thresholds are not.
+	if !jsonPresent(raw) || jsonKind(raw) == "null" {
 		return
 	}
 	obj, ok := jsonObject(raw)
@@ -339,7 +340,7 @@ func validateTemplateTransition(raw json.RawMessage, problems *templateProblems)
 	}
 	for _, phase := range []string{"pending", "recovering"} {
 		phaseRaw, exists := obj[phase]
-		if !exists || jsonKind(phaseRaw) == "null" {
+		if !exists {
 			continue
 		}
 		phaseObj, ok := jsonObject(phaseRaw)
@@ -349,18 +350,12 @@ func validateTemplateTransition(raw json.RawMessage, problems *templateProblems)
 		}
 		_, hasCount := phaseObj["count"]
 		_, hasTimeframe := phaseObj["timeframe"]
-		if jsonKind(phaseObj["count"]) == "null" {
-			hasCount = false
-		}
-		if jsonKind(phaseObj["timeframe"]) == "null" {
-			hasTimeframe = false
-		}
 		if !hasCount && !hasTimeframe {
 			problems.add("state_transition.%s must set count or timeframe", phase)
 		}
 		if hasCount {
 			var count float64
-			if err := json.Unmarshal(phaseObj["count"], &count); err != nil || count < 0 || count > templatePhaseCountMax || math.Trunc(count) != count {
+			if err := json.Unmarshal(phaseObj["count"], &count); jsonKind(phaseObj["count"]) == "null" || err != nil || count < 0 || count > templatePhaseCountMax || math.Trunc(count) != count {
 				problems.add("state_transition.%s.count must be an integer from 0 to %d", phase, templatePhaseCountMax)
 			}
 		}
@@ -370,7 +365,7 @@ func validateTemplateTransition(raw json.RawMessage, problems *templateProblems)
 			}
 		}
 		operator, hasOperator := phaseObj["operator"]
-		if !hasOperator || jsonKind(operator) == "null" {
+		if !hasOperator {
 			continue
 		}
 		op := jsonString(operator)
@@ -519,9 +514,9 @@ func jsonKind(raw json.RawMessage) string {
 	}
 }
 
+// jsonPresent distinguishes omission from a supplied value, including null.
 func jsonPresent(raw json.RawMessage) bool {
-	kind := jsonKind(raw)
-	return kind != "missing" && kind != "null"
+	return jsonKind(raw) != "missing"
 }
 
 func jsonObject(raw json.RawMessage) (map[string]json.RawMessage, bool) {
