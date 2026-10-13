@@ -23,6 +23,14 @@ import (
 // engines uses one collapsible table with a column per engine.
 var alertRuleTemplatesCollapsibleTableMinSpecVersion = semver.MustParse("3.6.0")
 
+var alertRuleNameEscaper = strings.NewReplacer(
+	"\\", "\\\\", "*", "\\*", "_", "\\_", "`", "\\`", "~", "\\~",
+	"[", "\\[", "]", "\\]", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>",
+	"|", "\\|", "&", "&amp;",
+)
+
+var alertRuleLineBreaks = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
+
 type alertRuleTemplate struct {
 	Attributes struct {
 		// Classic templates carry name and description on attributes.
@@ -207,7 +215,7 @@ func groupAlertRules(templates []alertRuleTemplate) ([]alertRuleGroup, bool) {
 			byName[name] = group
 			order = append(order, name)
 		}
-		description := strings.TrimSpace(strings.ReplaceAll(template.displayDescription(), "\n", " "))
+		description := normalizeAlertRuleText(template.displayDescription())
 		if group.description != "" && description != "" && group.description != description {
 			return nil, false
 		}
@@ -250,7 +258,7 @@ func renderGroupedEngineTable(builder *strings.Builder, groups []alertRuleGroup)
 		builder.WriteString("|---|:---:|:---:|\n")
 	}
 	for _, group := range groups {
-		name := escapeAlertRuleTableCell(group.name)
+		name := escapeAlertRuleName(group.name)
 		v2, v1 := "", ""
 		if group.v2 {
 			v2 = "✓"
@@ -288,7 +296,7 @@ func renderPerTemplateEngineTable(builder *strings.Builder, templates []alertRul
 			if template.isV2() != wantV2 {
 				continue
 			}
-			name := escapeAlertRuleTableCell(template.displayName())
+			name := escapeAlertRuleName(template.displayName())
 			engine := escapeAlertRuleTableCell(engineName(template))
 			if showDescription {
 				fmt.Fprintf(builder, "| %s | %s | %s |\n", name, escapeAlertRuleTableCell(template.displayDescription()), engine)
@@ -319,8 +327,8 @@ func engineName(template alertRuleTemplate) string {
 
 func writeAlertRuleBullets(builder *strings.Builder, templates []alertRuleTemplate) {
 	for _, template := range templates {
-		name := template.displayName()
-		description := strings.TrimSpace(strings.ReplaceAll(template.displayDescription(), "\n", " "))
+		name := escapeAlertRuleName(template.displayName())
+		description := escapeAlertRuleTableCell(template.displayDescription())
 		if description == "" {
 			fmt.Fprintf(builder, "- **%s**\n", name)
 			continue
@@ -330,8 +338,20 @@ func writeAlertRuleBullets(builder *strings.Builder, templates []alertRuleTempla
 }
 
 func escapeAlertRuleTableCell(value string) string {
-	value = strings.TrimSpace(strings.ReplaceAll(value, "\n", " "))
+	value = normalizeAlertRuleText(value)
+	// Escape existing backslashes first so a backslash before a pipe cannot
+	// cancel the pipe escape and split the table cell.
+	value = strings.ReplaceAll(value, "\\", "\\\\")
 	return strings.ReplaceAll(escaper.Replace(value), "|", "\\|")
+}
+
+func escapeAlertRuleName(value string) string {
+	// Names are labels, while descriptions may contain inline Markdown links.
+	return alertRuleNameEscaper.Replace(normalizeAlertRuleText(value))
+}
+
+func normalizeAlertRuleText(value string) string {
+	return strings.TrimSpace(alertRuleLineBreaks.Replace(value))
 }
 
 func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
@@ -341,7 +361,7 @@ func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alert
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
-		name := escapeAlertRuleTableCell(t.displayName())
+		name := escapeAlertRuleName(t.displayName())
 		description := escapeAlertRuleTableCell(t.displayDescription())
 		fmt.Fprintf(builder, "| %s | %s |\n", name, description)
 	}

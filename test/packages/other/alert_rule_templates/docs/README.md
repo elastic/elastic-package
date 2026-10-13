@@ -15,7 +15,7 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 
 | Name | Description |
 |---|---|
-| [MongoDB Replication] Replica member down |  |
+| \[MongoDB Replication\] Replica member down |  |
 
 </details>
 

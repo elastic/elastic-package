@@ -5,15 +5,21 @@
 package docs
 
 import (
+	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -346,7 +352,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "- **[PostgreSQL] Latency high**\n")
+				assert.Contains(t, result, "- **\\[PostgreSQL\\] Latency high**\n")
 				assert.NotContains(t, result, "—")
 			},
 		},
@@ -491,6 +497,86 @@ func TestMixedAlertRuleTemplateFileOrder(t *testing.T) {
 		require.Contains(t, result, "| Same name | Classic description | Standard |")
 		require.NotContains(t, result, "Wrong location")
 		require.Contains(t, result, "version 9.6.0 or later")
+	}
+}
+
+func TestAlertRuleReadmeFormatting(t *testing.T) {
+	htmlTags := regexp.MustCompile(`<[^>]+>`)
+	texts := []struct {
+		name, description, want string
+	}{
+		{`Rule \| value`, `Path C:\|archive`, `Rule \| value`},
+		{"Rule\r\nname", "First\r\nSecond", "Rule name"},
+		{"Rule\rname", "First\rSecond", "Rule name"},
+		{"[Service] *bold* _under_ `code` ~~strike~~ [link](https://example.com)", "Description", "[Service] *bold* _under_ `code` ~~strike~~ [link](https://example.com)"},
+		{"Rule <img src=x> &amp; value", "Check <angle>", "Rule <img src=x> &amp; value"},
+	}
+	for _, version := range []string{"3.5.0", "3.6.0"} {
+		for _, layout := range []string{"v1", "v2", "paired", "fallback"} {
+			for i, text := range texts {
+				t.Run(fmt.Sprintf("%s/%s/%d", version, layout, i), func(t *testing.T) {
+					root := t.TempDir()
+					require.NoError(t, os.CopyFS(root, os.DirFS("../../test/packages/other/alert_rule_templates")))
+					manifestPath := filepath.Join(root, packages.PackageManifestFile)
+					manifest, err := os.ReadFile(manifestPath)
+					require.NoError(t, err)
+					require.NoError(t, os.WriteFile(manifestPath, []byte(strings.ReplaceAll(string(manifest), "format_version: 3.6.0", "format_version: "+version)), 0o644))
+					dir := filepath.Join(root, "kibana", "alerting_rule_template")
+					require.NoError(t, os.RemoveAll(dir))
+					require.NoError(t, os.MkdirAll(dir, 0o755))
+					for _, engine := range []string{"v1", "v2"} {
+						if (layout == "v1" || layout == "v2") && engine != layout {
+							continue
+						}
+						description := text.description + " [Dashboard](https://example.com)"
+						if layout == "fallback" && engine == "v2" {
+							description += " extra"
+						}
+						metadata := map[string]any{"name": text.name, "description": description}
+						attributes := metadata
+						if engine == "v2" {
+							attributes = map[string]any{"engine": "v2", "rule": map[string]any{"metadata": metadata}}
+						}
+						raw, err := json.Marshal(map[string]any{"attributes": attributes})
+						require.NoError(t, err)
+						require.NoError(t, os.WriteFile(filepath.Join(dir, engine+".json"), raw, 0o644))
+					}
+					repository, err := os.OpenRoot(root)
+					require.NoError(t, err)
+					defer repository.Close()
+					rendered, found, err := GenerateReadme(repository, "README.md", "", root, fields.SchemaURLs{})
+					require.NoError(t, err)
+					require.True(t, found)
+					// Parse the generated Markdown independently of the renderer. Strip
+					// the disclosure tags because this parser treats HTML blocks as raw.
+					body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(string(rendered))
+					renderedHTML := string(markdown.ToHTML([]byte(body), parser.NewWithExtensions(parser.CommonExtensions), nil))
+					require.Contains(t, renderedHTML, `href="https://example.com"`, "description links must remain usable")
+					if version == "3.5.0" && (layout == "v1" || layout == "v2") {
+						labels := regexp.MustCompile(`<strong>(.*?)</strong>`).FindAllStringSubmatch(renderedHTML, -1)
+						require.Len(t, labels, 1)
+						require.Equal(t, text.want, html.UnescapeString(htmlTags.ReplaceAllString(labels[0][1], "")))
+						return
+					}
+					columns, rows := 2, 1
+					switch layout {
+					case "paired":
+						columns = 4
+					case "fallback":
+						columns, rows = 3, 2
+					}
+					cells := regexp.MustCompile(`<td[^>]*>(.*?)</td>`).FindAllStringSubmatch(renderedHTML, -1)
+					require.Len(t, cells, columns*rows, "table cells must not be split or dropped")
+					for row := range rows {
+						require.Equal(t, text.want, html.UnescapeString(htmlTags.ReplaceAllString(cells[row*columns][1], "")))
+					}
+					if layout == "paired" {
+						require.Equal(t, "✓", cells[2][1])
+						require.Equal(t, "✓", cells[3][1])
+					}
+				})
+			}
+		}
 	}
 }
 
