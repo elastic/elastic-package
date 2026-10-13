@@ -500,6 +500,107 @@ func TestMixedAlertRuleTemplateFileOrder(t *testing.T) {
 	}
 }
 
+func TestAlertRuleReadmeDescriptionColumns(t *testing.T) {
+	layouts := []struct {
+		name    string
+		engines []string
+		headers []string
+		rows    int
+	}{
+		{"v1", []string{"v1", "v1"}, []string{"Name"}, 2},
+		{"v2", []string{"v2", "v2"}, []string{"Name"}, 2},
+		{"paired", []string{"v1", "v2"}, []string{"Name", "ES|QL", "Standard"}, 1},
+		{"duplicate names", []string{"v1", "v1", "v2"}, []string{"Name", "Engine"}, 3},
+	}
+	descriptions := []struct {
+		name    string
+		value   string
+		omit    bool
+		mixed   bool
+		visible bool
+	}{
+		{name: "missing", omit: true},
+		{name: "empty"},
+		{name: "whitespace", value: " \t\r\n "},
+		{name: "mixed", value: "Investigate latency.", mixed: true, visible: true},
+		{name: "nonempty", value: "Investigate latency.", visible: true},
+	}
+	htmlTags := regexp.MustCompile(`<[^>]+>`)
+	for _, version := range []string{"3.5.0", "3.6.0"} {
+		for _, layout := range layouts {
+			for _, description := range descriptions {
+				t.Run(version+"/"+layout.name+"/"+description.name, func(t *testing.T) {
+					root := t.TempDir()
+					require.NoError(t, os.CopyFS(root, os.DirFS("../../test/packages/other/alert_rule_templates")))
+					manifestPath := filepath.Join(root, packages.PackageManifestFile)
+					manifest, err := os.ReadFile(manifestPath)
+					require.NoError(t, err)
+					require.NoError(t, os.WriteFile(manifestPath, []byte(strings.ReplaceAll(string(manifest), "format_version: 3.6.0", "format_version: "+version)), 0o644))
+					dir := filepath.Join(root, "kibana", "alerting_rule_template")
+					require.NoError(t, os.RemoveAll(dir))
+					require.NoError(t, os.MkdirAll(dir, 0o755))
+					for i, engine := range layout.engines {
+						name := "Latency high"
+						if i == 1 && (layout.name == "v1" || layout.name == "v2") {
+							name = "Error rate high"
+						}
+						metadata := map[string]any{"name": name}
+						if !description.omit {
+							value := description.value
+							if description.mixed && i == 0 {
+								value = ""
+							}
+							metadata["description"] = value
+						}
+						writeAlertRuleReadmeTemplate(t, dir, fmt.Sprintf("%d.json", i), engine, metadata)
+					}
+					repository, err := os.OpenRoot(root)
+					require.NoError(t, err)
+					defer repository.Close()
+					rendered, found, err := GenerateReadme(repository, "README.md", "", root, fields.SchemaURLs{})
+					require.NoError(t, err)
+					require.True(t, found)
+					body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(string(rendered))
+					renderedHTML := string(markdown.ToHTML([]byte(body), parser.NewWithExtensions(parser.CommonExtensions), nil))
+					if description.visible {
+						require.Contains(t, renderedHTML, description.value, "nonempty descriptions must be preserved")
+					}
+					if version == "3.5.0" && (layout.name == "v1" || layout.name == "v2") {
+						require.NotContains(t, renderedHTML, "<table>")
+						require.Equal(t, layout.rows, strings.Count(renderedHTML, "<li>"))
+						return
+					}
+					headers := append([]string(nil), layout.headers...)
+					if description.visible {
+						headers = append([]string{"Name", "Description"}, headers[1:]...)
+					}
+					var actualHeaders []string
+					for _, cell := range regexp.MustCompile(`<th[^>]*>(.*?)</th>`).FindAllStringSubmatch(renderedHTML, -1) {
+						actualHeaders = append(actualHeaders, html.UnescapeString(htmlTags.ReplaceAllString(cell[1], "")))
+					}
+					require.Equal(t, headers, actualHeaders)
+					rows := regexp.MustCompile(`<tr>\s*((?:<td[\s\S]*?</td>\s*)+)</tr>`).FindAllStringSubmatch(renderedHTML, -1)
+					require.Len(t, rows, layout.rows)
+					for _, row := range rows {
+						require.Len(t, regexp.MustCompile(`<td[^>]*>`).FindAllString(row[1], -1), len(headers), "every row must match the header columns")
+					}
+				})
+			}
+		}
+	}
+}
+
+func writeAlertRuleReadmeTemplate(t *testing.T, dir, filename, engine string, metadata map[string]any) {
+	t.Helper()
+	attributes := metadata
+	if engine == "v2" {
+		attributes = map[string]any{"engine": "v2", "rule": map[string]any{"metadata": metadata}}
+	}
+	raw, err := json.Marshal(map[string]any{"attributes": attributes})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, filename), raw, 0o644))
+}
+
 func TestAlertRuleReadmeFormatting(t *testing.T) {
 	htmlTags := regexp.MustCompile(`<[^>]+>`)
 	texts := []struct {
@@ -533,13 +634,7 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 							description += " extra"
 						}
 						metadata := map[string]any{"name": text.name, "description": description}
-						attributes := metadata
-						if engine == "v2" {
-							attributes = map[string]any{"engine": "v2", "rule": map[string]any{"metadata": metadata}}
-						}
-						raw, err := json.Marshal(map[string]any{"attributes": attributes})
-						require.NoError(t, err)
-						require.NoError(t, os.WriteFile(filepath.Join(dir, engine+".json"), raw, 0o644))
+						writeAlertRuleReadmeTemplate(t, dir, engine+".json", engine, metadata)
 					}
 					repository, err := os.OpenRoot(root)
 					require.NoError(t, err)

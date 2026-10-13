@@ -276,13 +276,7 @@ func renderGroupedEngineTable(builder *strings.Builder, groups []alertRuleGroup)
 }
 
 func renderPerTemplateEngineTable(builder *strings.Builder, templates []alertRuleTemplate) {
-	showDescription := false
-	for _, template := range templates {
-		if strings.TrimSpace(template.displayDescription()) != "" {
-			showDescription = true
-			break
-		}
-	}
+	showDescription := hasAlertRuleDescriptions(templates)
 	writeAlertRuleTableOpen(builder)
 	if showDescription {
 		builder.WriteString("| Name | Description | Engine |\n")
@@ -355,16 +349,31 @@ func normalizeAlertRuleText(value string) string {
 }
 
 func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
-	builder.WriteString("**The following alert rule templates are available:**\n\n")
-	builder.WriteString("<details>\n")
-	builder.WriteString("<summary>View the alert rule templates</summary>\n\n")
-	builder.WriteString("| Name | Description |\n")
-	builder.WriteString("|---|---|\n")
+	showDescription := hasAlertRuleDescriptions(templates)
+	writeAlertRuleTableOpen(builder)
+	if showDescription {
+		builder.WriteString("| Name | Description |\n")
+		builder.WriteString("|---|---|\n")
+	} else {
+		builder.WriteString("| Name |\n")
+		builder.WriteString("|---|\n")
+	}
 	for _, t := range templates {
 		name := escapeAlertRuleName(t.displayName())
-		description := escapeAlertRuleTableCell(t.displayDescription())
-		fmt.Fprintf(builder, "| %s | %s |\n", name, description)
+		if showDescription {
+			fmt.Fprintf(builder, "| %s | %s |\n", name, escapeAlertRuleTableCell(t.displayDescription()))
+			continue
+		}
+		fmt.Fprintf(builder, "| %s |\n", name)
 	}
-	builder.WriteString("\n</details>\n")
-	builder.WriteString("\n")
+	writeAlertRuleTableClose(builder)
+}
+
+func hasAlertRuleDescriptions(templates []alertRuleTemplate) bool {
+	for _, template := range templates {
+		if normalizeAlertRuleText(template.displayDescription()) != "" {
+			return true
+		}
+	}
+	return false
 }
