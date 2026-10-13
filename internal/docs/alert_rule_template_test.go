@@ -241,8 +241,8 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 				assert.NotContains(t, result, "<summary>View the alert rule templates</summary>")
 				assert.NotContains(t, result, "</details>")
 				assert.Contains(t, result, "The following alert rule templates are available:")
-				assert.Contains(t, result, "- **First Rule Name** — First Rule Description")
-				assert.Contains(t, result, "- **Second Rule Name** — Second Rule Description")
+				assert.Contains(t, result, "**First Rule Name**\n\nFirst Rule Description\n\n")
+				assert.Contains(t, result, "**Second Rule Name**\n\nSecond Rule Description\n\n")
 			},
 		},
 		{
@@ -277,7 +277,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			},
 		},
 		{
-			name: "table pipes in names are escaped",
+			name: "single-engine table matches main escaping",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				createPackageManifestFile(t, tmpDir, "3.6.0")
@@ -288,7 +288,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 						"engine": "v2",
 						"rule": {
 							"metadata": {
-								"name": "Not ES|QL",
+								"name": "[AWS EC2 OTel] Not ES|QL",
 								"description": "line one\nline | two"
 							}
 						}
@@ -300,7 +300,11 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, `| Not ES\|QL | line one line \| two |`)
+				// Single-engine tables mirror main: brackets stay unescaped and
+				// pipes remain literal, so existing READMEs do not churn.
+				assert.Contains(t, result, `| [AWS EC2 OTel] Not ES|QL | line one line | two |`)
+				assert.NotContains(t, result, `\[AWS EC2 OTel\]`)
+				assert.NotContains(t, result, `\|`)
 			},
 		},
 		{
@@ -334,7 +338,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectEmpty: false,
 		},
 		{
-			name: "list omits blank descriptions",
+			name: "list retains classic blank descriptions",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				createPackageManifestFile(t, tmpDir, "3.5.0")
@@ -352,8 +356,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "- **\\[PostgreSQL\\] Latency high**\n")
-				assert.NotContains(t, result, "—")
+				assert.Contains(t, result, "**[PostgreSQL] Latency high**\n\n   \n\n")
 			},
 		},
 		{
@@ -567,11 +570,11 @@ func TestAlertRuleReadmeDescriptionColumns(t *testing.T) {
 					}
 					if version == "3.5.0" && (layout.name == "v1" || layout.name == "v2") {
 						require.NotContains(t, renderedHTML, "<table>")
-						require.Equal(t, layout.rows, strings.Count(renderedHTML, "<li>"))
+						require.Equal(t, layout.rows, strings.Count(renderedHTML, "<strong>"))
 						return
 					}
 					headers := append([]string(nil), layout.headers...)
-					if description.visible {
+					if description.visible || layout.name == "v1" || layout.name == "v2" {
 						headers = append([]string{"Name", "Description"}, headers[1:]...)
 					}
 					var actualHeaders []string
@@ -613,7 +616,7 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 		{"Rule <img src=x> &amp; value", "Check <angle>", "Rule <img src=x> &amp; value"},
 	}
 	for _, version := range []string{"3.5.0", "3.6.0"} {
-		for _, layout := range []string{"v1", "v2", "paired", "fallback"} {
+		for _, layout := range []string{"paired", "fallback"} {
 			for i, text := range texts {
 				t.Run(fmt.Sprintf("%s/%s/%d", version, layout, i), func(t *testing.T) {
 					root := t.TempDir()
@@ -626,9 +629,6 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 					require.NoError(t, os.RemoveAll(dir))
 					require.NoError(t, os.MkdirAll(dir, 0o755))
 					for _, engine := range []string{"v1", "v2"} {
-						if (layout == "v1" || layout == "v2") && engine != layout {
-							continue
-						}
 						description := text.description + " [Dashboard](https://example.com)"
 						if layout == "fallback" && engine == "v2" {
 							description += " extra"
@@ -647,12 +647,6 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 					body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(string(rendered))
 					renderedHTML := string(markdown.ToHTML([]byte(body), parser.NewWithExtensions(parser.CommonExtensions), nil))
 					require.Contains(t, renderedHTML, `href="https://example.com"`, "description links must remain usable")
-					if version == "3.5.0" && (layout == "v1" || layout == "v2") {
-						labels := regexp.MustCompile(`<strong>(.*?)</strong>`).FindAllStringSubmatch(renderedHTML, -1)
-						require.Len(t, labels, 1)
-						require.Equal(t, text.want, html.UnescapeString(htmlTags.ReplaceAllString(labels[0][1], "")))
-						return
-					}
 					columns, rows := 2, 1
 					switch layout {
 					case "paired":
@@ -672,6 +666,49 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestSingleEngineReadmeMatchesMain(t *testing.T) {
+	htmlTags := regexp.MustCompile(`<[^>]+>`)
+	// Single-engine 3.6.0 tables must stay byte-compatible with main's escaping:
+	// emphasis and angle brackets are escaped, while labels in square brackets
+	// and inline links are left intact. A regression here churns every published
+	// README that uses {{alertRuleTemplates}}.
+	for _, engine := range []string{"v1", "v2"} {
+		t.Run(engine, func(t *testing.T) {
+			root := t.TempDir()
+			require.NoError(t, os.CopyFS(root, os.DirFS("../../test/packages/other/alert_rule_templates")))
+			dir := filepath.Join(root, "kibana", "alerting_rule_template")
+			require.NoError(t, os.RemoveAll(dir))
+			require.NoError(t, os.MkdirAll(dir, 0o755))
+			metadata := map[string]any{
+				"name":        "[AWS EC2 OTel] *CPU* <high>",
+				"description": "Investigate [the runbook](https://example.com) for <details>.",
+			}
+			writeAlertRuleReadmeTemplate(t, dir, engine+".json", engine, metadata)
+
+			repository, err := os.OpenRoot(root)
+			require.NoError(t, err)
+			defer repository.Close()
+			rendered, found, err := GenerateReadme(repository, "README.md", "", root, fields.SchemaURLs{})
+			require.NoError(t, err)
+			require.True(t, found)
+
+			// Labels in square brackets are not escaped, matching main.
+			require.Contains(t, string(rendered), "[AWS EC2 OTel]")
+			require.NotContains(t, string(rendered), `\[AWS EC2 OTel\]`)
+			// Emphasis and angle brackets are escaped, matching main's escaper.
+			require.Contains(t, string(rendered), `\*CPU\*`)
+			require.Contains(t, string(rendered), `\<high\>`)
+
+			body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(string(rendered))
+			renderedHTML := string(markdown.ToHTML([]byte(body), parser.NewWithExtensions(parser.CommonExtensions), nil))
+			require.Contains(t, renderedHTML, `href="https://example.com"`, "description links must remain usable")
+			cells := regexp.MustCompile(`<td[^>]*>(.*?)</td>`).FindAllStringSubmatch(renderedHTML, -1)
+			require.Len(t, cells, 2, "single-engine table must have exactly Name and Description cells")
+			require.Equal(t, "[AWS EC2 OTel] *CPU* <high>", html.UnescapeString(htmlTags.ReplaceAllString(cells[0][1], "")))
+		})
 	}
 }
 

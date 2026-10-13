@@ -23,8 +23,7 @@ import (
 // validation.yml config; the first return value is the remaining errors after filtering,
 // the second is the errors that were filtered out.
 func ValidateSourceFromPath(packageRoot string) (error, error) {
-	processed, removed := validateFromPath(validator.SourceMode, packageRoot)
-	return errors.Join(processed, validateAlertRuleTemplates(os.DirFS(packageRoot))), removed
+	return validateFromPath(validator.SourceMode, packageRoot)
 }
 
 // ValidateBuiltFromPath validates a built (unzipped) package directory. Source-only
@@ -33,8 +32,7 @@ func ValidateSourceFromPath(packageRoot string) (error, error) {
 // value is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromPath(packageRoot string) (error, error) {
-	processed, removed := validateFromPath(validator.BuildMode, packageRoot)
-	return errors.Join(processed, validateAlertRuleTemplates(os.DirFS(packageRoot))), removed
+	return validateFromPath(validator.BuildMode, packageRoot)
 }
 
 func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
@@ -61,8 +59,7 @@ func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
 // is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
-	processed, removed := validateBuiltFromZip(zipPackagePath)
-	return errors.Join(processed, validateAlertRuleTemplatesZip(zipPackagePath)), removed
+	return validateBuiltFromZip(zipPackagePath)
 }
 
 func validateBuiltFromZip(zipPackagePath string) (error, error) {

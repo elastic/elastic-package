@@ -34,9 +34,7 @@ When the package declares required input packages ("requires.input" in manifest.
 
 If a required input package declares a "data_stream.dataset" var, it is dropped from the bundled data stream vars: an integration fixes its dataset by data stream name, so this var must not be left user-configurable. If the integration needs to declare "data_stream.dataset" itself, it can: either promoted to the input level ("policy_templates[].inputs[].vars"), or directly on the data stream. Both are bundled normally, and if both are declared, Fleet's usual variable-scope precedence applies at policy-render time, with the data-stream-level value taking precedence over the input-level one.
 
-For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
-
-Alerting v2 templates (` + "`attributes.engine`" + ` set to ` + "`v2`" + `) are checked during build for the current rule shape: metadata, schedule, query base and breach segment, recovery and no-data strategy, grouping, and state-transition counts. These checks do not parse or execute ES|QL, and they are not Kibana's complete schema. Query syntax and field types still have to be validated against the target Kibana and Elasticsearch version before publishing. A successful build does not prove that an alert will fire. ` + "`validation.yml`" + ` cannot suppress these structural errors. Classic templates, which have no ` + "`engine`" + ` field, stay on the package-spec checks.`
+For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).`
 
 func setupBuildCommand() *cobraext.Command {
 	cmd := &cobra.Command{

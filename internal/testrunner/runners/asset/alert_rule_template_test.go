@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -28,4 +29,16 @@ func TestMissingAlertRuleTemplateIsNotAnInstalledAsset(t *testing.T) {
 	require.False(t, findActualAsset([]packages.Asset{{ID: "rule-v2", Type: "dashboard"}}, expected[0]))
 	require.False(t, findActualAsset([]packages.Asset{{ID: "another-rule", Type: "alerting_rule_template"}}, expected[0]))
 	require.True(t, findActualAsset([]packages.Asset{{ID: "rule-v2", Type: "alerting_rule_template"}}, expected[0]))
+}
+
+func TestAlertRuleTemplateStackCompatibility(t *testing.T) {
+	template := packages.Asset{ID: "example", Type: "alerting_rule_template"}
+	for _, version := range []string{"8.19.0", "9.1.9"} {
+		require.True(t, alertRuleTemplateUnsupported(template, semver.MustParse(version)), version)
+	}
+	for _, version := range []string{"9.2.0", "9.2.1", "9.6.0"} {
+		require.False(t, alertRuleTemplateUnsupported(template, semver.MustParse(version)), version)
+	}
+	require.False(t, alertRuleTemplateUnsupported(template, nil), "managed Kibana may not report a version")
+	require.False(t, alertRuleTemplateUnsupported(packages.Asset{ID: "example", Type: "dashboard"}, semver.MustParse("8.19.0")))
 }

@@ -297,8 +297,6 @@ If a required input package declares a "data_stream.dataset" var, it is dropped 
 
 For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
 
-Alerting v2 templates (`attributes.engine` set to `v2`) are checked during build for the current rule shape: metadata, schedule, query base and breach segment, recovery and no-data strategy, grouping, and state-transition counts. These checks do not parse or execute ES|QL, and they are not Kibana's complete schema. Query syntax and field types still have to be validated against the target Kibana and Elasticsearch version before publishing. A successful build does not prove that an alert will fire. `validation.yml` cannot suppress these structural errors. Classic templates, which have no `engine` field, stay on the package-spec checks.
-
 ### `elastic-package changelog`
 
 _Context: package_
@@ -718,7 +716,7 @@ Use this command to run tests on a package. Currently, the following types of te
 #### Asset Loading Tests
 These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
 
-Expected Kibana assets include classic and Alerting v2 `alerting_rule_template` IDs. A missing template fails the test. The check confirms that the saved object was installed. It does not run the query or prove that the alert activates and recovers.
+Expected Kibana assets include classic and Alerting v2 `alerting_rule_template` IDs on Kibana 9.2.0 and later. Older Kibana versions report these assets as skipped. The check confirms that the saved object was installed. It does not run the query or prove that the alert activates and recovers.
 
 For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/asset_testing.md).
 

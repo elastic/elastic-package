@@ -19,7 +19,7 @@ import (
 
 // alertRuleTemplatesCollapsibleTableMinSpecVersion is the minimum package spec
 // version from which a single-engine package renders alert rule templates as a
-// collapsible table. Earlier specs keep the list. A package that publishes both
+// collapsible table. Earlier specs keep the paragraph layout. A package that publishes both
 // engines uses one collapsible table with a column per engine.
 var alertRuleTemplatesCollapsibleTableMinSpecVersion = semver.MustParse("3.6.0")
 
@@ -164,7 +164,7 @@ For more information, refer to the [Elastic documentation](` + docsLink + `).
 
 		// Both engines are listed under the same headings Fleet uses on the Alerting
 		// tab, ES|QL then Standard, so each template name appears once. A single
-		// engine keeps the collapsible table from spec 3.6.0 and the list before that.
+		// engine keeps the collapsible table from spec 3.6.0 and paragraphs before that.
 		if hasV1 && hasV2 {
 			renderAlertRuleEngineSections(&builder, templates)
 		} else if useCollapsibleTable {
@@ -179,8 +179,10 @@ For more information, refer to the [Elastic documentation](` + docsLink + `).
 
 func renderAlertRuleList(builder *strings.Builder, templates []alertRuleTemplate) {
 	builder.WriteString("The following alert rule templates are available:\n\n")
-	writeAlertRuleBullets(builder, templates)
-	builder.WriteString("\n")
+	for _, template := range templates {
+		fmt.Fprintf(builder, "**%s**\n\n", template.displayName())
+		fmt.Fprintf(builder, "%s\n\n", template.displayDescription())
+	}
 }
 
 // alertRuleGroup is one alert name published on one or both engines.
@@ -319,18 +321,6 @@ func engineName(template alertRuleTemplate) string {
 	return "Standard"
 }
 
-func writeAlertRuleBullets(builder *strings.Builder, templates []alertRuleTemplate) {
-	for _, template := range templates {
-		name := escapeAlertRuleName(template.displayName())
-		description := escapeAlertRuleTableCell(template.displayDescription())
-		if description == "" {
-			fmt.Fprintf(builder, "- **%s**\n", name)
-			continue
-		}
-		fmt.Fprintf(builder, "- **%s** — %s\n", name, description)
-	}
-}
-
 func escapeAlertRuleTableCell(value string) string {
 	value = normalizeAlertRuleText(value)
 	// Escape existing backslashes first so a backslash before a pipe cannot
@@ -349,22 +339,18 @@ func normalizeAlertRuleText(value string) string {
 }
 
 func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
-	showDescription := hasAlertRuleDescriptions(templates)
 	writeAlertRuleTableOpen(builder)
-	if showDescription {
-		builder.WriteString("| Name | Description |\n")
-		builder.WriteString("|---|---|\n")
-	} else {
-		builder.WriteString("| Name |\n")
-		builder.WriteString("|---|\n")
-	}
+	builder.WriteString("| Name | Description |\n")
+	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
-		name := escapeAlertRuleName(t.displayName())
-		if showDescription {
-			fmt.Fprintf(builder, "| %s | %s |\n", name, escapeAlertRuleTableCell(t.displayDescription()))
-			continue
-		}
-		fmt.Fprintf(builder, "| %s |\n", name)
+		// Single-engine tables keep the historic escaping so existing package
+		// READMEs stay byte-identical: escape only the Markdown emphasis and
+		// angle-bracket characters, and leave labels like "[AWS EC2 OTel] ..."
+		// and literal pipes untouched. The dual-engine tables below opt into the
+		// stricter cell escaping, which no published README depends on yet.
+		fmt.Fprintf(builder, "| %s | %s |\n",
+			escaper.Replace(normalizeAlertRuleText(t.displayName())),
+			escaper.Replace(normalizeAlertRuleText(t.displayDescription())))
 	}
 	writeAlertRuleTableClose(builder)
 }
