@@ -150,7 +150,7 @@ data_stream:
 ### 7. Update documentation
 
 - Regenerate package docs (`elastic-package build` / docs pipeline).
-- Manually document the input dependency if `{{ inputDocs }}` does not render (see [Documentation gaps](#documentation-gaps)).
+- Use `{{ inputDocs }}` and `{{ fields }}` in `_dev/build/docs/README.md`; `elastic-package build` renders them from the bundled input packages, and `elastic-package check` fails if the committed README is out of date (see [Composable packages](add_package_readme.md#composable-packages)).
 - Add changelog entries: migration itself (`enhancement`), stack constraint bump (`enhancement`), field-mapping fixes (`bugfix`).
 
 ### 8. Verify end-to-end
@@ -366,25 +366,12 @@ Prometheus collector output may not match legacy hand-written types (for example
 
 Re-export or migrate dashboards when the target stack changes Lens panel versions (for example `formBased` datasources, panel version `8.9.0` for stack `9.4.4`). Validate dashboards under realistic traffic, not only against idle services.
 
-## Documentation gaps
-
-### `{{ inputDocs }}` does not render for `streams[].package`
-
-For integrations using `streams[].package`, generated READMEs may leave the **Inputs used** section empty even when `{{ inputDocs }}` is present in `_dev/build/docs/README.md`. Tracked in [elastic/elastic-package#3696](https://github.com/elastic/elastic-package/issues/3696).
-
-**Workaround:** manually document the input dependency and link to the input package docs until the builder supports integrations with required input dependencies, as done in `elastic_package_registry`:
-
-```markdown
-This integration uses the [Prometheus input](https://www.elastic.co/docs/reference/integrations/prometheus_input) to collect metrics from the `/metrics` endpoint...
-```
-
 ## Known platform gaps and follow-up issues
 
 | Gap | Impact | Tracking |
 | --- | --- | --- |
 | Variables visible in UI but ignored by template | Confusing Fleet UX; risk of misconfiguration | Discussed in [elastic/integrations#19719](https://github.com/elastic/integrations/pull/19719); needs Fleet/input-package design |
 | No integration-level opt-out for input variables | Cannot hide irrelevant input vars | Future enhancement |
-| `{{ inputDocs }}` missing for integrations with required input dependencies | Incomplete generated docs | [elastic/elastic-package#3696](https://github.com/elastic/elastic-package/issues/3696) |
 | Dataset variable vs manifest `dataset` field | Wrong index naming / permissions — mitigated by setting `dataset:` on the data stream manifest; bundler excludes input `data_stream.dataset` var ([#3719](https://github.com/elastic/elastic-package/pull/3719)); Fleet injects metadata ([#275312](https://github.com/elastic/kibana/pull/275312)) | Closed alternative: [elastic/elastic-package#3713](https://github.com/elastic/elastic-package/pull/3713) |
 
 ## Verification checklist
@@ -400,7 +387,7 @@ Before opening the migration PR:
 - [ ] System tests pass with realistic service traffic where needed
 - [ ] Pipeline regression tests for edge cases found during migration
 - [ ] Changelog entries: migration, stack constraint, field-mapping fixes
-- [ ] Docs manually updated if `{{ inputDocs }}` is empty
+- [ ] `elastic-package build` run and the regenerated `docs/README.md` committed (`elastic-package check` passes)
 - [ ] Dashboards validated on the target stack version
 
 ## Related documentation

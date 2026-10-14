@@ -1,0 +1,6 @@
+title: CI Dual Logs b
+type: logs
+streams:
+  - input: ci_input_pkg_b
+    title: Logs
+    description: Stream
