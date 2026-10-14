@@ -1,0 +1,21 @@
+format_version: 3.6.0
+name: ci_composable_dual_input
+title: CI Composable Dual Input
+version: 0.1.0
+type: integration
+policy_templates:
+  - name: ci_dual_logs
+    title: CI dual logs
+    description: Collect logs via two input packages sharing the same type
+    data_streams:
+      - ci_dual_logs_a
+      - ci_dual_logs_b
+    inputs:
+      - name: ci_input_pkg_a
+        type: logfile
+        title: Collect via CI input package A
+        description: First logfile input
+      - name: ci_input_pkg_b
+        type: logfile
+        title: Collect via CI input package B
+        description: Second logfile input
