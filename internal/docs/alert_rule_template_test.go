@@ -586,7 +586,7 @@ func TestAlertRuleReadmeDescriptionColumns(t *testing.T) {
 					repository, err := os.OpenRoot(root)
 					require.NoError(t, err)
 					defer repository.Close()
-					rendered, found, err := GenerateReadme(repository, "README.md", "", root, fields.SchemaURLs{})
+					rendered, found, err := GenerateReadme(repository, "README.md", "", root, "", fields.SchemaURLs{})
 					require.NoError(t, err)
 					require.True(t, found)
 					body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(string(rendered))
@@ -665,7 +665,7 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 					repository, err := os.OpenRoot(root)
 					require.NoError(t, err)
 					defer repository.Close()
-					rendered, found, err := GenerateReadme(repository, "README.md", "", root, fields.SchemaURLs{})
+					rendered, found, err := GenerateReadme(repository, "README.md", "", root, "", fields.SchemaURLs{})
 					require.NoError(t, err)
 					require.True(t, found)
 					// Parse the generated Markdown independently of the renderer. Strip
@@ -727,7 +727,7 @@ func TestSingleEngineReadmeMatchesMain(t *testing.T) {
 			repository, err := os.OpenRoot(root)
 			require.NoError(t, err)
 			defer repository.Close()
-			rendered, found, err := GenerateReadme(repository, "README.md", "", root, fields.SchemaURLs{})
+			rendered, found, err := GenerateReadme(repository, "README.md", "", root, "", fields.SchemaURLs{})
 			require.NoError(t, err)
 			require.True(t, found)
 
