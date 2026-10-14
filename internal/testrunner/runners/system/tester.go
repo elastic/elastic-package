@@ -530,6 +530,8 @@ func (r *tester) createServiceOptions(variantName, deployerName string) serviced
 func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
+	// By default the name is the name of the package in its manifest, but it is overwritten
+	// by the different agent deployers when they set up the agent.
 	info.Name = r.testFolder.Package
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
