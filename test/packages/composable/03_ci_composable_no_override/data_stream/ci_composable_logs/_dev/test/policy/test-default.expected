@@ -6,7 +6,7 @@ inputs:
       meta:
         package:
             name: ci_composable_no_override
-      name: test-default-03_ci_composable_no_override
+      name: test-default-ci_composable_no_override
       paths:
         - /var/log/custom/*.log
       streams:

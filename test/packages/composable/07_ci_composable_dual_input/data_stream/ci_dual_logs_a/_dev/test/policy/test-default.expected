@@ -4,7 +4,7 @@ inputs:
       meta:
         package:
             name: ci_composable_dual_input
-      name: test-default-07_ci_composable_dual_input
+      name: test-default-ci_composable_dual_input
       paths:
         - /var/log/a/*.log
       streams:
