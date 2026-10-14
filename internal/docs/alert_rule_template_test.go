@@ -277,7 +277,34 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			},
 		},
 		{
-			name: "single-engine table matches main escaping",
+			name: "classic single-engine table matches main escaping",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				template := `{
+					"attributes": {
+						"name": "[AWS EC2 OTel] Not ES|QL",
+						"description": "line one\nline | two"
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "pipe.json"), []byte(template), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				// Classic single-engine tables mirror main: brackets stay
+				// unescaped and pipes remain literal, so existing READMEs do not
+				// churn.
+				assert.Contains(t, result, `| [AWS EC2 OTel] Not ES|QL | line one line | two |`)
+				assert.NotContains(t, result, `\[AWS EC2 OTel\]`)
+				assert.NotContains(t, result, `\|`)
+			},
+		},
+		{
+			name: "v2 single-engine table escapes pipes",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
 				createPackageManifestFile(t, tmpDir, "3.6.0")
@@ -288,7 +315,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 						"engine": "v2",
 						"rule": {
 							"metadata": {
-								"name": "[AWS EC2 OTel] Not ES|QL",
+								"name": "[AWS EC2 OTel] ES|QL",
 								"description": "line one\nline | two"
 							}
 						}
@@ -300,11 +327,10 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				// Single-engine tables mirror main: brackets stay unescaped and
-				// pipes remain literal, so existing READMEs do not churn.
-				assert.Contains(t, result, `| [AWS EC2 OTel] Not ES|QL | line one line | two |`)
-				assert.NotContains(t, result, `\[AWS EC2 OTel\]`)
-				assert.NotContains(t, result, `\|`)
+				// Alerting v2 is new output with no byte-identity constraint, so
+				// pipes are escaped and the cell is not split by "ES|QL".
+				assert.Contains(t, result, `| \[AWS EC2 OTel\] ES\|QL | line one line \| two |`)
+				assert.Contains(t, result, `\|`)
 			},
 		},
 		{
@@ -419,12 +445,12 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "| Name | Description | Engine |")
-				assert.Contains(t, result, "| Same name | V2 description | ES\\|QL |")
-				assert.Contains(t, result, "| Same name | Classic description | Standard |")
-				esql := strings.Index(result, "ES\\|QL")
-				standard := strings.Index(result, "| Standard |")
-				assert.Greater(t, standard, esql)
+				assert.Contains(t, result, "| Name | Description | ES\\|QL | Standard |")
+				assert.Contains(t, result, "| Same name | V2 description | ✓ |  |")
+				assert.Contains(t, result, "| Same name | Classic description |  | ✓ |")
+				v2Row := strings.Index(result, "| Same name | V2 description |")
+				v1Row := strings.Index(result, "| Same name | Classic description |")
+				assert.Greater(t, v1Row, v2Row)
 				assert.NotContains(t, result, "Wrong location")
 				assert.Contains(t, result, "Standard alert rule templates require Elastic Stack version 9.2.0 or later.")
 				assert.Contains(t, result, "ES|QL alert rule templates require Elastic Stack version 9.6.0 or later.")
@@ -439,8 +465,8 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "<summary>View the alert rule templates</summary>")
-				assert.Contains(t, result, "| Same name | V2 description | ES\\|QL |")
-				assert.Contains(t, result, "| Same name | Classic description | Standard |")
+				assert.Contains(t, result, "| Same name | V2 description | ✓ |  |")
+				assert.Contains(t, result, "| Same name | Classic description |  | ✓ |")
 				assert.NotContains(t, result, "Wrong location")
 			},
 		},
@@ -496,8 +522,8 @@ func TestMixedAlertRuleTemplateFileOrder(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, v2Name), []byte(`{"attributes":{"engine":"v2","name":"Wrong location","rule":{"metadata":{"name":"Same name","description":"V2 description"}}}}`), 0o644))
 		result, err := renderAlertRuleTemplates(root, newEmptyLinkMap())
 		require.NoError(t, err)
-		require.Contains(t, result, "| Same name | V2 description | ES\\|QL |")
-		require.Contains(t, result, "| Same name | Classic description | Standard |")
+		require.Contains(t, result, "| Same name | V2 description | ✓ |  |")
+		require.Contains(t, result, "| Same name | Classic description |  | ✓ |")
 		require.NotContains(t, result, "Wrong location")
 		require.Contains(t, result, "version 9.6.0 or later")
 	}
@@ -513,7 +539,7 @@ func TestAlertRuleReadmeDescriptionColumns(t *testing.T) {
 		{"v1", []string{"v1", "v1"}, []string{"Name"}, 2},
 		{"v2", []string{"v2", "v2"}, []string{"Name"}, 2},
 		{"paired", []string{"v1", "v2"}, []string{"Name", "ES|QL", "Standard"}, 1},
-		{"duplicate names", []string{"v1", "v1", "v2"}, []string{"Name", "Engine"}, 3},
+		{"duplicate names", []string{"v1", "v1", "v2"}, []string{"Name", "ES|QL", "Standard"}, 3},
 	}
 	descriptions := []struct {
 		name    string
@@ -647,12 +673,15 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 					body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(string(rendered))
 					renderedHTML := string(markdown.ToHTML([]byte(body), parser.NewWithExtensions(parser.CommonExtensions), nil))
 					require.Contains(t, renderedHTML, `href="https://example.com"`, "description links must remain usable")
-					columns, rows := 2, 1
-					switch layout {
-					case "paired":
-						columns = 4
-					case "fallback":
-						columns, rows = 3, 2
+					// Both layouts use the ES|QL and Standard columns. "paired"
+					// has matching descriptions, so it collapses to one row with
+					// both marks. "fallback" gives the v2 template a different
+					// description, so the shared name expands to one row per
+					// engine (ES|QL first), each with a single mark.
+					columns := 4
+					rows := 1
+					if layout == "fallback" {
+						rows = 2
 					}
 					cells := regexp.MustCompile(`<td[^>]*>(.*?)</td>`).FindAllStringSubmatch(renderedHTML, -1)
 					require.Len(t, cells, columns*rows, "table cells must not be split or dropped")
@@ -662,6 +691,12 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 					if layout == "paired" {
 						require.Equal(t, "✓", cells[2][1])
 						require.Equal(t, "✓", cells[3][1])
+					} else {
+						// v2 row first: ES|QL mark only; v1 row: Standard mark only.
+						require.Equal(t, "✓", cells[2][1])
+						require.Equal(t, "", cells[3][1])
+						require.Equal(t, "", cells[6][1])
+						require.Equal(t, "✓", cells[7][1])
 					}
 				})
 			}
@@ -671,10 +706,11 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 
 func TestSingleEngineReadmeMatchesMain(t *testing.T) {
 	htmlTags := regexp.MustCompile(`<[^>]+>`)
-	// Single-engine 3.6.0 tables must stay byte-compatible with main's escaping:
-	// emphasis and angle brackets are escaped, while labels in square brackets
-	// and inline links are left intact. A regression here churns every published
-	// README that uses {{alertRuleTemplates}}.
+	// Classic single-engine 3.6.0 tables must stay byte-compatible with main's
+	// escaping: emphasis and angle brackets are escaped, while labels in square
+	// brackets and inline links are left intact. A regression here churns every
+	// published README that uses {{alertRuleTemplates}}. Alerting v2 is new
+	// output with no byte-identity constraint, so its names are fully escaped.
 	for _, engine := range []string{"v1", "v2"} {
 		t.Run(engine, func(t *testing.T) {
 			root := t.TempDir()
@@ -695,10 +731,15 @@ func TestSingleEngineReadmeMatchesMain(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, found)
 
-			// Labels in square brackets are not escaped, matching main.
-			require.Contains(t, string(rendered), "[AWS EC2 OTel]")
-			require.NotContains(t, string(rendered), `\[AWS EC2 OTel\]`)
-			// Emphasis and angle brackets are escaped, matching main's escaper.
+			if engine == "v2" {
+				// Alerting v2 names are fully escaped, including square brackets.
+				require.Contains(t, string(rendered), `\[AWS EC2 OTel\]`)
+			} else {
+				// Classic labels in square brackets are not escaped, matching main.
+				require.Contains(t, string(rendered), "[AWS EC2 OTel]")
+				require.NotContains(t, string(rendered), `\[AWS EC2 OTel\]`)
+			}
+			// Emphasis and angle brackets are escaped in both paths.
 			require.Contains(t, string(rendered), `\*CPU\*`)
 			require.Contains(t, string(rendered), `\<high\>`)
 
@@ -707,6 +748,8 @@ func TestSingleEngineReadmeMatchesMain(t *testing.T) {
 			require.Contains(t, renderedHTML, `href="https://example.com"`, "description links must remain usable")
 			cells := regexp.MustCompile(`<td[^>]*>(.*?)</td>`).FindAllStringSubmatch(renderedHTML, -1)
 			require.Len(t, cells, 2, "single-engine table must have exactly Name and Description cells")
+			// After Markdown rendering the backslash escapes resolve, so both
+			// paths display the same name text.
 			require.Equal(t, "[AWS EC2 OTel] *CPU* <high>", html.UnescapeString(htmlTags.ReplaceAllString(cells[0][1], "")))
 		})
 	}

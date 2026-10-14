@@ -59,10 +59,6 @@ func validateFromPath(mode validator.Mode, packageRoot string) (error, error) {
 // is the remaining errors after filtering, the second is the errors that were
 // filtered out.
 func ValidateBuiltFromZip(zipPackagePath string) (error, error) {
-	return validateBuiltFromZip(zipPackagePath)
-}
-
-func validateBuiltFromZip(zipPackagePath string) (error, error) {
 	v, err := validator.New(validator.BuildMode)
 	if err != nil {
 		return fmt.Errorf("failed to create validator: %w", err), nil

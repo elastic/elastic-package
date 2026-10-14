@@ -193,54 +193,85 @@ type alertRuleGroup struct {
 	v1          bool
 }
 
-// renderAlertRuleEngineSections renders a dual-publish package as one table.
-// Each alert is a single row, with a centered mark in the ES|QL and Standard
-// columns, so the name is not repeated. When two templates share a name but
-// their descriptions differ, or one engine has two templates with that name,
-// the table falls back to one row per template.
+// renderAlertRuleEngineSections renders a dual-publish package as one table
+// using the ES|QL and Standard columns Fleet shows on the Alerting tab. A name
+// published cleanly on one or both engines is a single row with a mark per
+// engine, so the name is not repeated. When a name cannot be represented in one
+// row (two templates share it with differing descriptions, or the same engine
+// publishes it twice), it expands into one row per template, each with a single
+// mark, so one conflicting name never changes the layout of the rest of the
+// table.
 func renderAlertRuleEngineSections(builder *strings.Builder, templates []alertRuleTemplate) {
-	if groups, ok := groupAlertRules(templates); ok {
-		renderGroupedEngineTable(builder, groups)
-		return
-	}
-	renderPerTemplateEngineTable(builder, templates)
+	renderGroupedEngineTable(builder, groupAlertRules(templates))
 }
 
-func groupAlertRules(templates []alertRuleTemplate) ([]alertRuleGroup, bool) {
+func groupAlertRules(templates []alertRuleTemplate) []alertRuleGroup {
 	order := make([]string, 0)
-	byName := make(map[string]*alertRuleGroup)
+	byName := make(map[string][]alertRuleTemplate)
 	for _, template := range templates {
-		name := template.displayName()
-		group, seen := byName[name]
-		if !seen {
-			group = &alertRuleGroup{name: name}
-			byName[name] = group
+		// Key on the normalized name so templates that differ only in trailing
+		// whitespace or line breaks still pair into one row.
+		name := normalizeAlertRuleText(template.displayName())
+		if _, seen := byName[name]; !seen {
 			order = append(order, name)
 		}
+		byName[name] = append(byName[name], template)
+	}
+	var groups []alertRuleGroup
+	for _, name := range order {
+		groups = append(groups, groupTemplatesByName(name, byName[name])...)
+	}
+	return groups
+}
+
+// groupTemplatesByName merges templates that share a normalized name into one
+// row when they fit: at most one per engine and no conflicting descriptions.
+// Otherwise it returns one row per template, ES|QL rows first to match Fleet's
+// ordering.
+func groupTemplatesByName(name string, templates []alertRuleTemplate) []alertRuleGroup {
+	merged := alertRuleGroup{name: name}
+	mergeable := true
+	for _, template := range templates {
 		description := normalizeAlertRuleText(template.displayDescription())
-		if group.description != "" && description != "" && group.description != description {
-			return nil, false
+		if merged.description != "" && description != "" && merged.description != description {
+			mergeable = false
+			break
 		}
-		if group.description == "" {
-			group.description = description
+		if description != "" {
+			merged.description = description
 		}
 		if template.isV2() {
-			if group.v2 {
-				return nil, false
+			if merged.v2 {
+				mergeable = false
+				break
 			}
-			group.v2 = true
+			merged.v2 = true
 			continue
 		}
-		if group.v1 {
-			return nil, false
+		if merged.v1 {
+			mergeable = false
+			break
 		}
-		group.v1 = true
+		merged.v1 = true
 	}
-	groups := make([]alertRuleGroup, 0, len(order))
-	for _, name := range order {
-		groups = append(groups, *byName[name])
+	if mergeable {
+		return []alertRuleGroup{merged}
 	}
-	return groups, true
+	groups := make([]alertRuleGroup, 0, len(templates))
+	for _, wantV2 := range []bool{true, false} {
+		for _, template := range templates {
+			if template.isV2() != wantV2 {
+				continue
+			}
+			groups = append(groups, alertRuleGroup{
+				name:        name,
+				description: normalizeAlertRuleText(template.displayDescription()),
+				v2:          template.isV2(),
+				v1:          !template.isV2(),
+			})
+		}
+	}
+	return groups
 }
 
 func renderGroupedEngineTable(builder *strings.Builder, groups []alertRuleGroup) {
@@ -277,33 +308,6 @@ func renderGroupedEngineTable(builder *strings.Builder, groups []alertRuleGroup)
 	writeAlertRuleTableClose(builder)
 }
 
-func renderPerTemplateEngineTable(builder *strings.Builder, templates []alertRuleTemplate) {
-	showDescription := hasAlertRuleDescriptions(templates)
-	writeAlertRuleTableOpen(builder)
-	if showDescription {
-		builder.WriteString("| Name | Description | Engine |\n")
-		builder.WriteString("|---|---|---|\n")
-	} else {
-		builder.WriteString("| Name | Engine |\n")
-		builder.WriteString("|---|---|\n")
-	}
-	for _, wantV2 := range []bool{true, false} {
-		for _, template := range templates {
-			if template.isV2() != wantV2 {
-				continue
-			}
-			name := escapeAlertRuleName(template.displayName())
-			engine := escapeAlertRuleTableCell(engineName(template))
-			if showDescription {
-				fmt.Fprintf(builder, "| %s | %s | %s |\n", name, escapeAlertRuleTableCell(template.displayDescription()), engine)
-				continue
-			}
-			fmt.Fprintf(builder, "| %s | %s |\n", name, engine)
-		}
-	}
-	writeAlertRuleTableClose(builder)
-}
-
 func writeAlertRuleTableOpen(builder *strings.Builder) {
 	builder.WriteString("**The following alert rule templates are available:**\n\n")
 	builder.WriteString("<details>\n")
@@ -312,13 +316,6 @@ func writeAlertRuleTableOpen(builder *strings.Builder) {
 
 func writeAlertRuleTableClose(builder *strings.Builder) {
 	builder.WriteString("\n</details>\n\n")
-}
-
-func engineName(template alertRuleTemplate) string {
-	if template.isV2() {
-		return "ES|QL"
-	}
-	return "Standard"
 }
 
 func escapeAlertRuleTableCell(value string) string {
@@ -343,23 +340,22 @@ func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alert
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
-		// Single-engine tables keep the historic escaping so existing package
-		// READMEs stay byte-identical: escape only the Markdown emphasis and
-		// angle-bracket characters, and leave labels like "[AWS EC2 OTel] ..."
-		// and literal pipes untouched. The dual-engine tables below opt into the
-		// stricter cell escaping, which no published README depends on yet.
+		// This path renders single-engine packages. Classic-only tables keep the
+		// historic escaping so existing package READMEs stay byte-identical:
+		// escape only the Markdown emphasis and angle-bracket characters, and
+		// leave labels like "[AWS EC2 OTel] ..." and literal pipes untouched.
+		// Alerting v2 is new output with no byte-identity constraint, so v2-only
+		// tables use the stricter cell escaping (which also escapes pipes) to
+		// avoid splitting a cell on text like "ES|QL".
+		if t.isV2() {
+			fmt.Fprintf(builder, "| %s | %s |\n",
+				escapeAlertRuleName(t.displayName()),
+				escapeAlertRuleTableCell(t.displayDescription()))
+			continue
+		}
 		fmt.Fprintf(builder, "| %s | %s |\n",
 			escaper.Replace(normalizeAlertRuleText(t.displayName())),
 			escaper.Replace(normalizeAlertRuleText(t.displayDescription())))
 	}
 	writeAlertRuleTableClose(builder)
-}
-
-func hasAlertRuleDescriptions(templates []alertRuleTemplate) bool {
-	for _, template := range templates {
-		if normalizeAlertRuleText(template.displayDescription()) != "" {
-			return true
-		}
-	}
-	return false
 }
