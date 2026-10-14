@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -1048,6 +1049,47 @@ func TestDataStreamTypeFromPolicy(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			got := kibana.DataStreamTypeFromPolicy(c.policy, c.fallback)
 			assert.Equal(t, c.expected, got)
+		})
+	}
+}
+
+func TestCreateServiceInfo_DefaultName(t *testing.T) {
+	locationManager, err := locations.NewLocationManager()
+	require.NoError(t, err)
+
+	cases := []struct {
+		title       string
+		packageRoot string
+	}{
+		{
+			title:       "package root",
+			packageRoot: "../../../../test/packages/parallel/apache_basic_license",
+		},
+		{
+			title:       "package root with trailing separator",
+			packageRoot: "../../../../test/packages/parallel/apache_basic_license" + string(filepath.Separator),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			r := tester{
+				packageRoot: c.packageRoot,
+				testFolder: testrunner.TestFolder{
+					// Folder name (apache_basic_license) differs from the manifest name (apache).
+					Package:    "apache",
+					DataStream: "access",
+				},
+				locationManager: locationManager,
+				runTestsOnly:    true, // Avoid creating the output directory.
+			}
+
+			svcInfo, err := r.createServiceInfo()
+			require.NoError(t, err)
+
+			// The default service name is the name of the package folder, it is expected to be
+			// the name of the service in the docker-compose file of the package.
+			assert.Equal(t, "apache_basic_license", svcInfo.Name)
 		})
 	}
 }

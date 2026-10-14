@@ -579,7 +579,12 @@ func (r *tester) agentRequiresRootPrivileges() bool {
 
 func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	var svcInfo servicedeployer.ServiceInfo
-	svcInfo.Name = r.testFolder.Package
+	// The default name of the service is the name of the package folder, not the name of the
+	// package in its manifest. This name is used as the key of the service in the docker-compose
+	// file, when it is not explicitly defined with the "service" setting in the test configuration.
+	// Packages whose folder and manifest names differ already rely on the folder name here, so
+	// using the manifest name would break their existing system tests.
+	svcInfo.Name = filepath.Base(r.packageRoot)
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
 
