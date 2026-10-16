@@ -32,11 +32,12 @@ version.
 | 3.4 | 8.19 and all versions from 9.1. |
 | 3.5 | All versions from 9.2. |
 | 3.6 | All versions from 9.4. |
+| 3.7 | All versions from 9.6. |
 
 Versions older than 8.11 didn't have restrictions on the supported spec versions,
 so they might have limited support for some features.
 
-Serverless supports from 3.0 to 3.6.
+Serverless supports from 3.0 to 3.7.
 
 In case of doubt, you can check the Fleet default configuration, and the
 configuration overrides in the Kibana repository.
