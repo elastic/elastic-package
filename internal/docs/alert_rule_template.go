@@ -18,15 +18,65 @@ import (
 )
 
 // alertRuleTemplatesCollapsibleTableMinSpecVersion is the minimum package spec
-// version from which alert rule templates are rendered as a collapsible table.
-// For earlier spec versions, the previous rendering (name and description as a
-// list) is preserved to avoid introducing a breaking change.
+// version from which a single-engine package renders alert rule templates as a
+// collapsible table. Earlier specs keep the paragraph layout. A package that publishes both
+// engines uses one collapsible table with a column per engine.
 var alertRuleTemplatesCollapsibleTableMinSpecVersion = semver.MustParse("3.6.0")
+
+var alertRuleNameEscaper = strings.NewReplacer(
+	"\\", "\\\\", "*", "\\*", "_", "\\_", "`", "\\`", "~", "\\~",
+	"[", "\\[", "]", "\\]", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>",
+	"|", "\\|", "&", "&amp;",
+)
+
+var alertRuleLineBreaks = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
 
 type alertRuleTemplate struct {
 	Attributes struct {
-		Name        string
-		Description string
+		// Classic templates carry name and description on attributes.
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		// Alerting v2 templates use { engine: "v2", rule: { metadata: {...} } }.
+		Engine string `json:"engine"`
+		Rule   struct {
+			Metadata struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"metadata"`
+		} `json:"rule"`
+	} `json:"attributes"`
+}
+
+func (t alertRuleTemplate) isV2() bool {
+	return t.Attributes.Engine == "v2"
+}
+
+func (t alertRuleTemplate) displayName() string {
+	if t.isV2() {
+		return t.Attributes.Rule.Metadata.Name
+	}
+	return t.Attributes.Name
+}
+
+func (t alertRuleTemplate) displayDescription() string {
+	if t.isV2() {
+		return t.Attributes.Rule.Metadata.Description
+	}
+	return t.Attributes.Description
+}
+
+// alertRuleTemplateCompatibility states the Stack floor for the engines present.
+// Standard (classic) templates require 9.2.0. ES|QL (Alerting v2) requires
+// 9.6.0. A package that publishes both says so separately, so the classic floor
+// is not raised silently and the v2 floor is not omitted.
+func alertRuleTemplateCompatibility(hasV1, hasV2 bool) string {
+	switch {
+	case hasV1 && hasV2:
+		return "Standard alert rule templates require Elastic Stack version 9.2.0 or later. ES|QL alert rule templates require Elastic Stack version 9.6.0 or later.\n"
+	case hasV2:
+		return "Alert rule templates require Elastic Stack version 9.6.0 or later.\n"
+	default:
+		return "Alert rule templates require Elastic Stack version 9.2.0 or later.\n"
 	}
 }
 
@@ -95,15 +145,29 @@ func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, err
 			docsLink = "https://www.elastic.co/docs"
 		}
 
+		hasV1, hasV2 := false, false
+		for _, template := range templates {
+			if template.isV2() {
+				hasV2 = true
+			} else {
+				hasV1 = true
+			}
+		}
+
 		builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
 
 For more information, refer to the [Elastic documentation](` + docsLink + `).
 
-Alert rule templates require Elastic Stack version 9.2.0 or later.
-
 `)
+		builder.WriteString(alertRuleTemplateCompatibility(hasV1, hasV2))
+		builder.WriteString("\n")
 
-		if useCollapsibleTable {
+		// Both engines are listed under the same headings Fleet uses on the Alerting
+		// tab, ES|QL then Standard, so each template name appears once. A single
+		// engine keeps the collapsible table from spec 3.6.0 and paragraphs before that.
+		if hasV1 && hasV2 {
+			renderAlertRuleEngineSections(&builder, templates)
+		} else if useCollapsibleTable {
 			renderAlertRuleCollapsibleTable(&builder, templates)
 		} else {
 			renderAlertRuleList(&builder, templates)
@@ -116,24 +180,182 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 func renderAlertRuleList(builder *strings.Builder, templates []alertRuleTemplate) {
 	builder.WriteString("The following alert rule templates are available:\n\n")
 	for _, template := range templates {
-		fmt.Fprintf(builder, "**%s**\n\n", template.Attributes.Name)
-		fmt.Fprintf(builder, "%s\n\n", template.Attributes.Description)
+		fmt.Fprintf(builder, "**%s**\n\n", template.displayName())
+		fmt.Fprintf(builder, "%s\n\n", template.displayDescription())
 	}
 }
 
-func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
+// alertRuleGroup is one alert name published on one or both engines.
+type alertRuleGroup struct {
+	name        string
+	description string
+	v2          bool
+	v1          bool
+}
+
+// renderAlertRuleEngineSections renders a dual-publish package as one table
+// using the ES|QL and Standard columns Fleet shows on the Alerting tab. A name
+// published cleanly on one or both engines is a single row with a mark per
+// engine, so the name is not repeated. When a name cannot be represented in one
+// row (two templates share it with differing descriptions, or the same engine
+// publishes it twice), it expands into one row per template, each with a single
+// mark, so one conflicting name never changes the layout of the rest of the
+// table.
+func renderAlertRuleEngineSections(builder *strings.Builder, templates []alertRuleTemplate) {
+	renderGroupedEngineTable(builder, groupAlertRules(templates))
+}
+
+func groupAlertRules(templates []alertRuleTemplate) []alertRuleGroup {
+	order := make([]string, 0)
+	byName := make(map[string][]alertRuleTemplate)
+	for _, template := range templates {
+		// Key on the normalized name so templates that differ only in trailing
+		// whitespace or line breaks still pair into one row.
+		name := normalizeAlertRuleText(template.displayName())
+		if _, seen := byName[name]; !seen {
+			order = append(order, name)
+		}
+		byName[name] = append(byName[name], template)
+	}
+	var groups []alertRuleGroup
+	for _, name := range order {
+		groups = append(groups, groupTemplatesByName(name, byName[name])...)
+	}
+	return groups
+}
+
+// groupTemplatesByName merges templates that share a normalized name into one
+// row when they fit: at most one per engine and no conflicting descriptions.
+// Otherwise it returns one row per template, ES|QL rows first to match Fleet's
+// ordering.
+func groupTemplatesByName(name string, templates []alertRuleTemplate) []alertRuleGroup {
+	merged := alertRuleGroup{name: name}
+	mergeable := true
+	for _, template := range templates {
+		description := normalizeAlertRuleText(template.displayDescription())
+		if merged.description != "" && description != "" && merged.description != description {
+			mergeable = false
+			break
+		}
+		if description != "" {
+			merged.description = description
+		}
+		if template.isV2() {
+			if merged.v2 {
+				mergeable = false
+				break
+			}
+			merged.v2 = true
+			continue
+		}
+		if merged.v1 {
+			mergeable = false
+			break
+		}
+		merged.v1 = true
+	}
+	if mergeable {
+		return []alertRuleGroup{merged}
+	}
+	groups := make([]alertRuleGroup, 0, len(templates))
+	for _, wantV2 := range []bool{true, false} {
+		for _, template := range templates {
+			if template.isV2() != wantV2 {
+				continue
+			}
+			groups = append(groups, alertRuleGroup{
+				name:        name,
+				description: normalizeAlertRuleText(template.displayDescription()),
+				v2:          template.isV2(),
+				v1:          !template.isV2(),
+			})
+		}
+	}
+	return groups
+}
+
+func renderGroupedEngineTable(builder *strings.Builder, groups []alertRuleGroup) {
+	showDescription := false
+	for _, group := range groups {
+		if group.description != "" {
+			showDescription = true
+			break
+		}
+	}
+	writeAlertRuleTableOpen(builder)
+	if showDescription {
+		builder.WriteString("| Name | Description | ES\\|QL | Standard |\n")
+		builder.WriteString("|---|---|:---:|:---:|\n")
+	} else {
+		builder.WriteString("| Name | ES\\|QL | Standard |\n")
+		builder.WriteString("|---|:---:|:---:|\n")
+	}
+	for _, group := range groups {
+		name := escapeAlertRuleName(group.name)
+		v2, v1 := "", ""
+		if group.v2 {
+			v2 = "✓"
+		}
+		if group.v1 {
+			v1 = "✓"
+		}
+		if showDescription {
+			fmt.Fprintf(builder, "| %s | %s | %s | %s |\n", name, escapeAlertRuleTableCell(group.description), v2, v1)
+			continue
+		}
+		fmt.Fprintf(builder, "| %s | %s | %s |\n", name, v2, v1)
+	}
+	writeAlertRuleTableClose(builder)
+}
+
+func writeAlertRuleTableOpen(builder *strings.Builder) {
 	builder.WriteString("**The following alert rule templates are available:**\n\n")
 	builder.WriteString("<details>\n")
 	builder.WriteString("<summary>View the alert rule templates</summary>\n\n")
+}
+
+func writeAlertRuleTableClose(builder *strings.Builder) {
+	builder.WriteString("\n</details>\n\n")
+}
+
+func escapeAlertRuleTableCell(value string) string {
+	value = normalizeAlertRuleText(value)
+	// Escape existing backslashes first so a backslash before a pipe cannot
+	// cancel the pipe escape and split the table cell.
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	return strings.ReplaceAll(escaper.Replace(value), "|", "\\|")
+}
+
+func escapeAlertRuleName(value string) string {
+	// Names are labels, while descriptions may contain inline Markdown links.
+	return alertRuleNameEscaper.Replace(normalizeAlertRuleText(value))
+}
+
+func normalizeAlertRuleText(value string) string {
+	return strings.TrimSpace(alertRuleLineBreaks.Replace(value))
+}
+
+func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
+	writeAlertRuleTableOpen(builder)
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
-		name := strings.TrimSpace(t.Attributes.Name)
-		description := strings.TrimSpace(strings.ReplaceAll(t.Attributes.Description, "\n", " "))
+		// This path renders single-engine packages. Classic-only tables keep the
+		// historic escaping so existing package READMEs stay byte-identical:
+		// escape only the Markdown emphasis and angle-bracket characters, and
+		// leave labels like "[AWS EC2 OTel] ..." and literal pipes untouched.
+		// Alerting v2 is new output with no byte-identity constraint, so v2-only
+		// tables use the stricter cell escaping (which also escapes pipes) to
+		// avoid splitting a cell on text like "ES|QL".
+		if t.isV2() {
+			fmt.Fprintf(builder, "| %s | %s |\n",
+				escapeAlertRuleName(t.displayName()),
+				escapeAlertRuleTableCell(t.displayDescription()))
+			continue
+		}
 		fmt.Fprintf(builder, "| %s | %s |\n",
-			escaper.Replace(name),
-			escaper.Replace(description))
+			escaper.Replace(normalizeAlertRuleText(t.displayName())),
+			escaper.Replace(normalizeAlertRuleText(t.displayDescription())))
 	}
-	builder.WriteString("\n</details>\n")
-	builder.WriteString("\n")
+	writeAlertRuleTableClose(builder)
 }

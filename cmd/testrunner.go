@@ -52,6 +52,8 @@ const testLongDescription = `Use this command to run tests on a package. Current
 #### Asset Loading Tests
 These tests ensure that all the Elasticsearch and Kibana assets defined by your package get loaded up as expected.
 
+Expected Kibana assets include classic and Alerting v2 ` + "`alerting_rule_template`" + ` IDs on Kibana 9.2.0 and later. Older Kibana versions report these assets as skipped. The check confirms that the saved object was installed. It does not run the query or prove that the alert activates and recovers.
+
 For details on how to run asset loading tests for a package, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/asset_testing.md).
 
 #### Pipeline Tests
