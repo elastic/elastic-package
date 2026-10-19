@@ -161,7 +161,6 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
-	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRoot, err)
@@ -172,22 +171,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
 	}
 
-	if r.runSetup || r.runTearDown || r.runTestsOnly {
-		_, err := os.Stat(r.serviceStateFilePath)
-		logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
-		if r.runSetup && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run --setup, required to tear down previous setup")
-		}
-		if r.runTestsOnly && os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run tests with --no-provision, setup first with --setup")
-		}
-		if r.runTearDown && os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run --tear-down, setup not found")
-		}
-	} else {
-		if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run tests, required to tear down previous state run (path: %s)", r.serviceStateFilePath)
-		}
+	if err := r.checkServiceStateFile(); err != nil {
+		return nil, err
 	}
 
 	var serviceState ServiceState
@@ -198,38 +183,9 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	if hasDataStreams {
-		var dataStreams []string
-		if r.runSetup || r.runTearDown || r.runTestsOnly {
-			configFilePath := r.configFilePath
-			if r.runTearDown || r.runTestsOnly {
-				configFilePath = serviceState.ConfigFilePath
-			}
-			dataStream := testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRoot)
-			dataStreams = append(dataStreams, dataStream)
-		} else if len(r.dataStreams) > 0 {
-			dataStreams = r.dataStreams
-		}
-
-		folders, err = testrunner.FindTestFolders(r.packageRoot, dataStreams, r.Type())
-		if err != nil {
-			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-
-		if r.failOnMissingTests && len(folders) == 0 {
-			if len(dataStreams) > 0 {
-				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(dataStreams, ","))
-			}
-			return nil, fmt.Errorf("no %s tests found", r.Type())
-		}
-	} else {
-		folders, err = testrunner.FindTestFolders(r.packageRoot, nil, r.Type())
-		if err != nil {
-			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-		if r.failOnMissingTests && len(folders) == 0 {
-			return nil, fmt.Errorf("no %s tests found", r.Type())
-		}
+	folders, err := r.findTestFolders(hasDataStreams, serviceState)
+	if err != nil {
+		return nil, err
 	}
 
 	if r.runSetup || r.runTearDown || r.runTestsOnly {
@@ -293,6 +249,56 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 	return testers, nil
+}
+
+func (r *runner) checkServiceStateFile() error {
+	_, err := os.Stat(r.serviceStateFilePath)
+	exists := !os.IsNotExist(err)
+	if r.runSetup || r.runTearDown || r.runTestsOnly {
+		logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, exists)
+		if r.runSetup && exists {
+			return fmt.Errorf("failed to run --setup, required to tear down previous setup")
+		}
+		if r.runTestsOnly && !exists {
+			return fmt.Errorf("failed to run tests with --no-provision, setup first with --setup")
+		}
+		if r.runTearDown && !exists {
+			return fmt.Errorf("failed to run --tear-down, setup not found")
+		}
+		return nil
+	}
+	if exists {
+		return fmt.Errorf("failed to run tests, required to tear down previous state run (path: %s)", r.serviceStateFilePath)
+	}
+	return nil
+}
+
+func (r *runner) findTestFolders(hasDataStreams bool, serviceState ServiceState) ([]testrunner.TestFolder, error) {
+	var dataStreams []string
+	if hasDataStreams {
+		if r.runSetup || r.runTearDown || r.runTestsOnly {
+			configFilePath := r.configFilePath
+			if r.runTearDown || r.runTestsOnly {
+				configFilePath = serviceState.ConfigFilePath
+			}
+			dataStreams = append(dataStreams, testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRoot))
+		} else if len(r.dataStreams) > 0 {
+			dataStreams = r.dataStreams
+		}
+	}
+
+	folders, err := testrunner.FindTestFolders(r.packageRoot, dataStreams, r.Type())
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+	}
+
+	if r.failOnMissingTests && len(folders) == 0 {
+		if len(dataStreams) > 0 {
+			return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(dataStreams, ","))
+		}
+		return nil, fmt.Errorf("no %s tests found", r.Type())
+	}
+	return folders, nil
 }
 
 // Type returns the type of test that can be run by this test runner.
