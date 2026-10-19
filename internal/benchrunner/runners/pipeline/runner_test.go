@@ -15,7 +15,9 @@ import (
 
 func TestFindBenchmarkFolders_PackageName(t *testing.T) {
 	// Folder name (pipeline_benchmark) differs from the manifest name (pipeline_benchmarks).
-	const packageRoot = "../../../../test/packages/benchmarks/pipeline_benchmark"
+	// The package root is a clean path with the separators of the system, as the package roots found by
+	// elastic-package are, since the folders found are compared to it.
+	packageRoot := filepath.Join("..", "..", "..", "..", "test", "packages", "benchmarks", "pipeline_benchmark")
 	const packageName = "pipeline_benchmarks"
 
 	t.Run("all data streams", func(t *testing.T) {

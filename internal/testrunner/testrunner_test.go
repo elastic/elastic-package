@@ -13,13 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
+// The package roots are built with filepath.Join to be clean paths with the separators of the system,
+// as the package roots found by elastic-package are, since the folders found are compared to them.
+var (
 	// apache_basic_license is an integration package whose folder name differs from its manifest name (apache).
-	integrationPackageRoot = "../../test/packages/parallel/apache_basic_license"
+	integrationPackageRoot = filepath.Join("..", "..", "test", "packages", "parallel", "apache_basic_license")
 	integrationPackageName = "apache"
 
 	// 01_ci_input_pkg is an input package whose folder name differs from its manifest name (ci_input_pkg).
-	inputPackageRoot = "../../test/packages/composable/01_ci_input_pkg"
+	inputPackageRoot = filepath.Join("..", "..", "test", "packages", "composable", "01_ci_input_pkg")
 	inputPackageName = "ci_input_pkg"
 )
 
