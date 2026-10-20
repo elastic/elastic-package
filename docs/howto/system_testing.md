@@ -90,9 +90,9 @@ services:
 
 Here, `SERVICE_LOGS_DIR` is a special keyword. It is something that we will need later.
 
-By default, the tests use the service named after the package folder (for example `apache` for a
-package in the `apache` folder), so the `docker-compose.yml` file must define a service with that name.
-This is the name of the folder, not the `name` in the manifest of the package, and they can be different.
+By default, the tests use the service named after the package, with the `name` in its manifest (for example
+`apache` for the `apache` package), so the `docker-compose.yml` file must define a service with that name.
+This is the name in the manifest of the package, not the name of the folder where it is, and they can be different.
 Use the `service` setting in the test configuration to use a service with a different name.
 
 `elastic-package` will remove orphan volumes associated to the started services
@@ -537,7 +537,7 @@ for system tests.
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
 | numeric_keyword_fields | []string |  | List of fields to ignore during validation that are mapped as `keyword` in Elasticsearch, but their JSON data type is a number. |
 | policy_template | string |  | Name of policy template associated with the data stream and input. Required when multiple policy templates include the input being tested. |
-| service | string |  | Name of the service, as defined in the `docker-compose.yml` file, to setup for the test. Defaults to the name of the package folder. |
+| service | string |  | Name of the service, as defined in the `docker-compose.yml` file, to setup for the test. Defaults to the name of the package in its `manifest.yml`. |
 | service_notify_signal | string |  | Signal name to send to 'service' when the test policy has been applied to the Agent. This can be used to trigger the service after the Agent is ready to receive data. |
 | signal_types | []string |  | For otel packages with dynamic_signal_types, this specifies which signal data streams to assert on. Otherwise all detected data streams for the dataset will be asserted against. 
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |

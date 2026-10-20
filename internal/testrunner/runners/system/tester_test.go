@@ -1057,39 +1057,21 @@ func TestCreateServiceInfo_DefaultName(t *testing.T) {
 	locationManager, err := locations.NewLocationManager()
 	require.NoError(t, err)
 
-	cases := []struct {
-		title       string
-		packageRoot string
-	}{
-		{
-			title:       "package root",
-			packageRoot: "../../../../test/packages/parallel/apache_basic_license",
+	r := tester{
+		// Folder name (apache_basic_license) differs from the manifest name (apache).
+		packageRoot: filepath.Join("..", "..", "..", "..", "test", "packages", "parallel", "apache_basic_license"),
+		testFolder: testrunner.TestFolder{
+			Package:    "apache",
+			DataStream: "access",
 		},
-		{
-			title:       "package root with trailing separator",
-			packageRoot: "../../../../test/packages/parallel/apache_basic_license" + string(filepath.Separator),
-		},
+		locationManager: locationManager,
+		runTestsOnly:    true, // Avoid creating the output directory.
 	}
 
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			r := tester{
-				packageRoot: c.packageRoot,
-				testFolder: testrunner.TestFolder{
-					// Folder name (apache_basic_license) differs from the manifest name (apache).
-					Package:    "apache",
-					DataStream: "access",
-				},
-				locationManager: locationManager,
-				runTestsOnly:    true, // Avoid creating the output directory.
-			}
+	svcInfo, err := r.createServiceInfo()
+	require.NoError(t, err)
 
-			svcInfo, err := r.createServiceInfo()
-			require.NoError(t, err)
-
-			// The default service name is the name of the package folder, it is expected to be
-			// the name of the service in the docker-compose file of the package.
-			assert.Equal(t, "apache_basic_license", svcInfo.Name)
-		})
-	}
+	// The default service name is the name of the package in its manifest, it is expected to be
+	// the name of the service in the docker-compose file of the package.
+	assert.Equal(t, "apache", svcInfo.Name)
 }
