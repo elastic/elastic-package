@@ -605,7 +605,9 @@ The command manages lifecycle of the service stack defined for the package ("_de
 
 _Context: package_
 
-Boot up the stack.
+Boot up the service stack defined for the package ("_dev/deploy") until it is interrupted.
+
+By default, the service used is the one named after the package in the docker-compose file, with the name in the manifest of the package (not with the name of its folder), the same as in system tests. Use the --service flag to use a service with a different name.
 
 ### `elastic-package stack`
 
