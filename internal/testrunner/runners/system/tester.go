@@ -536,7 +536,7 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
 
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRoot, r.testFolder.DataStream, runID)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.testFolder.Package, r.testFolder.DataStream, runID)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
