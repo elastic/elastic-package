@@ -58,6 +58,10 @@ type testConfig struct {
 	// test from passing (e.g. select vars with "false"/"true" option values).
 	PolicyAPIFormat string `config:"policy_api_format"`
 
+	// LogsDBColumnar turns on the logsdb_columnar index mode of the package installation
+	// before the test sends data, and turns it off again on tear down.
+	LogsDBColumnar bool `config:"logsdb_columnar"`
+
 	Assert struct {
 		// HitCount expected number of hits for a given test
 		HitCount int `config:"hit_count"`
