@@ -7,10 +7,10 @@ package asset
 import (
 	"context"
 	"os"
-	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -73,12 +73,16 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
-	_, pkg := filepath.Split(r.packageRoot)
+	packageName, err := packages.ReadPackageName(r.packageRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	testers := []testrunner.Tester{
 		NewAssetTester(AssetTesterOptions{
 			PackageRoot:            r.packageRoot,
 			KibanaClient:           r.kibanaClient,
-			TestFolder:             testrunner.TestFolder{Package: pkg},
+			TestFolder:             testrunner.TestFolder{Package: packageName},
 			GlobalTestConfig:       r.globalTestConfig,
 			WithCoverage:           r.withCoverage,
 			CoverageType:           r.coverageType,

@@ -478,6 +478,15 @@ func ReadPackageManifestFromPackageRoot(packageRoot string) (*PackageManifest, e
 	return ReadPackageManifest(filepath.Join(packageRoot, PackageManifestFile))
 }
 
+// ReadPackageName returns the name declared in the manifest of the package at the given root.
+func ReadPackageName(packageRoot string) (string, error) {
+	manifest, err := ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+	}
+	return manifest.Name, nil
+}
+
 // ReadPackageManifestFromZipPackage reads and parses the package manifest file for the given zip package.
 func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, error) {
 	tempDir, err := os.MkdirTemp("", "elastic-package-")

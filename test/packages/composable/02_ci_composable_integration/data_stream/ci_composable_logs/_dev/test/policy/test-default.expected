@@ -6,7 +6,7 @@ inputs:
       meta:
         package:
             name: ci_composable_integration
-      name: test-default-02_ci_composable_integration
+      name: test-default-ci_composable_integration
       paths:
         - /var/log/custom/*.log
       streams:

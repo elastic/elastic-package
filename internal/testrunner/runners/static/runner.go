@@ -7,7 +7,6 @@ package static
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/fields"
@@ -92,10 +91,9 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			return nil, fmt.Errorf("no %s tests found", r.Type())
 		}
 	} else {
-		_, pkg := filepath.Split(r.packageRoot)
 		tests = []testrunner.TestFolder{
 			{
-				Package: pkg,
+				Package: manifest.Name,
 			},
 		}
 	}

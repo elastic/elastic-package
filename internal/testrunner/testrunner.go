@@ -212,6 +212,11 @@ func AssumeTestFolders(packageRoot string, dataStreams []string, testType TestTy
 	//   data_stream/
 	//     <dataStream>/
 
+	packageName, err := packages.ReadPackageName(packageRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	dataStreamsPath := filepath.Join(packageRoot, "data_stream")
 
 	if len(dataStreams) == 0 {
@@ -235,7 +240,7 @@ func AssumeTestFolders(packageRoot string, dataStreams []string, testType TestTy
 	for _, dataStream := range dataStreams {
 		folders = append(folders, TestFolder{
 			Path:       filepath.Join(dataStreamsPath, dataStream, "_dev", "test", string(testType)),
-			Package:    filepath.Base(packageRoot),
+			Package:    packageName,
 			DataStream: dataStream,
 		})
 	}
@@ -257,6 +262,11 @@ func FindTestFolders(packageRoot string, dataStreams []string, testType TestType
 	//   _dev/
 	//     test/
 	//       <testType>/
+
+	packageName, err := packages.ReadPackageName(packageRoot)
+	if err != nil {
+		return nil, err
+	}
 
 	testTypeGlob := "*"
 	if testType != "" {
@@ -293,13 +303,12 @@ func FindTestFolders(packageRoot string, dataStreams []string, testType TestType
 	}
 
 	folders := make([]TestFolder, len(paths))
-	_, pkg := filepath.Split(packageRoot)
 	for idx, p := range paths {
 		dataStream := ExtractDataStreamFromPath(p, packageRoot)
 
 		folder := TestFolder{
 			Path:       p,
-			Package:    pkg,
+			Package:    packageName,
 			DataStream: dataStream,
 		}
 

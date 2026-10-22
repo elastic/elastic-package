@@ -19,9 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -1050,4 +1052,47 @@ func TestDataStreamTypeFromPolicy(t *testing.T) {
 			assert.Equal(t, c.expected, got)
 		})
 	}
+}
+
+func TestCreateServiceInfo_DefaultName(t *testing.T) {
+	locationManager, err := locations.NewLocationManager()
+	require.NoError(t, err)
+
+	r := tester{
+		// Folder name (apache_basic_license) differs from the manifest name (apache).
+		packageRoot: filepath.Join("..", "..", "..", "..", "test", "packages", "parallel", "apache_basic_license"),
+		testFolder: testrunner.TestFolder{
+			Package:    "apache",
+			DataStream: "access",
+		},
+		locationManager: locationManager,
+		runTestsOnly:    true, // Avoid creating the output directory.
+	}
+
+	svcInfo, err := r.createServiceInfo()
+	require.NoError(t, err)
+
+	// The default service name is the name of the package in its manifest, it is expected to be
+	// the name of the service in the docker-compose file of the package.
+	assert.Equal(t, "apache", svcInfo.Name)
+}
+
+func TestCreateAgentInfo_ServiceLogsDir(t *testing.T) {
+	r := tester{
+		profile: &profile.Profile{ProfilePath: t.TempDir()},
+		// Folder name (apache_basic_license) differs from the manifest name (apache).
+		packageRoot: filepath.Join("..", "..", "..", "..", "test", "packages", "parallel", "apache_basic_license"),
+		testFolder: testrunner.TestFolder{
+			Package:    "apache",
+			DataStream: "access",
+		},
+		pkgManifest: &packages.PackageManifest{},
+	}
+
+	info, err := r.createAgentInfo(&kibana.Policy{}, &testConfig{}, "12345")
+	require.NoError(t, err)
+
+	// The directory is named after the package in its manifest, as the rest of the agent resources.
+	assert.Equal(t, "agent-apache-access-12345", filepath.Base(info.Logs.Folder.Local))
+	assert.DirExists(t, info.Logs.Folder.Local)
 }

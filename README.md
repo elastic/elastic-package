@@ -605,7 +605,9 @@ The command manages lifecycle of the service stack defined for the package ("_de
 
 _Context: package_
 
-Boot up the stack.
+Boot up the service stack defined for the package ("_dev/deploy") until it is interrupted.
+
+By default, the service used is the one named after the package in the docker-compose file, with the name in the manifest of the package (not with the name of its folder), the same as in system tests. Use the --service flag to use a service with a different name.
 
 ### `elastic-package stack`
 
@@ -737,6 +739,8 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
+Note: the service used by the tests is the one named as the package in its manifest, not as its folder (previous versions used the folder name). Packages whose folder and manifest names differ may need to define the "service" setting in their tests.
+
 #### Script Tests
 These tests allow you to run scripted testing to exercise specific behaviors in a package.
 
@@ -782,6 +786,10 @@ Run static files tests for the package.
 _Context: package_
 
 Run system tests for the package.
+
+The service used by the tests is the one defined in the docker-compose file with the same name as the package in its manifest (not the name of its folder). Use the "service" setting in the test configuration to use a service with a different name. For details, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+
+Note: previous versions used the name of the package folder. Packages whose folder and manifest names differ need to define the "service" setting in their tests, or to rename the service in the docker-compose file.
 
 ### `elastic-package uninstall`
 

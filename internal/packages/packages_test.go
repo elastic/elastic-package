@@ -383,3 +383,20 @@ latest:
 		})
 	}
 }
+
+func TestReadPackageName(t *testing.T) {
+	t.Run("folder name differs from manifest name", func(t *testing.T) {
+		name, err := ReadPackageName("../../test/packages/parallel/apache_basic_license")
+		require.NoError(t, err)
+		assert.Equal(t, "apache", name)
+	})
+
+	t.Run("missing manifest", func(t *testing.T) {
+		packageRoot := t.TempDir()
+		name, err := ReadPackageName(packageRoot)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "reading package manifest failed")
+		assert.ErrorContains(t, err, packageRoot)
+		assert.Empty(t, name)
+	})
+}
