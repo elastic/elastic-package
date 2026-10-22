@@ -530,11 +530,13 @@ func (r *tester) createServiceOptions(variantName, deployerName string) serviced
 func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
+	// By default the name is the name of the package in its manifest, but it is overwritten
+	// by the different agent deployers when they set up the agent.
 	info.Name = r.testFolder.Package
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
 
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRoot, r.testFolder.DataStream, runID)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.testFolder.Package, r.testFolder.DataStream, runID)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
@@ -579,6 +581,8 @@ func (r *tester) agentRequiresRootPrivileges() bool {
 
 func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	var svcInfo servicedeployer.ServiceInfo
+	// The default name of the service is the name of the package in its manifest. It is the key of the
+	// service in the docker-compose file, unless the "service" setting is defined in the test configuration.
 	svcInfo.Name = r.testFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir

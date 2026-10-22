@@ -289,6 +289,9 @@ const (
 	TestCoverageFormatFlagName        = "coverage-format"
 	TestCoverageFormatFlagDescription = "set format for coverage reports: %s"
 
+	ServiceFlagName        = "service"
+	ServiceFlagDescription = "name of the service, as defined in the docker-compose file, to boot up (default: name of the package in its manifest)"
+
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 

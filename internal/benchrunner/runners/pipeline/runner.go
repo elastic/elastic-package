@@ -109,6 +109,11 @@ func FindBenchmarkFolders(packageRoot string, dataStreams []string) ([]testrunne
 	//         benchmark/
 	//           <benchType>/
 
+	packageName, err := packages.ReadPackageName(packageRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	var paths []string
 	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
@@ -140,7 +145,6 @@ func FindBenchmarkFolders(packageRoot string, dataStreams []string) ([]testrunne
 	}
 
 	folders := make([]testrunner.TestFolder, len(paths))
-	_, pkg := filepath.Split(packageRoot)
 	for idx, p := range paths {
 		relP := strings.TrimPrefix(p, packageRoot)
 		parts := strings.Split(relP, string(filepath.Separator))
@@ -148,7 +152,7 @@ func FindBenchmarkFolders(packageRoot string, dataStreams []string) ([]testrunne
 
 		folder := testrunner.TestFolder{
 			Path:       p,
-			Package:    pkg,
+			Package:    packageName,
 			DataStream: dataStream,
 		}
 
