@@ -107,6 +107,21 @@ data_stream:
 		assert.Equal(t, "my.dataset", ds)
 	})
 
+	t.Run("logsdb_columnar is read", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "test-columnar-config.yml")
+		err := os.WriteFile(configPath, []byte(`
+input: log
+logsdb_columnar: true
+`), 0644)
+		require.NoError(t, err)
+
+		cfg, err := newConfig(configPath, servicedeployer.ServiceInfo{}, "")
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.True(t, cfg.LogsDBColumnar)
+	})
+
 	t.Run("missing config file returns error", func(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, "test-nonexistent-config.yml")

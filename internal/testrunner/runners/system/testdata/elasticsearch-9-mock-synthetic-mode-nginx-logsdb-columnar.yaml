@@ -1,0 +1,106 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.27.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.27.2,t=7.17.10,hc=1.27.2
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 547
+        uncompressed: false
+        body: |
+            {
+              "name" : "8f1a486a297c",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "kOF3O6WRSXyokXjZgB1E9w",
+              "version" : {
+                "number" : "9.6.0-SNAPSHOT",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "f947e5e15963a7e2e81430be69af2f2fc9d4e4c2",
+                "build_date" : "2026-10-15T00:08:49.049044351Z",
+                "build_snapshot" : true,
+                "lucene_version" : "10.5.1",
+                "minimum_wire_compatibility_version" : "8.19.0",
+                "minimum_index_compatibility_version" : "8.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "547"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 19:23:36 GMT
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 12.551584ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.27.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.27.2,t=7.17.10,hc=1.27.2
+        url: https://127.0.0.1:9200/_index_template/_simulate_index/logs-nginx.access-12345simulated
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 4900
+        uncompressed: false
+        body: '{"template":{"settings":{"index":{"lifecycle":{"name":"logs@lifecycle"},"mode":"logsdb_columnar","codec":"best_compression","routing":{"allocation":{"include":{"_tier_preference":"data_hot"}}},"mapping":{"total_fields":{"limit":"1000","ignore_dynamic_beyond_limit":"true"},"ignore_malformed":"true"},"logsdb":{"add_host_name_field":"true","sort_on_host_name":"true"},"final_pipeline":".fleet_final_pipeline-1","disable_sequence_numbers":"true","default_pipeline":"logs-nginx.access-4.0.0-preview.3"}},"mappings":{"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"nginx"}},"_data_stream_timestamp":{"enabled":true},"dynamic_templates":[{"ecs_timestamp":{"match":"@timestamp","mapping":{"ignore_malformed":false,"type":"date"}}},{"ecs_message_match_only_text":{"path_match":["message","*.message"],"unmatch_mapping_type":"object","mapping":{"type":"match_only_text"}}},{"ecs_non_indexed_keyword":{"path_match":["*event.original","*gen_ai.agent.description"],"mapping":{"index":false,"type":"keyword"}}},{"ecs_non_indexed_long":{"path_match":"*.x509.public_key_exponent","mapping":{"index":false,"type":"long"}}},{"ecs_ip":{"path_match":["ip","*.ip","*_ip"],"match_mapping_type":"string","mapping":{"type":"ip"}}},{"ecs_wildcard":{"path_match":["*.io.text","*.message_id","*registry.data.strings","*url.path"],"unmatch_mapping_type":"object","mapping":{"type":"wildcard"}}},{"ecs_path_match_wildcard_and_match_only_text":{"path_match":["*.body.content","*url.full","*url.original"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"wildcard"}}},{"ecs_match_wildcard_and_match_only_text":{"match":["*command_line","*stack_trace"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"wildcard"}}},{"ecs_path_match_keyword_and_match_only_text":{"path_match":["*.title","*.executable","*.name","*.working_directory","*.full_name","*.display_name","*file.path","*file.target_path","*os.full","*email.subject","*vulnerability.description","*user_agent.original"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"keyword"}}},{"ecs_date":{"path_match":["*.timestamp","*_timestamp","*.not_after","*.not_before","*.accessed","created","*.created","*.installed","*.creation_date","*.ctime","*.mtime","ingested","*.ingested","*.start","*.end","*.indicator.first_seen","*.indicator.last_seen","*.indicator.modified_at","*threat.enrichments.matched.occurred","*.lifecycle.last_activity"],"unmatch_mapping_type":"object","mapping":{"type":"date"}}},{"ecs_path_match_float":{"path_match":["*.score.*","*_score*"],"path_unmatch":"*.version","unmatch_mapping_type":"object","mapping":{"type":"float"}}},{"ecs_usage_double_scaled_float":{"path_match":"*.usage","match_mapping_type":["double","long","string"],"mapping":{"scaling_factor":1000,"type":"scaled_float"}}},{"ecs_geo_point":{"path_match":"*.geo.location","mapping":{"type":"geo_point"}}},{"ecs_flattened":{"path_match":["*structured_data","*exports","*imports","*gen_ai.system_instructions","*gen_ai.input.messages","*gen_ai.output.messages","*gen_ai.tool.definitions","*gen_ai.tool.call.arguments","*gen_ai.tool.call.result"],"match_mapping_type":"object","mapping":{"type":"flattened"}}},{"ecs_gen_ai_doubles":{"path_match":["*gen_ai.request.temperature","*gen_ai.request.top_k","*gen_ai.request.frequency_penalty","*gen_ai.request.presence_penalty","*gen_ai.request.top_p"],"mapping":{"type":"double"}}},{"all_strings_to_keywords":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}},{"strings_as_keyword":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}}],"date_detection":false,"properties":{"@timestamp":{"type":"date","ignore_malformed":false},"cloud.image.id":{"type":"keyword","ignore_above":1024},"data_stream.dataset":{"type":"constant_keyword"},"data_stream.namespace":{"type":"constant_keyword"},"data_stream.type":{"type":"constant_keyword"},"event.agent_id_status":{"type":"keyword","ignore_above":1024},"event.dataset":{"type":"constant_keyword","value":"nginx.access"},"event.ingested":{"type":"date","format":"strict_date_time_no_millis||strict_date_optional_time||epoch_millis","ignore_malformed":false},"event.module":{"type":"constant_keyword","value":"nginx"},"host.containerized":{"type":"boolean"},"host.os.build":{"type":"keyword","ignore_above":1024},"host.os.codename":{"type":"keyword","ignore_above":1024},"input.type":{"type":"keyword","ignore_above":1024},"log.offset":{"type":"long"},"nginx.access.remote_ip_list":{"type":"keyword","ignore_above":1024},"nginx.access.response_time":{"type":"long","meta":{"unit":"ms"}}}},"aliases":{},"data_stream_options":{"failure_store":{"enabled":true}}},"overlapping":[{"name":"logs","index_patterns":["logs-*-*"]},{"name":"logs-otel@template","index_patterns":["logs-*.otel-*"]}]}'
+        headers:
+            Content-Length:
+                - "4900"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 19:23:36 GMT
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 10.761667ms
