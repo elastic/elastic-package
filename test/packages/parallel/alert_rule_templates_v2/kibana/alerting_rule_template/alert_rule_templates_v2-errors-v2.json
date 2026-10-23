@@ -1,0 +1,25 @@
+{
+    "id": "alert_rule_templates_v2-errors-v2",
+    "type": "alerting_rule_template",
+    "managed": true,
+    "attributes": {
+        "engine": "v2",
+        "rule": {
+            "kind": "alert",
+            "metadata": {
+                "name": "[Sample] Server errors high",
+                "description": "Alerts when a service returns more than 10 server errors.",
+                "tags": ["Sample"]
+            },
+            "schedule": {"every": "1m", "lookback": "5m"},
+            "time_field": "@timestamp",
+            "query": {
+                "base": "FROM logs-sample-default | WHERE http.response.status_code >= 500 | STATS errors = COUNT(*) BY service.name",
+                "breach": {"segment": "WHERE errors > 10"}
+            },
+            "recovery": {"strategy": "condition", "segment": "WHERE errors <= 5"},
+            "no_data": {"strategy": "keep_last"},
+            "grouping": {"fields": ["service.name"]}
+        }
+    }
+}
