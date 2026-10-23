@@ -4,7 +4,11 @@ queue_rules:
       - check-success=buildkite/elastic-package
       - check-success=CLA
       - base=main
-      - author~=^dependabot(|-preview)\[bot\]$
+      - or:
+          - author~=^dependabot(|-preview)\[bot\]$
+          - and:
+              - author=github-actions[bot]
+              - head~=^updatecli_
     merge_conditions:
       - check-success=buildkite/elastic-package
     merge_method: squash
@@ -17,6 +21,14 @@ pull_request_rules:
       review:
         type: APPROVE
         message: Automatically approving dependabot
+  - name: automatic approval for updatecli pull requests
+    conditions:
+      - author=github-actions[bot]
+      - head~=^updatecli_
+    actions:
+      review:
+        type: APPROVE
+        message: Automatically approving updatecli
   - name: automatic merge of bot 🤖
     conditions: []
     actions:

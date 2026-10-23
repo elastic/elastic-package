@@ -40,3 +40,29 @@ func TestReportXUnitFormatFlaky(t *testing.T) {
 	assert.NotContains(t, report, "failures=")
 	assert.NotContains(t, report, "errors=")
 }
+
+func TestReportXUnitFormatClassName(t *testing.T) {
+	// The classname is "<package>.<data stream>", and it is parsed by external tools
+	// (e.g. the failed tests reporter in the integrations repository), so the format
+	// must be kept. The package is the one set in the results, the name in the manifest.
+	results := []testrunner.TestResult{
+		{
+			Name:       "default",
+			Package:    "apache",
+			DataStream: "access",
+			TestType:   "pipeline",
+		},
+		{
+			Name:     "default",
+			Package:  "ci_input_pkg",
+			TestType: "policy",
+		},
+	}
+
+	report, err := reportXUnitFormat(results)
+	require.NoError(t, err)
+
+	assert.Contains(t, report, `classname="apache.access"`)
+	// Packages without data streams keep the trailing dot.
+	assert.Contains(t, report, `classname="ci_input_pkg."`)
+}

@@ -67,13 +67,23 @@ clone_repository() {
 }
 
 # This function retrieves the assignees for the pull request.
-# It checks if the head user is not "elastic" or the trigger user, and adds it to the list of assignees.
-# It returns a comma-separated list of assignees.
+# It adds the trigger user and the head user (if it is not "elastic" nor the trigger user).
+# Bot accounts (e.g. "github-actions[bot]") are skipped since they cannot be assigned.
+# It returns a comma-separated list of assignees, empty if there are none.
 get_assignees() {
-    local assignees="${GITHUB_PR_TRIGGER_USER}"
+    local candidates=("${GITHUB_PR_TRIGGER_USER}")
     if [[ "${GITHUB_PR_HEAD_USER}" != "elastic" && "${GITHUB_PR_HEAD_USER}" != "${GITHUB_PR_TRIGGER_USER}" ]]; then
-        assignees="${assignees},${GITHUB_PR_HEAD_USER}"
+        candidates+=("${GITHUB_PR_HEAD_USER}")
     fi
+
+    local assignees=""
+    local user
+    for user in "${candidates[@]}"; do
+        if [[ -z "${user}" || "${user}" == *"[bot]" ]]; then
+            continue
+        fi
+        assignees="${assignees:+${assignees},}${user}"
+    done
     echo "${assignees}"
 }
 
@@ -87,6 +97,10 @@ create_integrations_pull_request() {
     echo "Creating Pull Request"
     message="Update ${GITHUB_PR_BASE_REPO} reference to $(get_source_commit_link).\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_source_pr_link)"
     echo -e "$message" > "${temp_path}/body-pr.txt"
+    local assignee_args=()
+    if [[ -n "${assignees}" ]]; then
+        assignee_args=(--assignee "${assignees}")
+    fi
     retry 3 \
         gh pr create \
         --title "${INTEGRATIONS_PR_TITLE}" \
@@ -94,7 +108,7 @@ create_integrations_pull_request() {
         --draft \
         --base "${INTEGRATIONS_SOURCE_BRANCH}" \
         --head "${INTEGRATIONS_PR_BRANCH}" \
-        --assignee "${assignees}"
+        ${assignee_args[@]+"${assignee_args[@]}"}
 }
 
 update_dependency() {

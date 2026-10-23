@@ -25,10 +25,6 @@ import (
 func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkgRoot := ts.Getenv("PACKAGE_ROOT")
-	if pkgRoot == "" {
-		ts.Fatalf("PACKAGE_ROOT is not set")
-	}
 	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
 		ts.Fatalf("PACKAGE_NAME is not set")
@@ -113,7 +109,7 @@ func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 	info.Agent.Runtime = "docker"
 	info.Logs.Folder.Agent = system.ServiceLogsAgentDir
 	info.Test.RunID = common.CreateTestRunID()
-	info.Logs.Folder.Local, err = agentdeployer.CreateServiceLogsDir(stk.profile, pkgRoot, ds, info.Test.RunID)
+	info.Logs.Folder.Local, err = agentdeployer.CreateServiceLogsDir(stk.profile, pkg, ds, info.Test.RunID)
 	ts.Check(decoratedWith("creating service logs directory", err))
 
 	// This will break for internal stacks if

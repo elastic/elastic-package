@@ -44,7 +44,12 @@ func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
 		return "", fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	serviceLogDirGlob := agentdeployer.ServiceLogsDirGlobPackage(profile, packageRoot)
+	packageName, err := packages.ReadPackageName(packageRoot)
+	if err != nil {
+		return "", err
+	}
+
+	serviceLogDirGlob := agentdeployer.ServiceLogsDirGlobPackage(profile, packageName)
 
 	folders, err := filepath.Glob(serviceLogDirGlob)
 	if err != nil {

@@ -21,14 +21,16 @@ func ServiceLogsDir(profile *profile.Profile) string {
 	return filepath.Join(profile.ProfilePath, serviceLogsDir)
 }
 
-func ServiceLogsDirGlobPackage(profile *profile.Profile, packageRoot string) string {
-	packageFolderName := filepath.Base(packageRoot)
-	return fmt.Sprintf("%s/agent-%s-*", ServiceLogsDir(profile), packageFolderName)
+// ServiceLogsDirGlobPackage returns the pattern to find the service logs directories of the package
+// with the given name (the name in its manifest).
+func ServiceLogsDirGlobPackage(profile *profile.Profile, packageName string) string {
+	return fmt.Sprintf("%s/agent-%s-*", ServiceLogsDir(profile), packageName)
 }
 
-func CreateServiceLogsDir(profile *profile.Profile, packageRootpath, dataStream, runID string) (string, error) {
-	packageFolderName := filepath.Base(packageRootpath)
-	folderName := fmt.Sprintf("agent-%s", packageFolderName)
+// CreateServiceLogsDir creates the service logs directory for the given package (the name in its
+// manifest), data stream and run.
+func CreateServiceLogsDir(profile *profile.Profile, packageName, dataStream, runID string) (string, error) {
+	folderName := fmt.Sprintf("agent-%s", packageName)
 	if dataStream != "" {
 		folderName = fmt.Sprintf("%s-%s", folderName, dataStream)
 	}

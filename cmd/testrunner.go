@@ -71,6 +71,8 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
+Note: the service used by the tests is the one named as the package in its manifest, not as its folder (previous versions used the folder name). Packages whose folder and manifest names differ may need to define the "service" setting in their tests.
+
 #### Script Tests
 These tests allow you to run scripted testing to exercise specific behaviors in a package.
 
@@ -80,6 +82,12 @@ For details on how to configure and run script tests, review the [HOWTO guide](h
 These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
 
 For details on how to configure and run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).`
+
+const testSystemLongDescription = `Run system tests for the package.
+
+The service used by the tests is the one defined in the docker-compose file with the same name as the package in its manifest (not the name of its folder). Use the "service" setting in the test configuration to use a service with a different name. For details, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+
+Note: previous versions used the name of the package folder. Packages whose folder and manifest names differ need to define the "service" setting in their tests, or to rename the service in the docker-compose file.`
 
 func setupTestCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -480,7 +488,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "system",
 		Short: "Run system tests",
-		Long:  "Run system tests for the package.",
+		Long:  testSystemLongDescription,
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerSystemCommandAction,
 	}
