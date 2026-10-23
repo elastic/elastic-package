@@ -191,7 +191,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
 			return
 		}
-		logger.Debug("Tearing down service due to setup error")
+		logger.Debugf("Tearing down agent service due to setup error: %v", err)
 		// Update svcInfo with the latest info before tearing down
 		agent.agentInfo = agentInfo
 		if err := agent.TearDown(context.WithoutCancel(ctx)); err != nil {

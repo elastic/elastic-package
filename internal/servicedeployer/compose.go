@@ -149,7 +149,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
 			return
 		}
-		logger.Debug("Tearing down service due to setup error")
+		logger.Debugf("Tearing down service due to setup error: %v", err)
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
 		if err := service.TearDown(context.WithoutCancel(ctx)); err != nil {
