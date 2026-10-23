@@ -11,8 +11,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
-
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -21,8 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
-
-var alertRuleTemplateMinKibanaVersion = semver.MustParse("9.2.0")
 
 type tester struct {
 	testFolder             testrunner.TestFolder
@@ -160,17 +156,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
-	versionInfo, err := r.kibanaClient.Version()
-	if err != nil {
-		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
-	}
-	var kibanaVersion *semver.Version
-	if versionInfo.Number != "" {
-		kibanaVersion, err = semver.NewVersion(versionInfo.Number)
-		if err != nil {
-			return result.WithError(fmt.Errorf("cannot parse Kibana version %q: %w", versionInfo.Number, err))
-		}
-	}
+	supportsAlertRuleTemplates := r.kibanaClient.SupportsAlertRuleTemplates()
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
@@ -180,7 +166,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})
-		if alertRuleTemplateUnsupported(e, kibanaVersion) {
+		if e.Type == "alerting_rule_template" && !supportsAlertRuleTemplates {
 			tr, _ := rc.WithSkip(&testrunner.SkipConfig{Reason: "alert rule templates require Kibana 9.2.0 or later"})
 			results = append(results, tr[0])
 			continue
@@ -211,10 +197,6 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	return results, nil
-}
-
-func alertRuleTemplateUnsupported(asset packages.Asset, kibanaVersion *semver.Version) bool {
-	return asset.Type == "alerting_rule_template" && kibanaVersion != nil && kibanaVersion.LessThan(alertRuleTemplateMinKibanaVersion)
 }
 
 func (r *tester) TearDown(ctx context.Context) error {
