@@ -434,7 +434,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 				assert.Contains(t, result, "| Name | ES\\|QL | Standard |")
 				assert.Contains(t, result, "|---|:---:|:---:|")
 				assert.NotContains(t, result, "Description")
-				assert.Contains(t, result, "| Latency high | ✓ | ✓ |")
+				assert.Contains(t, result, "| Latency high | ✅ | ✅ |")
 			},
 		},
 		{
@@ -446,8 +446,8 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "| Name | Description | ES\\|QL | Standard |")
-				assert.Contains(t, result, "| Same name | V2 description | ✓ |  |")
-				assert.Contains(t, result, "| Same name | Classic description |  | ✓ |")
+				assert.Contains(t, result, "| Same name | V2 description | ✅ |  |")
+				assert.Contains(t, result, "| Same name | Classic description |  | ✅ |")
 				v2Row := strings.Index(result, "| Same name | V2 description |")
 				v1Row := strings.Index(result, "| Same name | Classic description |")
 				assert.Greater(t, v1Row, v2Row)
@@ -465,8 +465,8 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "<summary>View the alert rule templates</summary>")
-				assert.Contains(t, result, "| Same name | V2 description | ✓ |  |")
-				assert.Contains(t, result, "| Same name | Classic description |  | ✓ |")
+				assert.Contains(t, result, "| Same name | V2 description | ✅ |  |")
+				assert.Contains(t, result, "| Same name | Classic description |  | ✅ |")
 				assert.NotContains(t, result, "Wrong location")
 			},
 		},
@@ -574,8 +574,8 @@ func TestMixedAlertRuleTemplateFileOrder(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, v2Name), []byte(`{"attributes":{"engine":"v2","name":"Wrong location","rule":{"metadata":{"name":"Same name","description":"V2 description"}}}}`), 0o644))
 		result, err := renderAlertRuleTemplates(root, newEmptyLinkMap())
 		require.NoError(t, err)
-		require.Contains(t, result, "| Same name | V2 description | ✓ |  |")
-		require.Contains(t, result, "| Same name | Classic description |  | ✓ |")
+		require.Contains(t, result, "| Same name | V2 description | ✅ |  |")
+		require.Contains(t, result, "| Same name | Classic description |  | ✅ |")
 		require.NotContains(t, result, "Wrong location")
 		require.Contains(t, result, "version 9.6.0 or later")
 	}
@@ -741,14 +741,14 @@ func TestAlertRuleReadmeFormatting(t *testing.T) {
 						require.Equal(t, text.want, html.UnescapeString(htmlTags.ReplaceAllString(cells[row*columns][1], "")))
 					}
 					if layout == "paired" {
-						require.Equal(t, "✓", cells[2][1])
-						require.Equal(t, "✓", cells[3][1])
+						require.Equal(t, "✅", cells[2][1])
+						require.Equal(t, "✅", cells[3][1])
 					} else {
 						// v2 row first: ES|QL mark only; v1 row: Standard mark only.
-						require.Equal(t, "✓", cells[2][1])
+						require.Equal(t, "✅", cells[2][1])
 						require.Equal(t, "", cells[3][1])
 						require.Equal(t, "", cells[6][1])
-						require.Equal(t, "✓", cells[7][1])
+						require.Equal(t, "✅", cells[7][1])
 					}
 				})
 			}

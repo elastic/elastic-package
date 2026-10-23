@@ -15,9 +15,9 @@ Standard alert rule templates require Elastic Stack version 9.2.0 or later. ES|Q
 
 | Name | Description | ES\|QL | Standard |
 |---|---|:---:|:---:|
-| \[Sample\] Server errors high | Alerts when a service returns more than 10 server errors. | ✓ |  |
-| \[Sample\] Host down | Alerts when a host stops reporting metrics. |  | ✓ |
-| \[Sample\] Latency high | Alerts when the average request latency is above 500 ms. | ✓ | ✓ |
+| \[Sample\] Server errors high | Alerts when a service returns more than 10 server errors. | ✅ |  |
+| \[Sample\] Host down | Alerts when a host stops reporting metrics. |  | ✅ |
+| \[Sample\] Latency high | Alerts when the average request latency is above 500 ms. | ✅ | ✅ |
 
 </details>
 

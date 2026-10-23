@@ -310,10 +310,10 @@ func renderAlertRuleEngineTable(builder *strings.Builder, groups []alertRuleGrou
 		name := escapeAlertRuleName(group.name)
 		v2, classic := "", ""
 		if group.v2 {
-			v2 = "✓"
+			v2 = "✅"
 		}
 		if group.classic {
-			classic = "✓"
+			classic = "✅"
 		}
 		if showDescription {
 			fmt.Fprintf(builder, "| %s | %s | %s | %s |\n", name, escapeAlertRuleTableCell(group.description), v2, classic)
