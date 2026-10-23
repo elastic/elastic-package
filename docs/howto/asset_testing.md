@@ -18,6 +18,12 @@ Conceptually, running an asset load test involves the following steps:
 
 As a package developer, you do not need to do any work to define an asset loading test for your package. All the necessary information is already present in the package's files.
 
+### Alert rule templates
+
+Alert rule templates in `kibana/alerting_rule_template` are checked like any other Kibana asset: the test passes when the template is installed. This covers both classic and Alerting v2 (ES|QL) templates. It does not run the template's query or check that an alert created from it fires.
+
+Fleet installs alert rule templates starting with Kibana 9.2.0. On older Kibana versions, these tests are reported as skipped.
+
 ## Running an asset loading test
 
 First, you must build your package. This corresponds to step 1 as described in the [_Conceptual process_](#Conceptual-process) section.

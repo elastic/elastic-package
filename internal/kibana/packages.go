@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -360,4 +362,18 @@ func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packag
 		return sort.StringsAreSorted([]string{strings.ToLower(resp.Items[i].Attributes.Title), strings.ToLower(resp.Items[j].Attributes.Title)})
 	})
 	return resp.Items, nil
+}
+
+// alertRuleTemplatesMinVersion is the first Kibana version whose Fleet installs
+// alerting_rule_template assets.
+var alertRuleTemplatesMinVersion = semver.MustParse("9.2.0")
+
+// SupportsAlertRuleTemplates reports whether Fleet in the connected Kibana
+// installs alert rule templates. Returns true for managed Kibana (no version
+// available) assuming a modern stack.
+func (c *Client) SupportsAlertRuleTemplates() bool {
+	if c.semver == nil {
+		return true
+	}
+	return !c.semver.LessThan(alertRuleTemplatesMinVersion)
 }

@@ -156,6 +156,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
+	supportsAlertRuleTemplates := r.kibanaClient.SupportsAlertRuleTemplates()
 
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
@@ -165,6 +166,11 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})
+		if e.Type == "alerting_rule_template" && !supportsAlertRuleTemplates {
+			tr, _ := rc.WithSkip(&testrunner.SkipConfig{Reason: "alert rule templates require Kibana 9.2.0 or later"})
+			results = append(results, tr[0])
+			continue
+		}
 
 		var tr []testrunner.TestResult
 		if !findActualAsset(installedAssets, e) {
