@@ -438,7 +438,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			},
 		},
 		{
-			name: "mixed engines are split into fleet sections",
+			name: "mixed engines with different descriptions get one row per engine",
 			setupFunc: func(t *testing.T) string {
 				return writeMixedAlertRuleTemplates(t, "3.6.0")
 			},
@@ -457,7 +457,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			},
 		},
 		{
-			name: "mixed engines use the same sections below spec 3.6.0",
+			name: "mixed engines use the same table below spec 3.6.0",
 			setupFunc: func(t *testing.T) string {
 				return writeMixedAlertRuleTemplates(t, "3.5.0")
 			},
@@ -468,6 +468,58 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 				assert.Contains(t, result, "| Same name | V2 description | ✓ |  |")
 				assert.Contains(t, result, "| Same name | Classic description |  | ✓ |")
 				assert.NotContains(t, result, "Wrong location")
+			},
+		},
+		{
+			name: "engine values other than v2 are classic",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				for i, engine := range []string{`"v1"`, `""`, `null`, `1`} {
+					template := fmt.Sprintf(`{"attributes":{"engine":%s,"name":"Classic %d","description":"Description %d","rule":"ignored"}}`, engine, i, i)
+					require.NoError(t, os.WriteFile(filepath.Join(templatesDir, fmt.Sprintf("%d.json", i)), []byte(template), 0o644))
+				}
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				for i := range 4 {
+					assert.Contains(t, result, fmt.Sprintf("| Classic %d | Description %d |", i, i))
+				}
+				assert.Contains(t, result, "require Elastic Stack version 9.2.0 or later")
+				assert.NotContains(t, result, "ES\\|QL")
+			},
+		},
+		{
+			name: "v2 template without a rule object is an error",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "v2.json"), []byte(`{"attributes":{"engine":"v2","rule":"not an object"}}`), 0o644))
+				return tmpDir
+			},
+			expectError: true,
+		},
+		{
+			name: "v2 list below spec 3.6.0 escapes names",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.5.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+				template := `{"attributes":{"engine":"v2","rule":{"metadata":{"name":"  *Bad* name  ","description":"line one\nline <two>"}}}}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "v2.json"), []byte(template), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "**\\*Bad\\* name**\n\nline one line \\<two\\>\n\n")
 			},
 		},
 	}
@@ -751,6 +803,23 @@ func TestSingleEngineReadmeMatchesMain(t *testing.T) {
 			// After Markdown rendering the backslash escapes resolve, so both
 			// paths display the same name text.
 			require.Equal(t, "[AWS EC2 OTel] *CPU* <high>", html.UnescapeString(htmlTags.ReplaceAllString(cells[0][1], "")))
+		})
+	}
+}
+
+func TestAlertRuleTemplatesFixtureReadmes(t *testing.T) {
+	links, err := readLinksMap("../../scripts/links_table.yml")
+	require.NoError(t, err)
+	for _, packageRoot := range []string{
+		"../../test/packages/other/alert_rule_templates",
+		"../../test/packages/parallel/alert_rule_templates_v2",
+	} {
+		t.Run(filepath.Base(packageRoot), func(t *testing.T) {
+			rendered, err := renderAlertRuleTemplates(packageRoot, links)
+			require.NoError(t, err)
+			readme, err := os.ReadFile(filepath.Join(packageRoot, "docs", "README.md"))
+			require.NoError(t, err)
+			assert.Contains(t, string(readme), rendered)
 		})
 	}
 }
