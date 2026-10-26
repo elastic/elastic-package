@@ -70,6 +70,15 @@ func TestDefaultExpectedDatasets(t *testing.T) {
 			},
 			expected: []string{"mypackage.events", "mypackage.events.otel"},
 		},
+		{
+			title:      "use_otel_suffix without inputs: base and .otel suffix",
+			pkgName:    "mypackage",
+			dataStream: "logs",
+			manifest: &packages.DataStreamManifest{
+				UseOtelSuffix: true,
+			},
+			expected: []string{"mypackage.logs", "mypackage.logs.otel"},
+		},
 	}
 
 	for _, c := range cases {
@@ -129,6 +138,13 @@ func TestIsOTelCollectorInput(t *testing.T) {
 					{Input: "logfile"},
 					{Input: "otelcol"},
 				},
+			},
+			expected: true,
+		},
+		{
+			title: "use_otel_suffix without inputs",
+			manifest: &packages.DataStreamManifest{
+				UseOtelSuffix: true,
 			},
 			expected: true,
 		},
