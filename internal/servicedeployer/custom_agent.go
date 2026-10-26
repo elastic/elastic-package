@@ -72,7 +72,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (_ DeployedService, err error) {
+func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Warn("DEPRECATED - setting up service using Docker Compose service deployer")
 
 	agentVersion := d.stackVersion
@@ -173,9 +173,8 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (_
 		logger.Debugf("Tearing down service due to setup error: %v", err)
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		if errTearDown := service.TearDown(context.WithoutCancel(ctx)); errTearDown != nil {
-			logger.Debugf("Error tearing down service: %v", errTearDown)
-			err = fmt.Errorf("%w; additionally, failed to tear down service: %w", err, errTearDown)
+		if err := service.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down service: %v", err)
 		}
 	}()
 

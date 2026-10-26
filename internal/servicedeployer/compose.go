@@ -72,7 +72,7 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (_ DeployedService, err error) {
+func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
@@ -152,9 +152,8 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		logger.Debugf("Tearing down service due to setup error: %v", err)
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		if errTearDown := service.TearDown(context.WithoutCancel(ctx)); errTearDown != nil {
-			logger.Debugf("Error tearing down service: %v", errTearDown)
-			err = fmt.Errorf("%w; additionally, failed to tear down service: %w", err, errTearDown)
+		if err := service.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down service: %v", err)
 		}
 	}()
 

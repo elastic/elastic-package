@@ -98,7 +98,7 @@ func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*Terrafo
 }
 
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
-func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (_ DeployedService, err error) {
+func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
 
 	configDir, err := tsd.installDockerfile(deployerFolderName(svcInfo))
@@ -154,9 +154,8 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		logger.Debugf("Tearing down service due to setup error: %v", err)
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		if errTearDown := service.TearDown(context.WithoutCancel(ctx)); errTearDown != nil {
-			logger.Debugf("Error tearing down service: %v", errTearDown)
-			err = fmt.Errorf("%w; additionally, failed to tear down service: %w", err, errTearDown)
+		if err := service.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down service: %v", err)
 		}
 	}()
 

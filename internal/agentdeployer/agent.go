@@ -100,7 +100,7 @@ func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerC
 }
 
 // SetUp sets up the service and returns any relevant information.
-func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (_ DeployedAgent, err error) {
+func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
@@ -194,9 +194,8 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		logger.Debugf("Tearing down agent service due to setup error: %v", err)
 		// Update svcInfo with the latest info before tearing down
 		agent.agentInfo = agentInfo
-		if errTearDown := agent.TearDown(context.WithoutCancel(ctx)); errTearDown != nil {
-			logger.Debugf("Error tearing down agent: %v", errTearDown)
-			err = fmt.Errorf("%w; additionally, failed to tear down agent: %w", err, errTearDown)
+		if err := agent.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down agent: %v", err)
 		}
 	}()
 
