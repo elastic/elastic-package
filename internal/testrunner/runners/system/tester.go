@@ -843,6 +843,7 @@ func runWithSetupReattempts(ctx context.Context, reattempts int, attempt func() 
 	for attemptNum := 1; ; attemptNum++ {
 		partial, err, tdErr := attempt()
 
+		var finalSetupErr error
 		var setupErr errSetupFailed
 		if errors.As(err, &setupErr) {
 			// Setup failures are already reported as part of the test results,
@@ -858,11 +859,16 @@ func runWithSetupReattempts(ctx context.Context, reattempts int, attempt func() 
 				logger.Warnf("re-attempting test (%s)", failure)
 				continue
 			}
+			finalSetupErr = setupErr
 		}
 		if err != nil {
 			return partial, err
 		}
 		if tdErr != nil {
+			if finalSetupErr != nil {
+				// Do not hide the setup failure behind the teardown error.
+				return partial, fmt.Errorf("%w; additionally, failed to tear down runner: %w", setupErr, tdErr)
+			}
 			return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
 		}
 

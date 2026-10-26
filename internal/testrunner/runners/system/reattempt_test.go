@@ -182,7 +182,7 @@ func TestRunWithSetupReattempts(t *testing.T) {
 				{result: setupResult, runErr: setupErr, tdErr: errors.New("could not remove policy")},
 			},
 			expectedCalls:   1,
-			expectedErr:     "failed to tear down runner",
+			expectedErr:     "test setup failed: service is unhealthy: container exited with code 143; additionally, failed to tear down runner: could not remove policy",
 			expectedResults: expectSetupError,
 		},
 		{
