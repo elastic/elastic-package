@@ -15,6 +15,27 @@ stack_version_args() {
   echo -n "--version $(cat "$stack_version_file")"
 }
 
+default_stack_version() {
+  grep "DefaultStackVersion =" internal/install/stack_version.go | awk '{print $3}' | tr -d '"'
+}
+
+# requires_newer_stack succeeds when the package pins, in its .stack_version
+# file, a stack version newer than the given one, so it cannot be installed
+# there.
+requires_newer_stack() {
+  local package_root="$1"
+  local stack_version="${2%%-*}"
+  local stack_version_file="${package_root%/}.stack_version"
+  if [[ ! -f "$stack_version_file" ]]; then
+    return 1
+  fi
+
+  local required
+  required=$(cat "$stack_version_file")
+  required="${required%%-*}"
+  [[ "$required" != "$stack_version" && "$(printf '%s\n%s\n' "$required" "$stack_version" | sort -V | tail -n1)" == "$required" ]]
+}
+
 stack_provider_args() {
   if [[ -z "${PACKAGE_UNDER_TEST:-""}" ]]; then
     # Don't force stack version if we are testing multiple packages.

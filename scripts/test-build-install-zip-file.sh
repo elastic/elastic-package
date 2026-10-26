@@ -2,6 +2,9 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/stack_parameters.sh"
+
 cleanup() {
   local r=$?
   if [ "${r}" -ne 0 ]; then
@@ -93,8 +96,10 @@ while getopts ":sv:h" o; do
 done
 
 ARG_VERSION=""
+stackVersion=$(default_stack_version)
 if [ "${STACK_VERSION}" != "default" ]; then
   ARG_VERSION="--version ${STACK_VERSION}"
+  stackVersion="${STACK_VERSION}"
 fi
 
 echo "--- Prepare Elastic stack"
@@ -119,6 +124,12 @@ for d in test/packages/*/*/; do
   # Composable packages require the local registry to be running during build;
   # they are tested separately via test-composable-packages.sh.
   if [ "${packageTestType}" == "composable" ]; then
+    continue
+  fi
+  # Packages pinned to a newer stack are tested on that stack by test-check-packages.sh.
+  # Skipping the build leaves no zip to install.
+  if requires_newer_stack "$d" "${stackVersion}"; then
+    echo "--- Skipping package: ${d} (requires a stack newer than ${stackVersion})"
     continue
   fi
   echo "--- Building zip package: ${d}"
