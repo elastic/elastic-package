@@ -223,6 +223,6 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-// Temporary pin of elastic/package-spec#1273 (bcb64f6) so CI exercises SVR00014.
+// Temporary pin of elastic/package-spec#1273 (ab2114e) so CI exercises SVR00014.
 // Remove this replace before merging; this PR needs a released package-spec.
-replace github.com/elastic/package-spec/v3 => github.com/shmsr/package-spec/v3 v3.0.0-20261023105426-bcb64f6c01bb
+replace github.com/elastic/package-spec/v3 => github.com/shmsr/package-spec/v3 v3.0.0-20261026122743-ab2114e56289
