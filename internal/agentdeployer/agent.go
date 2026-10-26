@@ -9,7 +9,6 @@ import (
 	"crypto/md5"
 	"embed"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -197,7 +196,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		agent.agentInfo = agentInfo
 		if errTearDown := agent.TearDown(context.WithoutCancel(ctx)); errTearDown != nil {
 			logger.Debugf("Error tearing down agent: %v", errTearDown)
-			err = errors.Join(err, errTearDown)
+			err = fmt.Errorf("%w; additionally, failed to tear down agent: %w", err, errTearDown)
 		}
 	}()
 

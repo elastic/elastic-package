@@ -6,7 +6,6 @@ package servicedeployer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -155,7 +154,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		service.svcInfo = svcInfo
 		if errTearDown := service.TearDown(context.WithoutCancel(ctx)); errTearDown != nil {
 			logger.Debugf("Error tearing down service: %v", errTearDown)
-			err = errors.Join(err, errTearDown)
+			err = fmt.Errorf("%w; additionally, failed to tear down service: %w", err, errTearDown)
 		}
 	}()
 
