@@ -280,8 +280,8 @@ func (r tester) isDataStreamUsingOTelCollectorInput(manifest *packages.PackageMa
 		return false
 	}
 
-	// Read use_otel_suffix from the source manifest, as static tests can run without
-	// building the package first.
+	// Data streams with use_otel_suffix have no inputs to resolve, so the source
+	// manifest is enough and no build is needed.
 	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, r.testFolder.DataStream)
 	if err != nil {
 		logger.Debugf("failed to read data stream manifest for OTel detection: %v", err)
