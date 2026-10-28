@@ -276,11 +276,12 @@ func (r tester) isDataStreamUsingOTelCollectorInput(manifest *packages.PackageMa
 		return true
 	}
 
-	// For composable integration packages, check the built manifest where "package:" references
-	// are materialised into concrete input types.
 	if r.testFolder.DataStream == "" {
 		return false
 	}
+
+	// Read use_otel_suffix from the source manifest, as static tests can run without
+	// building the package first.
 	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, r.testFolder.DataStream)
 	if err != nil {
 		logger.Debugf("failed to read data stream manifest for OTel detection: %v", err)
@@ -289,6 +290,9 @@ func (r tester) isDataStreamUsingOTelCollectorInput(manifest *packages.PackageMa
 	if dsManifest.UseOtelSuffix {
 		return true
 	}
+
+	// For composable integration packages, check the built manifest where "package:" references
+	// are materialised into concrete input types.
 	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(r.packageRoot)
 	if err != nil {
 		logger.Debugf("failed to read built manifest for OTel detection: %v", err)
