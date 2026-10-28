@@ -339,6 +339,7 @@ type DataStreamManifest struct {
 	Dataset       string         `config:"dataset" json:"dataset" yaml:"dataset"`
 	Hidden        bool           `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string         `config:"release" json:"release" yaml:"release"`
+	UseOtelSuffix bool           `config:"use_otel_suffix" json:"use_otel_suffix" yaml:"use_otel_suffix"`
 	Elasticsearch *Elasticsearch `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
 	Streams       []Stream       `config:"streams" json:"streams" yaml:"streams"`
 	Agent         Agent          `config:"agent" json:"agent" yaml:"agent"`
