@@ -580,8 +580,8 @@ func checkErrorMessage(event json.RawMessage) error {
 }
 
 // defaultExpectedDatasets returns the expected dataset values when no reroute
-// processors override them. For otelcol inputs, both the base dataset and the
-// agent-appended .otel variant are expected.
+// processors override them. For otelcol inputs and data streams with use_otel_suffix,
+// both the base dataset and the .otel variant are expected.
 func defaultExpectedDatasets(pkgName, dataStream string, dsManifest *packages.DataStreamManifest) []string {
 	ds := dsManifest.Dataset
 	if ds == "" {
@@ -594,8 +594,12 @@ func defaultExpectedDatasets(pkgName, dataStream string, dsManifest *packages.Da
 	return datasets
 }
 
-// isOTelCollectorInput returns true if the data stream manifest declares an otelcol input.
+// isOTelCollectorInput returns true if the data stream manifest declares an otelcol input
+// or sets use_otel_suffix, which is only allowed on data streams without inputs.
 func isOTelCollectorInput(dsManifest *packages.DataStreamManifest) bool {
+	if dsManifest.UseOtelSuffix {
+		return true
+	}
 	return slices.ContainsFunc(dsManifest.Streams, func(s packages.Stream) bool {
 		return s.Input == "otelcol"
 	})
