@@ -5,7 +5,9 @@
 package docs
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -62,6 +64,9 @@ func parseAlertRuleTemplate(raw []byte) (alertRuleTemplate, error) {
 			Name        string `json:"name"`
 			Description string `json:"description"`
 		} `json:"metadata"`
+	}
+	if !bytes.HasPrefix(bytes.TrimSpace(doc.Attributes.Rule), []byte("{")) {
+		return alertRuleTemplate{}, errors.New("Alerting v2 template attributes.rule must be an object") //nolint:staticcheck // capitalized product name is intentional
 	}
 	if err := json.Unmarshal(doc.Attributes.Rule, &rule); err != nil {
 		return alertRuleTemplate{}, fmt.Errorf("invalid Alerting v2 rule: %w", err)
@@ -130,7 +135,7 @@ func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, err
 
 		template, err := parseAlertRuleTemplate(rawTemplate)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal alert rule template JSON: %w", err)
+			return fmt.Errorf("failed to parse alert rule template %s: %w", path, err)
 		}
 
 		templates = append(templates, template)

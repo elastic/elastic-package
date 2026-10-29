@@ -166,7 +166,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})
-		if e.Type == "alerting_rule_template" && !supportsAlertRuleTemplates {
+		if e.Type == packages.AlertRuleTemplateType && !supportsAlertRuleTemplates {
 			tr, _ := rc.WithSkip(&testrunner.SkipConfig{Reason: "alert rule templates require Kibana 9.2.0 or later"})
 			results = append(results, tr[0])
 			continue

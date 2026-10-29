@@ -549,6 +549,24 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 	}
 }
 
+func TestRenderAlertRuleTemplatesV2WithoutRuleObject(t *testing.T) {
+	for name, attributes := range map[string]string{
+		"missing":    `{"engine":"v2"}`,
+		"not object": `{"engine":"v2","rule":"not an object"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			createPackageManifestFile(t, root, "3.7.0")
+			dir := filepath.Join(root, "kibana", "alerting_rule_template")
+			require.NoError(t, os.MkdirAll(dir, 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "v2.json"), []byte(`{"attributes":`+attributes+`}`), 0o644))
+			_, err := renderAlertRuleTemplates(root, newEmptyLinkMap())
+			require.ErrorContains(t, err, filepath.Join(dir, "v2.json"))
+			require.ErrorContains(t, err, "Alerting v2 template attributes.rule must be an object")
+		})
+	}
+}
+
 func writeMixedAlertRuleTemplates(t *testing.T, specVersion string) string {
 	t.Helper()
 	tmpDir := t.TempDir()

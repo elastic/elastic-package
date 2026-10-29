@@ -17,6 +17,9 @@ import (
 // AssetType represents the type of package asset.
 type AssetType string
 
+// AlertRuleTemplateType is the asset type of Kibana alert rule templates.
+const AlertRuleTemplateType AssetType = "alerting_rule_template"
+
 type assetTypeFolder struct {
 	typeName   AssetType
 	folderName string
@@ -45,7 +48,7 @@ var (
 	AssetTypeKibanaDashboard     = newAssetType("dashboard")
 	AssetTypeKibanaMap           = newAssetType("map")
 	AssetTypeKibanaLens          = newAssetType("lens")
-	AssetTypeAlertRuleTemplate   = newAssetType("alerting_rule_template")
+	AssetTypeAlertRuleTemplate   = newAssetType(AlertRuleTemplateType)
 	AssetTypeSecurityRule        = newAssetTypeWithFolder("security-rule", "security_rule")
 )
 
