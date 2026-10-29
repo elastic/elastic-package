@@ -118,13 +118,42 @@ func TestValidate_WithStringNumberFields(t *testing.T) {
 		WithStringNumberFields([]string{
 			"foo.count",  // Contains a number as string.
 			"foo.metric", // Contains a floating number as string.
+			"foo.signal", // Contains an integer as string.
 		}),
-		WithSpecVersion("2.3.0"), // Needed to validate normalization.
+		WithSpecVersion("3.8.0"), // Needed to validate normalization and all numeric types.
 		WithDisabledDependencyManagement())
 
 	e := readSampleEvent(t, "testdata/stringnumbers.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
+}
+
+func TestValidate_WithoutStringNumberFields(t *testing.T) {
+	t.Run("3.8.0", func(t *testing.T) {
+		validator := createValidatorForTestdata(t,
+			WithSpecVersion("3.8.0"),
+			WithDisabledDependencyManagement())
+
+		e := readSampleEvent(t, "testdata/stringnumbers.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Len(t, errs, 3)
+		assert.ErrorContains(t, errs, `field "foo.count"'s Go type, string, does not match the expected field type: long`)
+		assert.ErrorContains(t, errs, `field "foo.metric"'s Go type, string, does not match the expected field type: double`)
+		assert.ErrorContains(t, errs, `field "foo.signal"'s Go type, string, does not match the expected field type: integer`)
+	})
+
+	// Before 3.8.0, only float, long and double fields are validated.
+	t.Run("3.7.0", func(t *testing.T) {
+		validator := createValidatorForTestdata(t,
+			WithSpecVersion("3.7.0"),
+			WithDisabledDependencyManagement())
+
+		e := readSampleEvent(t, "testdata/stringnumbers.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Len(t, errs, 2)
+		assert.ErrorContains(t, errs, `field "foo.count"'s Go type, string, does not match the expected field type: long`)
+		assert.ErrorContains(t, errs, `field "foo.metric"'s Go type, string, does not match the expected field type: double`)
+	})
 }
 
 func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
@@ -813,6 +842,82 @@ func Test_parseElementValue(t *testing.T) {
 				if test.assertError != nil {
 					test.assertError(t, errs)
 				}
+			} else {
+				assert.Empty(t, errs)
+			}
+		})
+	}
+}
+
+func Test_parseElementValueNumericTypes(t *testing.T) {
+	numericTypes := []string{
+		"long", "integer", "short", "byte", "unsigned_long",
+		"double", "float", "half_float", "scaled_float",
+	}
+	for _, fieldType := range numericTypes {
+		for _, test := range []struct {
+			title              string
+			value              any
+			stringNumberFields []string
+			fail               bool
+		}{
+			{title: "number", value: float64(-89)},
+			{title: "json number", value: json.Number("7.0")},
+			{title: "array of numbers", value: []any{float64(1), json.Number("2")}},
+			{title: "string with unit", value: "-89 dBm", fail: true},
+			{title: "numeric string", value: "-54", fail: true},
+			{title: "allowed numeric string", value: "-54", stringNumberFields: []string{"signal"}},
+			{title: "allowed non-numeric string", value: "-89 dBm", stringNumberFields: []string{"signal"}, fail: true},
+			{title: "boolean", value: true, fail: true},
+			{title: "object", value: map[string]any{"value": float64(1)}, fail: true},
+		} {
+			t.Run(fieldType+"/"+test.title, func(t *testing.T) {
+				definition := FieldDefinition{Name: "signal", Type: fieldType}
+				v := Validator{
+					Schema:                       []FieldDefinition{definition},
+					disabledDependencyManagement: true,
+					stringNumberFields:           test.stringNumberFields,
+					specVersion:                  *semver3_8_0,
+				}
+
+				errs := v.parseElementValue("signal", definition, test.value, common.MapStr{})
+				if test.fail {
+					require.Len(t, errs, 1)
+					assert.ErrorContains(t, errs[0], "does not match the expected field type: "+fieldType)
+				} else {
+					assert.Empty(t, errs)
+				}
+			})
+		}
+	}
+}
+
+func Test_parseElementValueNumericTypesBeforeSpec3_8_0(t *testing.T) {
+	for _, test := range []struct {
+		fieldType string
+		fail      bool
+	}{
+		{fieldType: "long", fail: true},
+		{fieldType: "double", fail: true},
+		{fieldType: "float", fail: true},
+		{fieldType: "integer"},
+		{fieldType: "short"},
+		{fieldType: "byte"},
+		{fieldType: "unsigned_long"},
+		{fieldType: "half_float"},
+		{fieldType: "scaled_float"},
+	} {
+		t.Run(test.fieldType, func(t *testing.T) {
+			definition := FieldDefinition{Name: "signal", Type: test.fieldType}
+			v := Validator{
+				Schema:                       []FieldDefinition{definition},
+				disabledDependencyManagement: true,
+				specVersion:                  *semver.MustParse("3.7.0"),
+			}
+
+			errs := v.parseElementValue("signal", definition, "-89 dBm", common.MapStr{})
+			if test.fail {
+				assert.Len(t, errs, 1)
 			} else {
 				assert.Empty(t, errs)
 			}

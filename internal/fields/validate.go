@@ -37,6 +37,7 @@ var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
+	semver3_8_0 = semver.MustParse("3.8.0")
 
 	// List of stack releases that do not
 	// include ECS mappings (all versions before 8.13.0).
@@ -1253,19 +1254,16 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 
 			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
+	// Validation of other numeric types was added in 3.8.0, before that they
+	// accepted any value.
+	case "integer", "short", "byte", "unsigned_long", "half_float", "scaled_float":
+		if v.specVersion.LessThan(semver3_8_0) {
+			return nil
+		}
+		fallthrough
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		switch val := val.(type) {
-		case float64:
-		case json.Number:
-		case string:
-			if !slices.Contains(v.stringNumberFields, key) {
-				return invalidTypeError()
-			}
-			if _, err := strconv.ParseFloat(val, 64); err != nil {
-				return invalidTypeError()
-			}
-		default:
+		if !v.isNumber(key, val) {
 			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
@@ -1274,6 +1272,23 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	}
 
 	return nil
+}
+
+// isNumber reports whether val was parsed as a number, or is a string containing
+// a number in a field listed in stringNumberFields.
+func (v *Validator) isNumber(key string, val any) bool {
+	switch val := val.(type) {
+	case float64, json.Number:
+		return true
+	case string:
+		if !slices.Contains(v.stringNumberFields, key) {
+			return false
+		}
+		_, err := strconv.ParseFloat(val, 64)
+		return err == nil
+	default:
+		return false
+	}
 }
 
 // isDocumentation reports whether ip is a reserved address for documentation,

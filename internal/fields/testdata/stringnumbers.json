@@ -1,6 +1,7 @@
 {
   "foo": {
     "count": "42",
-    "metric": "2.3"
+    "metric": "2.3",
+    "signal": "-54"
   }
 }
