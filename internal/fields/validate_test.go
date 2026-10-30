@@ -935,13 +935,26 @@ func Test_parseElementValueNumericTypesBeforeSpec3_8_0(t *testing.T) {
 				errs := v.parseElementValue("signal", definition, test.value, common.MapStr{})
 				if test.fail {
 					require.Len(t, errs, 1)
-					assert.ErrorContains(t, errs[0], "does not match the expected field type: "+fieldType)
+					assert.ErrorContains(t, errs[0], "cannot be indexed as "+fieldType)
 				} else {
 					assert.Empty(t, errs)
 				}
 			})
 		}
 	}
+
+	t.Run("error message", func(t *testing.T) {
+		definition := FieldDefinition{Name: "fortinet.firewall.rsrp", Type: "integer"}
+		v := Validator{
+			Schema:                       []FieldDefinition{definition},
+			disabledDependencyManagement: true,
+			specVersion:                  *semver.MustParse("3.7.0"),
+		}
+
+		errs := v.parseElementValue("fortinet.firewall.rsrp", definition, "-89 dBm", common.MapStr{})
+		require.Len(t, errs, 1)
+		assert.EqualError(t, errs[0], `field "fortinet.firewall.rsrp"'s value "-89 dBm" cannot be indexed as integer: Elasticsearch only coerces numbers and numeric strings into numeric fields`)
+	})
 
 	// float, long and double keep rejecting numeric strings, whatever the spec version.
 	for _, fieldType := range []string{"float", "long", "double"} {

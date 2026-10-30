@@ -1264,7 +1264,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	case "integer", "short", "byte", "unsigned_long", "half_float", "scaled_float":
 		if v.specVersion.LessThan(semver3_8_0) {
 			if !isCoercibleToNumber(val) {
-				return invalidTypeError()
+				return multierror.Error{notCoercibleToNumberError(key, definition.Type, val)}
 			}
 			return nil
 		}
@@ -1311,6 +1311,16 @@ func isCoercibleToNumber(val any) bool {
 	default:
 		return false
 	}
+}
+
+// notCoercibleToNumberError reports a value that Elasticsearch would reject, or
+// ignore with ignore_malformed, when indexing it in a numeric field.
+func notCoercibleToNumberError(key, fieldType string, val any) error {
+	value, err := json.Marshal(val)
+	if err != nil {
+		value = fmt.Appendf(nil, "%v", val)
+	}
+	return fmt.Errorf("field %q's value %s cannot be indexed as %s: Elasticsearch only coerces numbers and numeric strings into numeric fields", key, value, fieldType)
 }
 
 // isDocumentation reports whether ip is a reserved address for documentation,
