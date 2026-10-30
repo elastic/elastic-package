@@ -1,0 +1,32 @@
+{
+    "id": "alert_rule_templates_v2-host-down-classic",
+    "type": "alerting_rule_template",
+    "attributes": {
+        "name": "[Sample] Host down",
+        "description": "Alerts when a host stops reporting metrics.",
+        "tags": [
+            "Sample"
+        ],
+        "ruleTypeId": ".es-query",
+        "schedule": {
+            "interval": "1m"
+        },
+        "params": {
+            "searchType": "esqlQuery",
+            "timeWindowSize": 5,
+            "timeWindowUnit": "m",
+            "esqlQuery": {
+                "esql": "FROM metrics-sample-default\n| STATS last_seen = MAX(@timestamp) BY `host.name`\n| WHERE last_seen < NOW() - 5 minutes"
+            },
+            "groupBy": "row",
+            "termSize": 5,
+            "timeField": "@timestamp"
+        },
+        "alertDelay": {
+            "active": 1
+        }
+    },
+    "managed": true,
+    "coreMigrationVersion": "8.8.0",
+    "typeMigrationVersion": "10.1.0"
+}

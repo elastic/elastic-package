@@ -101,8 +101,6 @@ github.com/elastic/gojsonschema v1.2.2 h1:d1/NJKMr8vr9sEuxRTVOj+QFJi5Utd8PnvRqJJ
 github.com/elastic/gojsonschema v1.2.2/go.mod h1:TauCTd1z3UuJAMOWitMEYPgxFAH7f+1smAcr82AVmgY=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
 github.com/elastic/kbncontent v0.1.4/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.7.0 h1:25dLwrnxldHvyo+iF0C05ilmK0Ukavd6j0aqlMtBvqY=
-github.com/elastic/package-spec/v3 v3.7.0/go.mod h1:MZVn7Tb5I0GkvaoPoFmpkaeVkMeUujNN51HSZO4zzAo=
 github.com/emicklei/go-restful/v3 v3.13.0 h1:C4Bl2xDndpU6nJ4bc1jXd+uTmYPVUwkD6bFY/oTyCes=
 github.com/emicklei/go-restful/v3 v3.13.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=
@@ -335,6 +333,8 @@ github.com/sergi/go-diff v1.4.0 h1:n/SP9D5ad1fORl+llWyN+D6qoUETXNZARKjyY2/KVCw=
 github.com/sergi/go-diff v1.4.0/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
 github.com/shirou/gopsutil/v3 v3.24.5 h1:i0t8kL+kQTvpAYToeuiVk3TgDeKOFioZO3Ztz/iZ9pI=
 github.com/shirou/gopsutil/v3 v3.24.5/go.mod h1:bsoOS1aStSs9ErQ1WWfxllSeS1K5D+U30r2NfcubMVk=
+github.com/shmsr/package-spec/v3 v3.0.0-20261029130232-2812f130acee h1:dNARR6Es3Jxlryu9G1/8P6luxwobZPu+vlVjjREq7qw=
+github.com/shmsr/package-spec/v3 v3.0.0-20261029130232-2812f130acee/go.mod h1:MZVn7Tb5I0GkvaoPoFmpkaeVkMeUujNN51HSZO4zzAo=
 github.com/shoenig/go-m1cpu v0.1.6 h1:nxdKQNcEB6vzgA2E2bvzKIYRuNj7XNJ4S/aRSwKzFtM=
 github.com/shoenig/go-m1cpu v0.1.6/go.mod h1:1JJMcUBvfNwpq05QDQVAnx3gUHr9IYF7GNg9SUEw2VQ=
 github.com/shoenig/test v0.6.4 h1:kVTaSd7WLz5WZ2IaoM0RSzRsUD+m8wRR+5qvntpn4LU=
