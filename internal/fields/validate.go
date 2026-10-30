@@ -37,6 +37,12 @@ var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
+	semver3_8_0 = semver.MustParse("3.8.0")
+
+	// coercibleNumberPattern matches strings that Elasticsearch coerces to a number:
+	// decimal numbers with optional exponent and Java float suffix, without
+	// NaN, infinities, hexadecimal or digit separators.
+	coercibleNumberPattern = regexp.MustCompile(`^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?[fFdD]?$`)
 
 	// List of stack releases that do not
 	// include ECS mappings (all versions before 8.13.0).
@@ -1253,19 +1259,19 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 
 			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
+	// Before 3.8.0, other numeric types only reject values that Elasticsearch
+	// cannot coerce to a number.
+	case "integer", "short", "byte", "unsigned_long", "half_float", "scaled_float":
+		if v.specVersion.LessThan(semver3_8_0) {
+			if !isCoercibleToNumber(val) {
+				return multierror.Error{notCoercibleToNumberError(key, definition.Type, val)}
+			}
+			return nil
+		}
+		fallthrough
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		switch val := val.(type) {
-		case float64:
-		case json.Number:
-		case string:
-			if !slices.Contains(v.stringNumberFields, key) {
-				return invalidTypeError()
-			}
-			if _, err := strconv.ParseFloat(val, 64); err != nil {
-				return invalidTypeError()
-			}
-		default:
+		if !v.isNumber(key, val) {
 			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
@@ -1274,6 +1280,47 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	}
 
 	return nil
+}
+
+// isNumber reports whether val was parsed as a number, or is a string containing
+// a number in a field listed in stringNumberFields.
+func (v *Validator) isNumber(key string, val any) bool {
+	switch val := val.(type) {
+	case float64, json.Number:
+		return true
+	case string:
+		if !slices.Contains(v.stringNumberFields, key) {
+			return false
+		}
+		_, err := strconv.ParseFloat(val, 64)
+		return err == nil
+	default:
+		return false
+	}
+}
+
+// isCoercibleToNumber reports whether Elasticsearch can index val in a numeric
+// field with the default coerce setting. Empty strings are indexed as null,
+// surrounding whitespace is ignored. Ranges are not checked.
+func isCoercibleToNumber(val any) bool {
+	switch val := val.(type) {
+	case nil, float64, json.Number:
+		return true
+	case string:
+		return val == "" || coercibleNumberPattern.MatchString(strings.TrimSpace(val))
+	default:
+		return false
+	}
+}
+
+// notCoercibleToNumberError reports a value that Elasticsearch would reject, or
+// ignore with ignore_malformed, when indexing it in a numeric field.
+func notCoercibleToNumberError(key, fieldType string, val any) error {
+	value, err := json.Marshal(val)
+	if err != nil {
+		value = fmt.Appendf(nil, "%v", val)
+	}
+	return fmt.Errorf("field %q's value %s cannot be indexed as %s: Elasticsearch only coerces numbers and numeric strings into numeric fields", key, value, fieldType)
 }
 
 // isDocumentation reports whether ip is a reserved address for documentation,
