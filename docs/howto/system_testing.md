@@ -535,6 +535,7 @@ for system tests.
 | deployer | string|  | Name of the service deployer to setup for this system test. Available values: docker, tf or k8s. |
 | ignore_service_error | boolean | no | If `true`, it will ignore any failures in the deployed test services. Defaults to `false`. |
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
+| logsdb_columnar | boolean |  | If `true`, the `logsdb_columnar` index mode of the package is turned on during the test. See [System testing with the LogsDB columnar index mode](#system-testing-with-the-logsdb-columnar-index-mode). Defaults to `false`. |
 | numeric_keyword_fields | []string |  | List of fields to ignore during validation that are mapped as `keyword` in Elasticsearch, but their JSON data type is a number. |
 | policy_template | string |  | Name of policy template associated with the data stream and input. Required when multiple policy templates include the input being tested. |
 | service | string |  | Name of the service, as defined in the `docker-compose.yml` file, to setup for the test. Defaults to the name of the package in its `manifest.yml` (previous versions used the name of the package folder). |
@@ -993,6 +994,26 @@ A sample workflow would look like:
 - Add the following line (or uncomment if present) `stack.logstash_enabled: true`
 - Run `elastic-package stack up -d -v`
 - Navigate to the package folder in integrations and run `elastic-package test system -v`
+
+### System testing with the LogsDB columnar index mode
+
+Packages declare whether their logs data streams are ready for the `logsdb_columnar` index mode with
+`elasticsearch.logsdb_columnar` in their manifests. When the package declares `opt_in`, Fleet keeps the data
+streams on LogsDB until the user turns the mode on. To run a test with the mode on, set `logsdb_columnar: true`
+in its configuration:
+
+```yaml
+# data_stream/<data stream name>/_dev/test/system/test-columnar-config.yml
+logsdb_columnar: true
+vars: ~
+```
+
+Before adding the package policy, `elastic-package` turns on the `logsdb_columnar` index mode of the package
+installation through the Fleet API, and turns it off again when tearing down the test. Once the data is
+ingested, it checks that the backing indices of the logs data streams use the `logsdb_columnar` index mode.
+
+The mode applies to the whole package installation, so these tests never run in parallel with other tests.
+They require a Kibana version whose Fleet supports the `logsdb_columnar` index mode.
 
 ### Re-attempting tests that fail during the setup phase
 
