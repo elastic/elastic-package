@@ -39,6 +39,11 @@ var (
 	semver3_0_1 = semver.MustParse("3.0.1")
 	semver3_8_0 = semver.MustParse("3.8.0")
 
+	// coercibleNumberPattern matches strings that Elasticsearch coerces to a number:
+	// decimal numbers with optional exponent and Java float suffix, without
+	// NaN, infinities, hexadecimal or digit separators.
+	coercibleNumberPattern = regexp.MustCompile(`^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?[fFdD]?$`)
+
 	// List of stack releases that do not
 	// include ECS mappings (all versions before 8.13.0).
 	stackVersionsWithoutECS = []*semver.Version{
@@ -1254,10 +1259,13 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 
 			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
-	// Validation of other numeric types was added in 3.8.0, before that they
-	// accepted any value.
+	// Before 3.8.0, other numeric types only reject values that Elasticsearch
+	// cannot coerce to a number.
 	case "integer", "short", "byte", "unsigned_long", "half_float", "scaled_float":
 		if v.specVersion.LessThan(semver3_8_0) {
+			if !isCoercibleToNumber(val) {
+				return invalidTypeError()
+			}
 			return nil
 		}
 		fallthrough
@@ -1286,6 +1294,20 @@ func (v *Validator) isNumber(key string, val any) bool {
 		}
 		_, err := strconv.ParseFloat(val, 64)
 		return err == nil
+	default:
+		return false
+	}
+}
+
+// isCoercibleToNumber reports whether Elasticsearch can index val in a numeric
+// field with the default coerce setting. Empty strings are indexed as null,
+// surrounding whitespace is ignored. Ranges are not checked.
+func isCoercibleToNumber(val any) bool {
+	switch val := val.(type) {
+	case nil, float64, json.Number:
+		return true
+	case string:
+		return val == "" || coercibleNumberPattern.MatchString(strings.TrimSpace(val))
 	default:
 		return false
 	}
