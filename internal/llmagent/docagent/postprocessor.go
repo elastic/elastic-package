@@ -216,7 +216,7 @@ func (d *DocumentationAgent) EnsureAgentlessSection(content string, pkgCtx *vali
 	if !wantAgentless {
 		if hasSection {
 			content = removeAgentlessSection(content)
-			logger.Debugf("Post-processor: Removed Elastic Managed deployment section (not enabled in package)")
+			logger.Debugf("Post-processor: Removed Elastic Managed deployment sections (not enabled in package)")
 		}
 		return content
 	}
@@ -225,10 +225,14 @@ func (d *DocumentationAgent) EnsureAgentlessSection(content string, pkgCtx *vali
 		logger.Debugf("Post-processor: Added Elastic Managed deployment section")
 		return content
 	}
-	if legacyAgentlessHeadingRegex.MatchString(content) {
-		// Replace the legacy "Agentless deployment" block with the canonical Elastic Managed block.
+	// Collapse a legacy "Agentless deployment" block, or more than one matching block, into a
+	// single canonical Elastic Managed block. Skip when there is no deploy section to insert
+	// into, so the existing section is not dropped.
+	hasLegacy := legacyAgentlessHeadingRegex.MatchString(content)
+	hasDuplicates := len(agentlessHeadingRegex.FindAllStringIndex(content, -1)) > 1
+	if (hasLegacy || hasDuplicates) && findAfterDeploySectionHeading(content) >= 0 {
 		content = insertAgentlessSection(removeAgentlessSection(content))
-		logger.Debugf("Post-processor: Replaced legacy Agentless deployment section with Elastic Managed deployment section")
+		logger.Debugf("Post-processor: Replaced legacy or duplicate agentless sections with a single Elastic Managed deployment section")
 	}
 	return content
 }
@@ -237,7 +241,15 @@ func hasAgentlessSection(content string) bool {
 	return agentlessHeadingRegex.MatchString(content)
 }
 
+// removeAgentlessSection removes every Elastic Managed or legacy Agentless deployment subsection.
 func removeAgentlessSection(content string) string {
+	for hasAgentlessSection(content) {
+		content = removeFirstAgentlessSection(content)
+	}
+	return content
+}
+
+func removeFirstAgentlessSection(content string) string {
 	loc := agentlessHeadingRegex.FindStringIndex(content)
 	if loc == nil {
 		return content
