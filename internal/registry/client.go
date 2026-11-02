@@ -16,6 +16,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/retry"
 )
 
 const (
@@ -30,6 +31,7 @@ type Client struct {
 	baseURL              string
 	certificateAuthority string
 	tlsSkipVerify        bool
+	retryMax             int
 	httpClient           *http.Client
 }
 
@@ -61,6 +63,14 @@ func TLSSkipVerify() ClientOption {
 	}
 }
 
+// RetryMax configures the number of retries before failing. A value of 0
+// disables retries.
+func RetryMax(retryMax int) ClientOption {
+	return func(c *Client) {
+		c.retryMax = retryMax
+	}
+}
+
 func (c *Client) newHTTPClient() (*http.Client, error) {
 	client := &http.Client{}
 	if c.tlsSkipVerify {
@@ -76,6 +86,13 @@ func (c *Client) newHTTPClient() (*http.Client, error) {
 			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 		}
 	}
+
+	if c.retryMax > 0 {
+		client = retry.WrapHTTPClient(client, retry.HTTPOptions{
+			RetryMax: c.retryMax,
+		})
+	}
+
 	return client, nil
 }
 

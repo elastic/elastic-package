@@ -384,6 +384,36 @@ func TestDownloadPackage(t *testing.T) {
 	})
 }
 
+func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
+	t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
+
+	zipBytes := testAcmePackageZip(t)
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
+			http.NotFound(w, r)
+			return
+		}
+		// Fail the first attempt with a transient 502 Bad Gateway, then succeed.
+		if attempts.Add(1) == 1 {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		_, err := w.Write(zipBytes)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+
+	dest := t.TempDir()
+	client, err := NewClient(srv.URL, RetryMax(2))
+	require.NoError(t, err)
+
+	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+	require.NoError(t, err)
+	require.FileExists(t, zipPath)
+	require.Equal(t, int32(2), attempts.Load(), "expected exactly one retry after the transient 502")
+}
+
 // testKeyPairData holds a generated test RSA keypair.
 type testKeyPairData struct {
 	key         *crypto.Key
