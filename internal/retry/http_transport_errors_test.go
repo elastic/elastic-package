@@ -132,8 +132,8 @@ func TestConnectionErrorsRetriedEndToEnd(t *testing.T) {
 
 	client := WrapHTTPClient(&http.Client{}, HTTPOptions{
 		RetryMax:     5,
-		retryWaitMin: fastRetryWaitMin,
-		retryWaitMax: fastRetryWaitMax,
+		RetryWaitMin: fastRetryWaitMin,
+		RetryWaitMax: fastRetryWaitMax,
 	})
 
 	resp, err := client.Post("http://"+addr+"/api/fleet/agent_policies", "application/json", nil)
@@ -152,8 +152,8 @@ func TestConnectionErrorsRetriesExhausted(t *testing.T) {
 
 	client := WrapHTTPClient(&http.Client{}, HTTPOptions{
 		RetryMax:     2,
-		retryWaitMin: fastRetryWaitMin,
-		retryWaitMax: fastRetryWaitMax,
+		RetryWaitMin: fastRetryWaitMin,
+		RetryWaitMax: fastRetryWaitMax,
 	})
 
 	resp, err := client.Post("http://"+addr+"/api/fleet/agent_policies", "application/json", nil)

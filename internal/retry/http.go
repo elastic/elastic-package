@@ -28,19 +28,21 @@ const (
 type HTTPOptions struct {
 	RetryMax int
 
-	retryWaitMin time.Duration
-	retryWaitMax time.Duration
+	// RetryWaitMin and RetryWaitMax bound the backoff between retries. When
+	// left at zero they fall back to defaultRetryWaitMin/defaultRetryWaitMax.
+	RetryWaitMin time.Duration
+	RetryWaitMax time.Duration
 }
 
 func WrapHTTPClient(client *http.Client, opts HTTPOptions) *http.Client {
 	if opts.RetryMax <= 0 {
 		return client
 	}
-	retryWaitMin := opts.retryWaitMin
+	retryWaitMin := opts.RetryWaitMin
 	if retryWaitMin == 0 {
 		retryWaitMin = defaultRetryWaitMin
 	}
-	retryWaitMax := opts.retryWaitMax
+	retryWaitMax := opts.RetryWaitMax
 	if retryWaitMax == 0 {
 		retryWaitMax = defaultRetryWaitMax
 	}

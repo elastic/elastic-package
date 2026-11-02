@@ -70,8 +70,8 @@ func TestRetryHTTPStatus(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			opts := HTTPOptions{
 				RetryMax:     c.retryMax,
-				retryWaitMin: fastRetryWaitMin,
-				retryWaitMax: fastRetryWaitMax,
+				RetryWaitMin: fastRetryWaitMin,
+				RetryWaitMax: fastRetryWaitMax,
 			}
 			client := WrapHTTPClient(&http.Client{}, opts)
 
@@ -90,8 +90,8 @@ func TestRetryHTTPStatus(t *testing.T) {
 func TestUnrecoverableErrors(t *testing.T) {
 	opts := HTTPOptions{
 		RetryMax:     5,
-		retryWaitMin: fastRetryWaitMin,
-		retryWaitMax: fastRetryWaitMax,
+		RetryWaitMin: fastRetryWaitMin,
+		RetryWaitMax: fastRetryWaitMax,
 	}
 
 	t.Run("invalid URL", func(t *testing.T) {

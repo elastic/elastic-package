@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/stretchr/testify/require"
@@ -394,8 +395,8 @@ func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		// Fail the first attempt with a transient 502 Bad Gateway, then succeed.
-		if attempts.Add(1) == 1 {
+		// Fail the first two attempts with transient 502 Bad Gateway, then succeed.
+		if attempts.Add(1) <= 2 {
 			http.Error(w, "bad gateway", http.StatusBadGateway)
 			return
 		}
@@ -405,13 +406,13 @@ func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	dest := t.TempDir()
-	client, err := NewClient(srv.URL, RetryMax(2))
+	client, err := NewClient(srv.URL, RetryMax(5), retryWait(time.Millisecond, 5*time.Millisecond))
 	require.NoError(t, err)
 
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
 	require.NoError(t, err)
 	require.FileExists(t, zipPath)
-	require.Equal(t, int32(2), attempts.Load(), "expected exactly one retry after the transient 502")
+	require.Equal(t, int32(3), attempts.Load(), "expected two retries after the transient 502s")
 }
 
 // testKeyPairData holds a generated test RSA keypair.
