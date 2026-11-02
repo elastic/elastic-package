@@ -287,19 +287,14 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 	if err != nil {
 		return "", fmt.Errorf("failed to load config from profile: %w", err)
 	}
-	enrollmentToken := ""
-	if config.ElasticsearchAPIKey != "" {
-		// TODO: Review if this is the correct place to get the enrollment token.
-		kibanaClient, err := stack.NewKibanaClientFromProfile(d.profile)
-		if err != nil {
-			return "", fmt.Errorf("failed to create kibana client: %w", err)
-		}
-		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(ctx, agentInfo.Policy.ID)
-		if err != nil {
-			return "", fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
-		}
+	kibanaClient, err := stack.NewKibanaClientFromProfile(d.profile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create kibana client: %w", err)
 	}
-
+	enrollmentToken, err := kibanaClient.GetEnrollmentTokenForPolicyID(ctx, agentInfo.Policy.ID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
+	}
 	// TODO: Include these settings more explicitly in `config`.
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
