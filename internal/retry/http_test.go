@@ -186,6 +186,7 @@ func (s *flakyTestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if s.rate == 0 || s.count%s.rate != 0 {
 		s.koHanlder.ServeHTTP(w, r)
+		return
 	}
 
 	s.okHandler.ServeHTTP(w, r)
