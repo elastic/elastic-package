@@ -415,6 +415,26 @@ func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
 	require.Equal(t, int32(3), attempts.Load(), "expected two retries after the transient 502s")
 }
 
+func TestDownloadPackageDoesNotRetryNonRecoverableStatus(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		// 404 is a permanent failure (e.g. package/version does not exist) and
+		// must not be retried, even with retries enabled.
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	dest := t.TempDir()
+	client, err := NewClient(srv.URL, RetryMax(5), retryWait(time.Millisecond, 5*time.Millisecond))
+	require.NoError(t, err)
+
+	_, err = client.DownloadPackage("acme", "1.0.0", dest)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "unexpected status code 404")
+	require.Equal(t, int32(1), attempts.Load(), "404 must fail fast without retries")
+}
+
 // testKeyPairData holds a generated test RSA keypair.
 type testKeyPairData struct {
 	key         *crypto.Key
