@@ -38,9 +38,11 @@ type Client struct {
 	certificateAuthority string
 	tlsSkipVerify        bool
 	retryMax             int
-	retryWaitMin         time.Duration
-	retryWaitMax         time.Duration
-	httpClient           *http.Client
+	// retryWaitMin and retryWaitMax bound the retry backoff. They are only set
+	// by tests to keep retries fast; production uses the retry package defaults.
+	retryWaitMin time.Duration
+	retryWaitMax time.Duration
+	httpClient   *http.Client
 }
 
 // NewClient creates a new instance of the client.
