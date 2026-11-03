@@ -921,6 +921,9 @@ func Test_parseElementValueNumericTypesBeforeSpec3_8_0(t *testing.T) {
 			{title: "word", value: "Auto", fail: true},
 			{title: "ip", value: "216.160.83.60", fail: true},
 			{title: "array with string with unit", value: []any{float64(1), "7.0 dB"}, fail: true},
+			{title: "nested array of numbers", value: []any{[]any{float64(1), "2"}, []any{float64(3)}}},
+			{title: "nested array with string with unit", value: []any{[]any{float64(1)}, []any{"7.0 dB"}}, fail: true},
+			{title: "nested array with object", value: []any{[]any{map[string]any{"value": float64(1)}}}, fail: true},
 			{title: "boolean", value: true, fail: true},
 			{title: "object", value: map[string]any{"value": float64(1)}, fail: true},
 		} {

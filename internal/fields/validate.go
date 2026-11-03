@@ -1301,13 +1301,21 @@ func (v *Validator) isNumber(key string, val any) bool {
 
 // isCoercibleToNumber reports whether Elasticsearch can index val in a numeric
 // field with the default coerce setting. Empty strings are indexed as null,
-// surrounding whitespace is ignored. Ranges are not checked.
+// surrounding whitespace is ignored, and nested arrays are flattened. Ranges
+// are not checked.
 func isCoercibleToNumber(val any) bool {
 	switch val := val.(type) {
 	case nil, float64, json.Number:
 		return true
 	case string:
 		return val == "" || coercibleNumberPattern.MatchString(strings.TrimSpace(val))
+	case []any:
+		for _, element := range val {
+			if !isCoercibleToNumber(element) {
+				return false
+			}
+		}
+		return true
 	default:
 		return false
 	}
