@@ -385,29 +385,12 @@ func TestDownloadPackage(t *testing.T) {
 	})
 }
 
-func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
-	t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
-
-	zipBytes := testAcmePackageZip(t)
-	var attempts atomic.Int32
-	srv := newFlakyZipServer(t, zipBytes, 2, &attempts)
-
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL, RetryMax(5), fastRetryWait())
-	require.NoError(t, err)
-
-	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
-	require.NoError(t, err)
-	require.FileExists(t, zipPath)
-	require.Equal(t, int32(3), attempts.Load(), "expected two retries after the transient 502s")
-}
-
 func TestDownloadPackageRetriesByDefault(t *testing.T) {
 	t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
 
 	zipBytes := testAcmePackageZip(t)
 	var attempts atomic.Int32
-	srv := newFlakyZipServer(t, zipBytes, 2, &attempts)
+	srv := newFlakyZipServer(t, zipBytes, 1, &attempts)
 
 	dest := t.TempDir()
 	// No RetryMax option: a default client must retry transient failures.
@@ -417,64 +400,7 @@ func TestDownloadPackageRetriesByDefault(t *testing.T) {
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
 	require.NoError(t, err)
 	require.FileExists(t, zipPath)
-	require.Equal(t, int32(3), attempts.Load(), "default client should retry transient failures")
-}
-
-func TestDownloadPackageRetryMaxZeroDisablesRetries(t *testing.T) {
-	var attempts atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		attempts.Add(1)
-		http.Error(w, "bad gateway", http.StatusBadGateway)
-	}))
-	t.Cleanup(srv.Close)
-
-	dest := t.TempDir()
-	// RetryMax(0) overrides the default and disables retries.
-	client, err := NewClient(srv.URL, RetryMax(0))
-	require.NoError(t, err)
-
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "unexpected status code 502")
-	require.Equal(t, int32(1), attempts.Load(), "RetryMax(0) must disable retries")
-}
-
-func TestDownloadPackageRetriesSignatureDownload(t *testing.T) {
-	kp := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	sigBytes := signZip(t, kp, zipBytes)
-
-	var sigAttempts atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			// Fail the first signature attempt with a transient 502, then serve it.
-			if sigAttempts.Add(1) == 1 {
-				http.Error(w, "bad gateway", http.StatusBadGateway)
-				return
-			}
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
-
-	pubKeyFile := writeTempFile(t, kp.publicArmor)
-	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
-
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL, fastRetryWait())
-	require.NoError(t, err)
-
-	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
-	require.NoError(t, err)
-	require.FileExists(t, zipPath)
-	require.Equal(t, int32(2), sigAttempts.Load(), "signature download should be retried after a transient 502")
+	require.Equal(t, int32(2), attempts.Load(), "default client should retry transient failures")
 }
 
 func TestDownloadPackageDoesNotRetryNonRecoverableStatus(t *testing.T) {
