@@ -465,6 +465,44 @@ func TestDownloadPackageRetryMaxZeroDisablesRetries(t *testing.T) {
 	require.Equal(t, int32(1), attempts.Load(), "RetryMax(0) must disable retries")
 }
 
+func TestDownloadPackageRetriesSignatureDownload(t *testing.T) {
+	kp := testKeyPair(t)
+	zipBytes := testAcmePackageZip(t)
+	sigBytes := signZip(t, kp, zipBytes)
+
+	var sigAttempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/epr/acme/acme-1.0.0.zip":
+			_, err := w.Write(zipBytes)
+			require.NoError(t, err)
+		case "/epr/acme/acme-1.0.0.zip.sig":
+			// Fail the first signature attempt with a transient 502, then serve it.
+			if sigAttempts.Add(1) == 1 {
+				http.Error(w, "bad gateway", http.StatusBadGateway)
+				return
+			}
+			_, err := w.Write(sigBytes)
+			require.NoError(t, err)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	pubKeyFile := writeTempFile(t, kp.publicArmor)
+	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
+
+	dest := t.TempDir()
+	client, err := NewClient(srv.URL, retryWait(time.Millisecond, 5*time.Millisecond))
+	require.NoError(t, err)
+
+	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+	require.NoError(t, err)
+	require.FileExists(t, zipPath)
+	require.Equal(t, int32(2), sigAttempts.Load(), "signature download should be retried after a transient 502")
+}
+
 func TestDownloadPackageDoesNotRetryNonRecoverableStatus(t *testing.T) {
 	var attempts atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
