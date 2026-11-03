@@ -79,15 +79,6 @@ func RetryMax(retryMax int) ClientOption {
 	}
 }
 
-// retryWait overrides the retry backoff bounds. It exists so tests can use
-// short waits; production callers rely on the retry package defaults.
-func retryWait(min, max time.Duration) ClientOption {
-	return func(c *Client) {
-		c.retryWaitMin = min
-		c.retryWaitMax = max
-	}
-}
-
 func (c *Client) newHTTPClient() (*http.Client, error) {
 	client := &http.Client{}
 	if c.tlsSkipVerify {

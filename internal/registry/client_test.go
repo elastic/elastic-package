@@ -406,7 +406,7 @@ func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	dest := t.TempDir()
-	client, err := NewClient(srv.URL, RetryMax(5), retryWait(time.Millisecond, 5*time.Millisecond))
+	client, err := NewClient(srv.URL, RetryMax(5), fastRetryWait())
 	require.NoError(t, err)
 
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
@@ -437,7 +437,7 @@ func TestDownloadPackageRetriesByDefault(t *testing.T) {
 
 	dest := t.TempDir()
 	// No RetryMax option: a default client must retry transient failures.
-	client, err := NewClient(srv.URL, retryWait(time.Millisecond, 5*time.Millisecond))
+	client, err := NewClient(srv.URL, fastRetryWait())
 	require.NoError(t, err)
 
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
@@ -494,7 +494,7 @@ func TestDownloadPackageRetriesSignatureDownload(t *testing.T) {
 	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
 
 	dest := t.TempDir()
-	client, err := NewClient(srv.URL, retryWait(time.Millisecond, 5*time.Millisecond))
+	client, err := NewClient(srv.URL, fastRetryWait())
 	require.NoError(t, err)
 
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
@@ -514,13 +514,22 @@ func TestDownloadPackageDoesNotRetryNonRecoverableStatus(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	dest := t.TempDir()
-	client, err := NewClient(srv.URL, RetryMax(5), retryWait(time.Millisecond, 5*time.Millisecond))
+	client, err := NewClient(srv.URL, RetryMax(5), fastRetryWait())
 	require.NoError(t, err)
 
 	_, err = client.DownloadPackage("acme", "1.0.0", dest)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "unexpected status code 404")
 	require.Equal(t, int32(1), attempts.Load(), "404 must fail fast without retries")
+}
+
+// fastRetryWait sets short retry backoff bounds so tests exercising retries
+// run in milliseconds instead of the default seconds.
+func fastRetryWait() ClientOption {
+	return func(c *Client) {
+		c.retryWaitMin = time.Millisecond
+		c.retryWaitMax = 5 * time.Millisecond
+	}
 }
 
 // testKeyPairData holds a generated test RSA keypair.
