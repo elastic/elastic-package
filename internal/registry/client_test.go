@@ -415,6 +415,56 @@ func TestDownloadPackageRetriesOnTransientError(t *testing.T) {
 	require.Equal(t, int32(3), attempts.Load(), "expected two retries after the transient 502s")
 }
 
+func TestDownloadPackageRetriesByDefault(t *testing.T) {
+	t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
+
+	zipBytes := testAcmePackageZip(t)
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
+			http.NotFound(w, r)
+			return
+		}
+		// Fail the first two attempts with transient 502, then succeed.
+		if attempts.Add(1) <= 2 {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		_, err := w.Write(zipBytes)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+
+	dest := t.TempDir()
+	// No RetryMax option: a default client must retry transient failures.
+	client, err := NewClient(srv.URL, retryWait(time.Millisecond, 5*time.Millisecond))
+	require.NoError(t, err)
+
+	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+	require.NoError(t, err)
+	require.FileExists(t, zipPath)
+	require.Equal(t, int32(3), attempts.Load(), "default client should retry transient failures")
+}
+
+func TestDownloadPackageRetryMaxZeroDisablesRetries(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		http.Error(w, "bad gateway", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+
+	dest := t.TempDir()
+	// RetryMax(0) overrides the default and disables retries.
+	client, err := NewClient(srv.URL, RetryMax(0))
+	require.NoError(t, err)
+
+	_, err = client.DownloadPackage("acme", "1.0.0", dest)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "unexpected status code 502")
+	require.Equal(t, int32(1), attempts.Load(), "RetryMax(0) must disable retries")
+}
+
 func TestDownloadPackageDoesNotRetryNonRecoverableStatus(t *testing.T) {
 	var attempts atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

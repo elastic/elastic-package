@@ -22,6 +22,11 @@ import (
 
 const (
 	ProductionURL = "https://epr.elastic.co"
+
+	// defaultRetryMax is the number of retries used when a client is created
+	// without an explicit RetryMax option. It matches the Kibana client so
+	// transient EPR failures are retried by default for all commands.
+	defaultRetryMax = 10
 )
 
 // ClientOption is a functional option for the registry client.
@@ -40,7 +45,7 @@ type Client struct {
 
 // NewClient creates a new instance of the client.
 func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
-	c := &Client{baseURL: baseURL}
+	c := &Client{baseURL: baseURL, retryMax: defaultRetryMax}
 	for _, opt := range opts {
 		opt(c)
 	}
