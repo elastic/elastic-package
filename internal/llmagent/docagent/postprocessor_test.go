@@ -281,13 +281,15 @@ Configure the integration.`
 
 Configure the integration.`
 
-	agentlessBlock := "### Agentless deployment"
+	agentlessBlock := "### Elastic Managed enabled integration"
+	legacyAgentlessBlock := "### Agentless deployment"
 
 	t.Run("agentless enabled, section missing, Agent-based present: insert after Agent-based", func(t *testing.T) {
 		d := &DocumentationAgent{}
 		result := d.EnsureAgentlessSection(deploySectionWithAgentBased, pkgCtxWithAgentless(true))
 		assert.Contains(t, result, agentlessBlock)
-		assert.Contains(t, result, "Elastic Serverless and Elastic Cloud")
+		assert.Contains(t, result, "Elastic Cloud Serverless and Elastic Cloud Hosted")
+		assert.NotContains(t, result, legacyAgentlessBlock)
 		// Agentless should appear after Agent-based and before Set up steps
 		agentBasedIdx := strings.Index(result, "### Agent-based deployment")
 		agentlessIdx := strings.Index(result, agentlessBlock)
@@ -314,6 +316,25 @@ Configure the integration.`
 
 Elastic Agent text.
 
+### Elastic Managed enabled integration
+
+Elastic Managed integrations are only supported on Elastic Cloud Serverless.
+
+### Set up steps in Kibana
+
+Configure.`
+		d := &DocumentationAgent{}
+		result := d.EnsureAgentlessSection(content, pkgCtxWithAgentless(true))
+		assert.Equal(t, content, result)
+	})
+
+	t.Run("agentless enabled, legacy section present: replaced with canonical block", func(t *testing.T) {
+		content := `## How do I deploy this integration?
+
+### Agent-based deployment
+
+Elastic Agent text.
+
 ### Agentless deployment
 
 Agentless deployments are only supported in Elastic Serverless.
@@ -321,6 +342,54 @@ Agentless deployments are only supported in Elastic Serverless.
 ### Set up steps in Kibana
 
 Configure.`
+		d := &DocumentationAgent{}
+		result := d.EnsureAgentlessSection(content, pkgCtxWithAgentless(true))
+		assert.NotContains(t, result, legacyAgentlessBlock)
+		assert.NotContains(t, result, "only supported in Elastic Serverless.")
+		assert.Equal(t, 1, strings.Count(result, agentlessBlock))
+		assert.Contains(t, result, "Elastic Cloud Serverless and Elastic Cloud Hosted")
+		agentBasedIdx := strings.Index(result, "### Agent-based deployment")
+		managedIdx := strings.Index(result, agentlessBlock)
+		setUpIdx := strings.Index(result, "### Set up steps")
+		assert.Greater(t, managedIdx, agentBasedIdx)
+		assert.Less(t, managedIdx, setUpIdx)
+	})
+
+	t.Run("both headings present: collapsed or removed in either order", func(t *testing.T) {
+		head := "## How do I deploy this integration?\n\n### Agent-based deployment\n\nElastic Agent text.\n\n"
+		managed := "### Elastic Managed enabled integration\n\nLLM managed text.\n\n"
+		legacy := "### Agentless deployment\n\nLLM legacy text.\n\n"
+		tail := "### Set up steps in Kibana\n\nConfigure."
+		cases := map[string]string{
+			"managed then legacy": head + managed + legacy + tail,
+			"legacy then managed": head + legacy + managed + tail,
+			"managed twice":       head + managed + managed + tail,
+		}
+		d := &DocumentationAgent{}
+		for name, content := range cases {
+			t.Run(name+", enabled", func(t *testing.T) {
+				result := d.EnsureAgentlessSection(content, pkgCtxWithAgentless(true))
+				assert.Equal(t, 1, strings.Count(result, agentlessBlock))
+				assert.NotContains(t, result, legacyAgentlessBlock)
+				assert.NotContains(t, result, "LLM legacy text.")
+				assert.NotContains(t, result, "LLM managed text.")
+				assert.Contains(t, result, "Elastic Cloud Serverless and Elastic Cloud Hosted")
+				managedIdx := strings.Index(result, agentlessBlock)
+				assert.Greater(t, managedIdx, strings.Index(result, "### Agent-based deployment"))
+				assert.Less(t, managedIdx, strings.Index(result, "### Set up steps"))
+			})
+			t.Run(name+", disabled", func(t *testing.T) {
+				result := d.EnsureAgentlessSection(content, pkgCtxWithAgentless(false))
+				assert.NotContains(t, result, agentlessBlock)
+				assert.NotContains(t, result, legacyAgentlessBlock)
+				assert.Contains(t, result, "### Agent-based deployment")
+				assert.Contains(t, result, "### Set up steps in Kibana")
+			})
+		}
+	})
+
+	t.Run("agentless enabled, legacy section but no deploy section: unchanged", func(t *testing.T) {
+		content := "## Overview\n\n### Agentless deployment\n\nLegacy text.\n\n## Troubleshooting\n\nNone."
 		d := &DocumentationAgent{}
 		result := d.EnsureAgentlessSection(content, pkgCtxWithAgentless(true))
 		assert.Equal(t, content, result)
@@ -333,9 +402,9 @@ Configure.`
 
 Elastic Agent text.
 
-### Agentless deployment
+### Elastic Managed enabled integration
 
-Agentless deployments are only supported in Elastic Serverless.
+Elastic Managed integrations are only supported on Elastic Cloud Serverless.
 
 ### Set up steps in Kibana
 
@@ -365,6 +434,8 @@ Some agentless text.
 Configure.`
 		d := &DocumentationAgent{}
 		result := d.EnsureAgentlessSection(content, nil)
+		assert.NotContains(t, result, legacyAgentlessBlock)
 		assert.NotContains(t, result, agentlessBlock)
+		assert.Contains(t, result, "### Set up steps in Kibana")
 	})
 }
