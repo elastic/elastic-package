@@ -190,8 +190,15 @@ func appendDataStreamSubsection(content, dsName string, needsEvent, needsFields 
 	return beforeInsert + sb.String() + "\n\n" + afterInsert
 }
 
+const (
+	// agentlessHeading is the current title of the Elastic Managed (agentless) deployment subsection.
+	agentlessHeading = "Elastic Managed enabled integration"
+	// legacyAgentlessHeading is the title used by older README templates.
+	legacyAgentlessHeading = "Agentless deployment"
+)
+
 // Canonical Elastic Managed (agentless) deployment subsection block (matches package-docs-readme.md.tmpl).
-const agentlessSectionBlock = `### Elastic Managed enabled integration
+const agentlessSectionBlock = "### " + agentlessHeading + `
 
 Elastic Managed integrations are only supported on Elastic Cloud Serverless and Elastic Cloud Hosted deployments. An Elastic Managed integration lets you ingest data from a cloud source while avoiding the orchestration, management, and maintenance associated with standard ingest infrastructure. Elastic runs the collector for you, so you can focus on your data instead of the infrastructure that collects it.
 
@@ -204,8 +211,8 @@ var (
 	// "Agentless deployment" heading. The legacy match prevents a duplicate section when the
 	// LLM carries the old heading forward from an existing README, and lets the old block be
 	// removed or replaced with the canonical one.
-	agentlessHeadingRegex       = regexp.MustCompile(`(?mi)^###\s+(?:Elastic Managed enabled integration|Agentless deployment)\s*$`)
-	legacyAgentlessHeadingRegex = regexp.MustCompile(`(?mi)^###\s+Agentless deployment\s*$`)
+	agentlessHeadingRegex       = regexp.MustCompile(`(?mi)^###\s+(?:` + regexp.QuoteMeta(agentlessHeading) + `|` + regexp.QuoteMeta(legacyAgentlessHeading) + `)\s*$`)
+	legacyAgentlessHeadingRegex = regexp.MustCompile(`(?mi)^###\s+` + regexp.QuoteMeta(legacyAgentlessHeading) + `\s*$`)
 	nextH2OrH3Regex             = regexp.MustCompile(`(?m)^(?:##|###)\s+`)
 )
 
