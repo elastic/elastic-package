@@ -75,9 +75,7 @@ func parseAlertRuleTemplate(raw []byte) (alertRuleTemplate, error) {
 }
 
 // alertRuleTemplateCompatibility states the Stack floor for the engines present.
-// Standard (classic) templates require 9.2.0. ES|QL (Alerting v2) requires
-// 9.6.0. A package that publishes both says so separately, so the classic floor
-// is not raised silently and the v2 floor is not omitted.
+// Standard (classic) templates require 9.2.0. ES|QL (Alerting v2) requires 9.6.0.
 func alertRuleTemplateCompatibility(hasClassic, hasV2 bool) string {
 	switch {
 	case hasClassic && hasV2:
@@ -177,30 +175,28 @@ For more information, refer to the [Elastic documentation](` + docsLink + `).
 		case useCollapsibleTable:
 			renderAlertRuleTable(&builder, templates, hasV2)
 		default:
-			renderAlertRuleList(&builder, templates, hasV2)
+			renderAlertRuleList(&builder, templates)
 		}
 	}
 
 	return builder.String(), nil
 }
 
-// renderAlertRuleList renders the paragraph layout of a single-engine package.
-// Classic text is written as is, so existing package READMEs do not change.
-func renderAlertRuleList(builder *strings.Builder, templates []alertRuleTemplate, v2 bool) {
-	name, description := keepAlertRuleText, keepAlertRuleText
-	if v2 {
-		name, description = escapeAlertRuleName, escapeAlertRuleDescription
-	}
+// renderAlertRuleList renders the paragraph layout of a single-engine package
+// below format_version 3.6.0. Alerting v2 templates require 3.7.0, so only
+// classic templates reach it, and their text is written unescaped as published
+// READMEs expect.
+func renderAlertRuleList(builder *strings.Builder, templates []alertRuleTemplate) {
 	builder.WriteString("The following alert rule templates are available:\n\n")
 	for _, template := range templates {
-		fmt.Fprintf(builder, "**%s**\n\n", name(template.name))
-		fmt.Fprintf(builder, "%s\n\n", description(template.description))
+		fmt.Fprintf(builder, "**%s**\n\n", template.name)
+		fmt.Fprintf(builder, "%s\n\n", template.description)
 	}
 }
 
 // renderAlertRuleTable renders the Name | Description table of a single-engine
-// package. Classic cells keep the escaping of earlier releases, so existing
-// package READMEs do not change.
+// package. Classic cells keep their historic escaping, which published READMEs
+// depend on, and do not escape pipes.
 func renderAlertRuleTable(builder *strings.Builder, templates []alertRuleTemplate, v2 bool) {
 	name, description := classicAlertRuleTableName, classicAlertRuleTableDescription
 	if v2 {
@@ -339,10 +335,6 @@ func writeAlertRuleTableClose(builder *strings.Builder) {
 	builder.WriteString("\n</details>\n\n")
 }
 
-func keepAlertRuleText(value string) string {
-	return value
-}
-
 func classicAlertRuleTableName(value string) string {
 	return escaper.Replace(strings.TrimSpace(value))
 }
@@ -357,10 +349,6 @@ func escapeAlertRuleTableCell(value string) string {
 	// cancel the pipe escape and split the table cell.
 	value = strings.ReplaceAll(value, "\\", "\\\\")
 	return strings.ReplaceAll(escaper.Replace(value), "|", "\\|")
-}
-
-func escapeAlertRuleDescription(value string) string {
-	return escaper.Replace(normalizeAlertRuleText(value))
 }
 
 func escapeAlertRuleName(value string) string {

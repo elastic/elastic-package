@@ -20,7 +20,7 @@ As a package developer, you do not need to do any work to define an asset loadin
 
 ### Alert rule templates
 
-Alert rule templates in `kibana/alerting_rule_template` are checked like any other Kibana asset: the test passes when the template is installed. This covers both classic and Alerting v2 (ES|QL) templates. It does not run the template's query or check that an alert created from it fires.
+Alert rule templates in `kibana/alerting_rule_template` are checked like any other Kibana asset: the test passes when the template is installed. This covers both classic and Alerting v2 (ES|QL) templates. It does not run the template's query or check that an alert created from it fires. Package validation checks the structure of Alerting v2 templates (`SVR00014`) but does not parse ES|QL, so a query with a syntax error passes both validation and this test.
 
 Fleet installs alert rule templates starting with Kibana 9.2.0. On older Kibana versions, these tests are reported as skipped.
 
