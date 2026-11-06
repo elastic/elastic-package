@@ -76,6 +76,14 @@ xpack.fleet.experimentalFeatures:
 xpack.fleet.autoInstallContentPackages.taskInterval: "{{ fact "fleet_auto_install_task_interval" }}"
 {{- end }}
 
+{{/* TODO: Temporary. Fleet support for workflow assets is not merged in Kibana yet
+     (https://github.com/elastic/kibana/pull/299129). Until that PR is merged and available in a
+     9.7.0-SNAPSHOT build, this flag has no effect. Opt-in via stack.fleet_workflow_assets_enabled. */}}
+{{- if and (eq (fact "fleet_workflow_assets_enabled") "true") (not (semverLessThan $version "9.7.0-SNAPSHOT")) }}
+# Workflow assets (override: stack.fleet_workflow_assets_enabled)
+feature_flags.overrides.fleet.enableWorkflowAssets: true
+{{- end }}
+
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
 {{ if not (semverLessThan $version "8.2.0") }}

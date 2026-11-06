@@ -77,6 +77,7 @@ const (
 	configElasticSubscription                    = "stack.elastic_subscription"
 	configFleetAutoInstallTaskInterval           = "stack.fleet_auto_install_task_interval"
 	configFleetAutoInstallContentPackagesEnabled = "stack.fleet_auto_install_content_packages_enabled"
+	configFleetWorkflowAssetsEnabled             = "stack.fleet_workflow_assets_enabled"
 )
 
 var (
@@ -211,6 +212,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"elastic_subscription":                        elasticSubscriptionProfile,
 		"fleet_auto_install_task_interval":            profile.Config(configFleetAutoInstallTaskInterval, "10m"),
 		"fleet_auto_install_content_packages_enabled": profile.Config(configFleetAutoInstallContentPackagesEnabled, "false"),
+		"fleet_workflow_assets_enabled":               profile.Config(configFleetWorkflowAssetsEnabled, "false"),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {

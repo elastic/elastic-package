@@ -242,6 +242,50 @@ package_registry:
 	}
 }
 
+func TestKibanaConfigWorkflowAssets(t *testing.T) {
+	cases := []struct {
+		name         string
+		profileData  string
+		version      string
+		expectEnable bool
+	}{
+		{name: "enabled on 9.7", profileData: "stack.fleet_workflow_assets_enabled: true\n", version: "9.7.0", expectEnable: true},
+		{name: "enabled on 9.7 snapshot", profileData: "stack.fleet_workflow_assets_enabled: true\n", version: "9.7.0-SNAPSHOT", expectEnable: true},
+		{name: "enabled on older stack", profileData: "stack.fleet_workflow_assets_enabled: true\n", version: "9.6.0"},
+		{name: "default on 9.7", version: "9.7.0"},
+		{name: "disabled on 9.7", profileData: "stack.fleet_workflow_assets_enabled: false\n", version: "9.7.0"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", t.TempDir())
+
+			p := createTestProfile(t)
+			if tc.profileData != "" {
+				configPath := filepath.Join(p.ProfilePath, profile.PackageProfileConfigFile)
+				require.NoError(t, os.WriteFile(configPath, []byte(tc.profileData), 0644))
+				var err error
+				p, err = profile.LoadProfileFrom(filepath.Dir(p.ProfilePath), p.ProfileName)
+				require.NoError(t, err)
+			}
+
+			config, err := install.Configuration()
+			require.NoError(t, err)
+			require.NoError(t, applyResources(p, config, tc.version, tc.version))
+
+			d, err := os.ReadFile(p.Path(ProfileStackPath, KibanaConfigFile))
+			require.NoError(t, err)
+
+			setting := "feature_flags.overrides.fleet.enableWorkflowAssets: true"
+			if tc.expectEnable {
+				assert.Contains(t, string(d), setting)
+			} else {
+				assert.NotContains(t, string(d), setting)
+			}
+		})
+	}
+}
+
 func TestSemverLessThan(t *testing.T) {
 	b, err := semverLessThan("8.9.0", "8.10.0-SNAPSHOT")
 	require.NoError(t, err)
