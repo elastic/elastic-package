@@ -46,7 +46,7 @@ _Enter the package directory. For nginx integration, it's: [packages/nginx/](htt
 
 ## Export package dashboards
 
-Once the package assets are defined, these should be exported using the `elastic-package export` command. As dashboards are the only type of exportable asset, the command is:
+Once the package assets are defined, these should be exported using the `elastic-package export` command. For dashboards, the command is:
 ```
 elastic-package export dashboards
 ```
@@ -55,6 +55,8 @@ Used this way, this command will open an interactive prompt for dashboard select
 ```
 elastic-package export dashboards -d 123,345,789
 ```
+
+Workflows can be exported with `elastic-package export workflows`, see [Export workflows from Kibana](./export_workflows.md).
 
 ### Edit package dashboards
 
