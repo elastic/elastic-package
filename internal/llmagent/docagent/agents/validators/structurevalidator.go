@@ -27,11 +27,11 @@ type RequiredSection struct {
 }
 
 // optionalSubsectionTitles are subsections present in the template that are not required
-// (e.g. Agentless deployment, API usage).
+// (e.g. Elastic Managed enabled integration, API usage).
 // They are excluded from RequiredSections but may appear in RecommendedSections.
 var optionalSubsectionTitles = map[string]bool{
-	"Agentless deployment": true,
-	"API usage":            true,
+	"Elastic Managed enabled integration": true,
+	"API usage":                           true,
 }
 
 // convertParsedToRequired builds RequiredSection slice from parsed template sections.
