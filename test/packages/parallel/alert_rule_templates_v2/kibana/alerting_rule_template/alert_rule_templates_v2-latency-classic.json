@@ -1,0 +1,32 @@
+{
+    "id": "alert_rule_templates_v2-latency-classic",
+    "type": "alerting_rule_template",
+    "attributes": {
+        "name": "[Sample] Latency high",
+        "description": "Alerts when the average request latency is above 500 ms.",
+        "tags": [
+            "Sample"
+        ],
+        "ruleTypeId": ".es-query",
+        "schedule": {
+            "interval": "1m"
+        },
+        "params": {
+            "searchType": "esqlQuery",
+            "timeWindowSize": 5,
+            "timeWindowUnit": "m",
+            "esqlQuery": {
+                "esql": "FROM metrics-sample-default\n| STATS latency = AVG(`sample.latency.ms`) BY `service.name`\n| WHERE latency > 500"
+            },
+            "groupBy": "row",
+            "termSize": 5,
+            "timeField": "@timestamp"
+        },
+        "alertDelay": {
+            "active": 1
+        }
+    },
+    "managed": true,
+    "coreMigrationVersion": "8.8.0",
+    "typeMigrationVersion": "10.1.0"
+}
