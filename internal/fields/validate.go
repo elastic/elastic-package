@@ -1259,13 +1259,13 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 
 			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
-	// Before 3.8.0, other numeric types only reject values that Elasticsearch
-	// cannot coerce to a number.
+	// Other numeric types reject values that Elasticsearch cannot coerce to a
+	// number. From 3.8.0, they are also checked like float, long and double.
 	case "integer", "short", "byte", "unsigned_long", "half_float", "scaled_float":
+		if !isCoercibleToNumber(val) {
+			return multierror.Error{notCoercibleToNumberError(key, definition.Type, val)}
+		}
 		if v.specVersion.LessThan(semver3_8_0) {
-			if !isCoercibleToNumber(val) {
-				return multierror.Error{notCoercibleToNumberError(key, definition.Type, val)}
-			}
 			return nil
 		}
 		fallthrough

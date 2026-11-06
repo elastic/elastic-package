@@ -883,10 +883,33 @@ func Test_parseElementValueNumericTypes(t *testing.T) {
 				errs := v.parseElementValue("signal", definition, test.value, common.MapStr{})
 				if test.fail {
 					require.Len(t, errs, 1)
-					assert.ErrorContains(t, errs[0], "does not match the expected field type: "+fieldType)
+					assert.Regexp(t, "(does not match the expected field type: |cannot be indexed as )"+fieldType+`\b`, errs[0].Error())
 				} else {
 					assert.Empty(t, errs)
 				}
+			})
+		}
+	}
+}
+
+func Test_parseElementValueNumericTypesStringNumberFieldsCoercion(t *testing.T) {
+	// strconv.ParseFloat accepts these, but Elasticsearch cannot coerce them,
+	// so they fail even for fields listed in string_number_fields.
+	coercedTypes := []string{"integer", "short", "byte", "unsigned_long", "half_float", "scaled_float"}
+	for _, fieldType := range coercedTypes {
+		for _, value := range []string{"1_000", "Inf", "0x1p3"} {
+			t.Run(fieldType+"/"+value, func(t *testing.T) {
+				definition := FieldDefinition{Name: "signal", Type: fieldType}
+				v := Validator{
+					Schema:                       []FieldDefinition{definition},
+					disabledDependencyManagement: true,
+					stringNumberFields:           []string{"signal"},
+					specVersion:                  *semver3_8_0,
+				}
+
+				errs := v.parseElementValue("signal", definition, value, common.MapStr{})
+				require.Len(t, errs, 1)
+				assert.ErrorContains(t, errs[0], "cannot be indexed as "+fieldType)
 			})
 		}
 	}
