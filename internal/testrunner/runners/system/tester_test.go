@@ -433,6 +433,13 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 			dataStreamName: "logs-logs_synthetic_mode.synthetic-12345",
 			expected:       true,
 		},
+		{
+			// This test case is generated with nginx installed and its logsdb_columnar index mode turned on in Fleet.
+			title:          "logsdb_columnar mode",
+			record:         "testdata/elasticsearch-9-mock-synthetic-mode-nginx-logsdb-columnar",
+			dataStreamName: "logs-nginx.access-12345",
+			expected:       true,
+		},
 	}
 
 	for _, c := range cases {
@@ -443,6 +450,50 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 			assert.Equal(t, c.expected, enabled)
 		})
 	}
+}
+
+func TestCheckLogsDBColumnarIndexMode(t *testing.T) {
+	cases := []struct {
+		title          string
+		record         string
+		dataStreamName string
+		expectedFailed bool
+	}{
+		{
+			// This test case is generated with nginx installed and its logsdb_columnar index mode turned on in Fleet.
+			title:          "logsdb_columnar data stream",
+			record:         "testdata/elasticsearch-9-mock-index-mode-nginx-logsdb-columnar",
+			dataStreamName: "logs-nginx.access-12345",
+		},
+		{
+			// This test case is generated with nginx installed and its logsdb_columnar index mode turned off in Fleet.
+			title:          "logsdb data stream",
+			record:         "testdata/elasticsearch-9-mock-index-mode-nginx-logsdb",
+			dataStreamName: "logs-nginx.access-12345",
+			expectedFailed: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			client := estest.NewClient(t, c.record, nil)
+			err := checkLogsDBColumnarIndexMode(t.Context(), client.API, c.dataStreamName)
+			if !c.expectedFailed {
+				assert.NoError(t, err)
+				return
+			}
+			var failed testrunner.ErrTestCaseFailed
+			require.ErrorAs(t, err, &failed)
+			assert.Contains(t, failed.Reason, c.dataStreamName)
+			assert.Contains(t, failed.Details, `index mode "logsdb"`)
+		})
+	}
+
+	t.Run("not a logs data stream", func(t *testing.T) {
+		// Fleet only applies logsdb_columnar to logs data streams, so other data streams aren't requested.
+		err := checkLogsDBColumnarIndexMode(t.Context(), nil, "metrics-nginx.stubstatus-12345")
+		assert.NoError(t, err)
+	})
 }
 func TestSearchDataStreams(t *testing.T) {
 	const pattern = "*-foo.bar-default"
