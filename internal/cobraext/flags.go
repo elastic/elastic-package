@@ -32,7 +32,7 @@ const (
 	AgentPolicyDescription = "name of the agent policy"
 
 	AllowSnapshotFlagName    = "allow-snapshot"
-	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
+	AllowSnapshotDescription = "allow to run the command against an Elastic stack SNAPSHOT version"
 
 	BenchPathFlagName        = "path"
 	BenchPathFlagDescription = "path of the benchmark scenario to run"
