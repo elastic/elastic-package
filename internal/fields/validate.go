@@ -1293,7 +1293,11 @@ func (v *Validator) isNumber(key string, val any) bool {
 			return false
 		}
 		_, err := strconv.ParseFloat(val, 64)
-		return err == nil
+		if err != nil {
+			logger.Debugf("field %q is listed in string_number_fields, but its value %q is not a number: %v", key, val, err)
+			return false
+		}
+		return true
 	default:
 		return false
 	}
