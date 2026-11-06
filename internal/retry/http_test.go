@@ -25,44 +25,62 @@ const (
 
 func TestRetryHTTPStatus(t *testing.T) {
 	cases := []struct {
-		title          string
-		okHandler      http.Handler
-		koHandler      http.Handler
-		successRate    int
-		retryMax       int
-		expectedStatus int
+		title            string
+		okHandler        http.Handler
+		koHandler        http.Handler
+		successRate      int
+		retryMax         int
+		expectedStatus   int
+		expectedAttempts int
 	}{
 		{
-			title:          "eventually succeeds",
-			retryMax:       10,
-			successRate:    5,
-			expectedStatus: http.StatusOK,
+			// Fails 4 times (503) then succeeds on the 5th request.
+			title:            "eventually succeeds",
+			retryMax:         10,
+			successRate:      5,
+			expectedStatus:   http.StatusOK,
+			expectedAttempts: 5,
 		},
 		{
-			title:          "no retries",
-			retryMax:       0,
-			successRate:    5,
-			expectedStatus: http.StatusServiceUnavailable,
+			// 502 is retryable: fails 4 times then succeeds on the 5th request.
+			title:            "retries 502 until success",
+			koHandler:        newStatusHandler("bad gateway", http.StatusBadGateway),
+			retryMax:         10,
+			successRate:      5,
+			expectedStatus:   http.StatusOK,
+			expectedAttempts: 5,
 		},
 		{
-			title:          "not enough retries",
-			retryMax:       2,
-			successRate:    5,
-			expectedStatus: http.StatusServiceUnavailable,
+			title:            "no retries",
+			retryMax:         0,
+			successRate:      5,
+			expectedStatus:   http.StatusServiceUnavailable,
+			expectedAttempts: 1,
 		},
 		{
-			title:          "retries on non-fatal error",
-			koHandler:      http.NotFoundHandler(),
-			retryMax:       10,
-			successRate:    5,
-			expectedStatus: http.StatusNotFound,
+			// Initial attempt plus 2 retries, all 503, then gives up.
+			title:            "not enough retries",
+			retryMax:         2,
+			successRate:      5,
+			expectedStatus:   http.StatusServiceUnavailable,
+			expectedAttempts: 3,
 		},
 		{
-			title:          "no retries non-fatal error",
-			koHandler:      http.NotFoundHandler(),
-			retryMax:       0,
-			successRate:    5,
-			expectedStatus: http.StatusNotFound,
+			// 404 is not retried, so only the initial attempt is made.
+			title:            "retries on non-fatal error",
+			koHandler:        http.NotFoundHandler(),
+			retryMax:         10,
+			successRate:      5,
+			expectedStatus:   http.StatusNotFound,
+			expectedAttempts: 1,
+		},
+		{
+			title:            "no retries non-fatal error",
+			koHandler:        http.NotFoundHandler(),
+			retryMax:         0,
+			successRate:      5,
+			expectedStatus:   http.StatusNotFound,
+			expectedAttempts: 1,
 		},
 	}
 
@@ -70,12 +88,12 @@ func TestRetryHTTPStatus(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			opts := HTTPOptions{
 				RetryMax:     c.retryMax,
-				retryWaitMin: fastRetryWaitMin,
-				retryWaitMax: fastRetryWaitMax,
+				RetryWaitMin: fastRetryWaitMin,
+				RetryWaitMax: fastRetryWaitMax,
 			}
 			client := WrapHTTPClient(&http.Client{}, opts)
 
-			server := newFlakyTestServer(c.okHandler, c.koHandler, c.successRate)
+			server, handler := newFlakyTestServer(c.okHandler, c.koHandler, c.successRate)
 			defer server.Close()
 
 			resp, err := client.Get(server.URL)
@@ -83,6 +101,7 @@ func TestRetryHTTPStatus(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, c.expectedStatus, resp.StatusCode)
+			assert.Equal(t, c.expectedAttempts, handler.requests())
 		})
 	}
 }
@@ -90,8 +109,8 @@ func TestRetryHTTPStatus(t *testing.T) {
 func TestUnrecoverableErrors(t *testing.T) {
 	opts := HTTPOptions{
 		RetryMax:     5,
-		retryWaitMin: fastRetryWaitMin,
-		retryWaitMax: fastRetryWaitMax,
+		RetryWaitMin: fastRetryWaitMin,
+		RetryWaitMax: fastRetryWaitMax,
 	}
 
 	t.Run("invalid URL", func(t *testing.T) {
@@ -167,24 +186,33 @@ func (s *flakyTestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if s.rate == 0 || s.count%s.rate != 0 {
 		s.koHanlder.ServeHTTP(w, r)
+		return
 	}
 
 	s.okHandler.ServeHTTP(w, r)
 }
 
-func newFlakyTestServer(ok, ko http.Handler, rate int) *httptest.Server {
+// requests returns the number of requests the handler has served, i.e. the
+// initial attempt plus every retry.
+func (s *flakyTestHandler) requests() int {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.count
+}
+
+func newFlakyTestServer(ok, ko http.Handler, rate int) (*httptest.Server, *flakyTestHandler) {
 	if ok == nil {
 		ok = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 	}
 	if ko == nil {
 		ko = newStatusHandler("not available", http.StatusServiceUnavailable)
 	}
-	handler := flakyTestHandler{
+	handler := &flakyTestHandler{
 		okHandler: ok,
 		koHanlder: ko,
 		rate:      rate,
 	}
-	return httptest.NewServer(&handler)
+	return httptest.NewServer(handler), handler
 }
 
 func newStatusHandler(msg string, code int) http.Handler {
