@@ -49,7 +49,8 @@ func TestNoWorkflowsFoundMessage(t *testing.T) {
 	assert.Contains(t, noWorkflowsFoundMessage(false), "--managed")
 }
 
-func TestCheckFleetWorkflowsInstalledForPackage(t *testing.T) {
+func TestCheckWorkflowsExportable(t *testing.T) {
+	unmanaged := []kibana.Workflow{{ID: "authored", Name: "Authored"}}
 	installed := map[string]bool{testFleetWorkflowID: true}
 
 	cases := []struct {
@@ -58,24 +59,30 @@ func TestCheckFleetWorkflowsInstalledForPackage(t *testing.T) {
 		installed   map[string]bool
 		expectedErr string
 	}{
-		{title: "unmanaged workflows", ids: []string{"authored", "system-security-alert-analysis"}},
+		{title: "unmanaged workflows", ids: []string{"authored"}},
 		{title: "installed for the package", ids: []string{"authored", testFleetWorkflowID}, installed: installed},
 		{
 			title:       "installed for another package",
 			ids:         []string{testFleetWorkflowID, testOtherFleetWorkflowID},
 			installed:   installed,
-			expectedErr: "workflow " + testOtherFleetWorkflowID + " was not installed by Fleet from package my_pkg",
+			expectedErr: "workflow " + testOtherFleetWorkflowID + " not found among the workflows authored by users, nor among the ones installed by Fleet for package my_pkg",
 		},
 		{
 			title:       "package not installed",
 			ids:         []string{testFleetWorkflowID},
-			expectedErr: "was not installed by Fleet from package my_pkg",
+			expectedErr: "workflow " + testFleetWorkflowID + " not found",
+		},
+		{
+			title:       "system managed workflow",
+			ids:         []string{"authored", "system-security-alert-analysis"},
+			installed:   installed,
+			expectedErr: "workflow system-security-alert-analysis not found",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			err := checkFleetWorkflowsInstalledForPackage(c.ids, c.installed, "my_pkg")
+			err := checkWorkflowsExportable(c.ids, unmanaged, c.installed, "my_pkg")
 			if c.expectedErr != "" {
 				require.ErrorContains(t, err, c.expectedErr)
 				return
