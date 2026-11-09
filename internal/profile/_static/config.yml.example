@@ -61,3 +61,9 @@
 #
 # Enable auto-install of content packages in Fleet (Kibana 8.7+). Defaults to false.
 # stack.fleet_auto_install_content_packages_enabled: true
+#
+# Enable the Fleet workflow assets feature flag (Kibana 9.7+). Defaults to false.
+# The Kibana Workflows plugins are enabled by default and require an enterprise or trial license.
+# Fleet support is pending https://github.com/elastic/kibana/pull/299129; until it is merged and
+# available in a 9.7.0-SNAPSHOT build, this setting has no effect.
+# stack.fleet_workflow_assets_enabled: true
