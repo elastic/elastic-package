@@ -35,7 +35,7 @@ const (
 	workflowsMaxPageSize = 100
 )
 
-var workflowsMinKibanaVersion = semver.MustParse("9.4.0")
+var workflowsMinKibanaVersion = semver.MustParse("9.5.0")
 
 // Workflow is a workflow as returned by the Kibana Workflows API.
 type Workflow struct {

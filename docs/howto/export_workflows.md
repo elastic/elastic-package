@@ -8,7 +8,7 @@ Workflow assets require an integration package with `format_version: 3.8.0` or l
 
 ## Author a workflow in Kibana
 
-Start a stack and create the workflow in the Kibana UI. Workflows are available in Kibana 9.4 and later; to install workflow assets from packages, Fleet needs the workflow assets feature, which can be enabled in the stack started by elastic-package with:
+Start a stack and create the workflow in the Kibana UI. Workflows can be exported from Kibana 9.5 and later; to install workflow assets from packages, Fleet needs the workflow assets feature, which can be enabled in the stack started by elastic-package with:
 ```
 elastic-package stack up -d -U stack.fleet_workflow_assets_enabled=true
 ```

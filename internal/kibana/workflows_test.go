@@ -116,15 +116,15 @@ func TestExportWorkflows(t *testing.T) {
 }
 
 func TestWorkflowsUnsupportedKibanaVersion(t *testing.T) {
-	client := newWorkflowsTestClient(t, "9.3.0", func(w http.ResponseWriter, r *http.Request) {
+	client := newWorkflowsTestClient(t, "9.4.6", func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("unexpected request to %s", r.URL)
 	})
 
 	_, err := client.ListWorkflows(t.Context(), ListWorkflowsOptions{})
-	require.ErrorContains(t, err, "minimum version is 9.4.0")
+	require.ErrorContains(t, err, "minimum version is 9.5.0")
 
 	_, err = client.ExportWorkflows(t.Context(), []string{"a"})
-	require.ErrorContains(t, err, "minimum version is 9.4.0")
+	require.ErrorContains(t, err, "minimum version is 9.5.0")
 }
 
 func TestFleetPackageWorkflowFileBase(t *testing.T) {
