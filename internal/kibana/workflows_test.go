@@ -170,6 +170,23 @@ func TestInstalledPackageWorkflowIDs(t *testing.T) {
 			expected: map[string]bool{"system-fleet-package-workflow-a-b-my-pkg-alert-triage": true},
 		},
 		{
+			title:  "installed in additional spaces",
+			status: http.StatusOK,
+			body: `{"item":{"name":"my_pkg","status":"installed","installationInfo":{
+				"installed_kibana":[{"id":"system-fleet-package-workflow-a-b-my-pkg-alert-triage","type":"workflow"}],
+				"additional_spaces_installed_kibana":{
+					"other":[
+						{"id":"system-fleet-package-workflow-c-b-my-pkg-alert-triage","type":"workflow"},
+						{"id":"my_pkg-dashboard","type":"dashboard"}
+					]
+				}
+			}}}`,
+			expected: map[string]bool{
+				"system-fleet-package-workflow-a-b-my-pkg-alert-triage": true,
+				"system-fleet-package-workflow-c-b-my-pkg-alert-triage": true,
+			},
+		},
+		{
 			title:    "not installed",
 			status:   http.StatusOK,
 			body:     `{"item":{"name":"my_pkg","status":"not_installed"}}`,

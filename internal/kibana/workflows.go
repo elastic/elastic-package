@@ -156,8 +156,9 @@ func (c *Client) ExportWorkflows(ctx context.Context, ids []string) ([]ExportedW
 	return resp.Entries, nil
 }
 
-// InstalledPackageWorkflowIDs returns the IDs of the workflows installed by Fleet for the given package.
-// It returns an empty set if the package is not installed.
+// InstalledPackageWorkflowIDs returns the IDs of the workflows installed by Fleet for the given package,
+// in its installation space and in any additional space. Workflow IDs include a hash of their space, so
+// they don't collide across spaces. It returns an empty set if the package is not installed.
 func (c *Client) InstalledPackageWorkflowIDs(ctx context.Context, pkgName string) (map[string]bool, error) {
 	pkg, err := c.GetPackage(ctx, pkgName)
 	var notFound *ErrPackageNotFound
@@ -172,10 +173,16 @@ func (c *Client) InstalledPackageWorkflowIDs(ctx context.Context, pkgName string
 	}
 
 	ids := make(map[string]bool)
-	for _, asset := range pkg.InstallationInfo.InstalledKibanaAssets {
-		if asset.Type == workflowAssetType {
-			ids[asset.ID] = true
+	addWorkflowIDs := func(assets []packages.Asset) {
+		for _, asset := range assets {
+			if asset.Type == workflowAssetType {
+				ids[asset.ID] = true
+			}
 		}
+	}
+	addWorkflowIDs(pkg.InstallationInfo.InstalledKibanaAssets)
+	for _, assets := range pkg.InstallationInfo.AdditionalSpacesInstalledKibana {
+		addWorkflowIDs(assets)
 	}
 	return ids, nil
 }

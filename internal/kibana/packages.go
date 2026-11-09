@@ -190,8 +190,9 @@ type FleetPackage struct {
 		} `json:"attributes"`
 	} `json:"savedObject"`
 	InstallationInfo *struct {
-		InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
-		InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+		InstalledElasticsearchAssets    []packages.Asset            `json:"installed_es"`
+		InstalledKibanaAssets           []packages.Asset            `json:"installed_kibana"`
+		AdditionalSpacesInstalledKibana map[string][]packages.Asset `json:"additional_spaces_installed_kibana"`
 	} `json:"installationInfo"`
 }
 
