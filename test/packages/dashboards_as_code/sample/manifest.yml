@@ -1,0 +1,14 @@
+format_version: 3.6.0
+name: sample
+title: "Dashboards-as-code Sample"
+version: 0.0.1
+description: "Fixture exercising the dashboards-as-code build step."
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.4.0"
+owner:
+  github: elastic/integrations
+  type: elastic

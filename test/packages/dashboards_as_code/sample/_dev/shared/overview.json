@@ -1,0 +1,37 @@
+{
+  "options": {
+    "hide_panel_titles": false,
+    "hide_panel_borders": false,
+    "use_margins": true,
+    "auto_apply_filters": true,
+    "sync_colors": false,
+    "sync_cursor": true,
+    "sync_tooltips": false
+  },
+  "query": {
+    "expression": "",
+    "language": "kql"
+  },
+  "title": "Dashboard [2026-05-07T16:07:44.633+01:00]",
+  "panels": [
+    {
+      "grid": {
+        "y": 0,
+        "x": 0,
+        "w": 6,
+        "h": 2
+      },
+      "config": {
+        "hide_title": true,
+        "hide_border": true,
+        "content": "test dashboard",
+        "settings": {
+          "open_links_in_new_tab": true
+        }
+      },
+      "id": "87c99aa8-295a-4d09-aad9-8e45d1c2ee1b",
+      "type": "markdown"
+    }
+  ],
+  "pinned_panels": []
+}

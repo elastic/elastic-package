@@ -5,6 +5,7 @@
 package builder
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/requiredinputs"
@@ -38,6 +40,12 @@ type BuildOptions struct {
 	UpdateReadmes          bool
 	SchemaURLs             fields.SchemaURLs
 	RequiredInputsResolver requiredinputs.Resolver
+
+	// KibanaClient is used by the dashboards-as-code build step to import the
+	// new-format dashboards under _dev/dashboards_as_code/ and re-export them
+	// in the saved-object format. May be nil when the package does not use the
+	// dashboards-as-code feature.
+	KibanaClient *kibana.Client
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -182,7 +190,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 }
 
 // BuildPackage function builds the package.
-func BuildPackage(options BuildOptions) (string, error) {
+func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	// buildPackageRoot is the directory where the built package content is placed
 	// eg. <buildDir>/packages/<package name>/<package version>
 	buildPackageRoot, err := BuildPackagesDirectory(options.PackageRoot, options.BuildDir)
@@ -195,6 +203,12 @@ func BuildPackage(options BuildOptions) (string, error) {
 	err = files.ClearDir(buildPackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("clearing package contents failed: %w", err)
+	}
+
+	logger.Debug("Compile dashboards-as-code")
+	err = compileDashboardsAsCode(ctx, options.KibanaClient, options.PackageRoot)
+	if err != nil {
+		return "", fmt.Errorf("compiling dashboards-as-code failed: %w", err)
 	}
 
 	logger.Debugf("Copy package content (source: %s)", options.PackageRoot)
