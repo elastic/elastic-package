@@ -41,22 +41,8 @@ func workflowFileName(pkgName, workflowName string) (string, error) {
 	return pkgName + "-" + slug + ".yml", nil
 }
 
-// fleetWorkflowFileName returns the name of the package file a Fleet-installed workflow was installed
-// from. Fleet encodes the file base in the workflow ID, lowercased and with "_" replaced by "-". The
-// package name prefix is restored with the actual package name.
-func fleetWorkflowFileName(pkgName, fileBase string) (string, error) {
-	normalizedPkgName := strings.ReplaceAll(strings.ToLower(pkgName), "_", "-")
-	suffix, found := strings.CutPrefix(fileBase, normalizedPkgName+"-")
-	if !found || suffix == "" {
-		return "", fmt.Errorf("workflow file %q was not installed from package %q", fileBase, pkgName)
-	}
-	return pkgName + "-" + suffix + ".yml", nil
-}
-
 // TransformWorkflow prepares a workflow, as exported from Kibana, to be stored in the given package.
-// It disables the workflow, preserving comments and key order.
-// Workflows installed by Fleet keep the name of the package file they were installed from, other
-// workflows are named after their name.
+// It disables the workflow, preserving comments and key order, and names the file after the workflow name.
 func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*WorkflowFile, error) {
 	var definition workflowDefinition
 	doc, err := yamledit.ParseDocumentBytes([]byte(workflow.YAML), &definition)
@@ -68,12 +54,7 @@ func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*Workf
 		return nil, fmt.Errorf("could not disable workflow %q: %w", definition.Name, err)
 	}
 
-	var fileName string
-	if fileBase, ok := kibana.FleetPackageWorkflowFileBase(workflow.ID); ok {
-		fileName, err = fleetWorkflowFileName(pkgName, fileBase)
-	} else {
-		fileName, err = workflowFileName(pkgName, definition.Name)
-	}
+	fileName, err := workflowFileName(pkgName, definition.Name)
 	if err != nil {
 		return nil, err
 	}

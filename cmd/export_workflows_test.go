@@ -13,92 +13,31 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
-const (
-	testFleetWorkflowID      = "system-fleet-package-workflow-37a8eec1ce19687d-8ed92b542831a71c-my-pkg-alert-triage"
-	testOtherFleetWorkflowID = "system-fleet-package-workflow-37a8eec1ce19687d-0123456789abcdef-other-alert-triage"
-)
-
 func testWorkflowYAML(name string) string {
 	return "name: " + name + "\nenabled: true\ntriggers:\n  - type: manual\nsteps:\n  - name: log\n    type: console\n"
 }
 
-func TestSelectableWorkflows(t *testing.T) {
-	workflows := []kibana.Workflow{
-		{ID: "authored", Name: "Authored"},
-		{ID: testFleetWorkflowID, Name: "Alert triage", Managed: true},
-		{ID: testOtherFleetWorkflowID, Name: "Other alert triage", Managed: true},
-		{ID: "system-security-alert-analysis", Name: "Security alert analysis", Managed: true},
-	}
-
-	t.Run("without installed workflows", func(t *testing.T) {
-		selectable := selectableWorkflows(workflows, nil)
-		assert.Equal(t, []kibana.Workflow{workflows[0]}, selectable)
-	})
-
-	t.Run("with workflows installed for the package", func(t *testing.T) {
-		selectable := selectableWorkflows(workflows, map[string]bool{testFleetWorkflowID: true})
-		assert.Equal(t, []kibana.Workflow{workflows[0], workflows[1]}, selectable)
-	})
-}
-
-func TestNoWorkflowsFoundMessage(t *testing.T) {
-	assert.Equal(t, "No workflows were found in Kibana.", noWorkflowsFoundMessage(true))
-	assert.Contains(t, noWorkflowsFoundMessage(false), "--managed")
-}
-
 func TestCheckWorkflowsExportable(t *testing.T) {
-	unmanaged := []kibana.Workflow{{ID: "authored", Name: "Authored"}}
-	installed := map[string]bool{testFleetWorkflowID: true}
+	unmanaged := []kibana.Workflow{{ID: "authored", Name: "Authored"}, {ID: "other", Name: "Other"}}
 
-	cases := []struct {
-		title       string
-		ids         []string
-		installed   map[string]bool
-		expectedErr string
-	}{
-		{title: "unmanaged workflows", ids: []string{"authored"}},
-		{title: "installed for the package", ids: []string{"authored", testFleetWorkflowID}, installed: installed},
-		{
-			title:       "installed for another package",
-			ids:         []string{testFleetWorkflowID, testOtherFleetWorkflowID},
-			installed:   installed,
-			expectedErr: "workflow " + testOtherFleetWorkflowID + " not found among the workflows authored by users, nor among the ones installed by Fleet for package my_pkg",
-		},
-		{
-			title:       "package not installed",
-			ids:         []string{testFleetWorkflowID},
-			expectedErr: "workflow " + testFleetWorkflowID + " not found",
-		},
-		{
-			title:       "system managed workflow",
-			ids:         []string{"authored", "system-security-alert-analysis"},
-			installed:   installed,
-			expectedErr: "workflow system-security-alert-analysis not found",
-		},
-	}
+	t.Run("unmanaged workflows", func(t *testing.T) {
+		require.NoError(t, checkWorkflowsExportable([]string{"authored", "other"}, unmanaged))
+	})
 
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			err := checkWorkflowsExportable(c.ids, unmanaged, c.installed, "my_pkg")
-			if c.expectedErr != "" {
-				require.ErrorContains(t, err, c.expectedErr)
-				return
-			}
-			require.NoError(t, err)
-		})
-	}
+	t.Run("managed workflow", func(t *testing.T) {
+		err := checkWorkflowsExportable([]string{"authored", "system-security-alert-analysis"}, unmanaged)
+		require.ErrorContains(t, err, "workflow system-security-alert-analysis not found among the workflows authored by users")
+	})
 }
 
 func TestTransformExportedWorkflows(t *testing.T) {
 	t.Run("file names", func(t *testing.T) {
 		files, err := transformExportedWorkflows("my_pkg", []kibana.ExportedWorkflow{
 			{ID: "authored", YAML: testWorkflowYAML("Authored Workflow")},
-			{ID: testFleetWorkflowID, YAML: testWorkflowYAML("Alert Triage (renamed)")},
 		})
 		require.NoError(t, err)
-		require.Len(t, files, 2)
+		require.Len(t, files, 1)
 		assert.Equal(t, "my_pkg-authored-workflow.yml", files[0].Name)
-		assert.Equal(t, "my_pkg-alert-triage.yml", files[1].Name)
 	})
 
 	t.Run("same file name", func(t *testing.T) {

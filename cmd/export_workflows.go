@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,11 +32,6 @@ func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.WorkflowIDsFlagName)
 	}
 	common.TrimStringSlice(workflowIDs)
-
-	includeManaged, err := cmd.Flags().GetBool(cobraext.WorkflowsManagedFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.WorkflowsManagedFlagName)
-	}
 
 	var opts []kibana.ClientOption
 	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
@@ -85,31 +79,22 @@ func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Warning: %s\n", message)
 	}
 
-	var installedIDs map[string]bool
-	if len(workflowIDs) > 0 || includeManaged {
-		installedIDs, err = kibanaClient.InstalledPackageWorkflowIDs(cmd.Context(), manifest.Name)
-		if err != nil {
-			return fmt.Errorf("getting workflows installed for package %s failed: %w", manifest.Name, err)
-		}
+	unmanaged, err := kibanaClient.ListWorkflows(cmd.Context(), kibana.ListWorkflowsOptions{Managed: kibana.WorkflowsUnmanagedOnly})
+	if err != nil {
+		return fmt.Errorf("listing workflows failed: %w", err)
 	}
 
 	if len(workflowIDs) == 0 {
-		workflowIDs, err = promptWorkflowIDs(cmd.Context(), kibanaClient, includeManaged, installedIDs)
+		workflowIDs, err = promptWorkflowIDs(unmanaged)
 		if err != nil {
 			return fmt.Errorf("selecting workflow IDs failed: %w", err)
 		}
 		if len(workflowIDs) == 0 {
-			fmt.Println(noWorkflowsFoundMessage(includeManaged))
+			fmt.Println("No workflows authored by users were found in Kibana.")
 			return nil
 		}
-	} else {
-		unmanaged, err := kibanaClient.ListWorkflows(cmd.Context(), kibana.ListWorkflowsOptions{Managed: kibana.WorkflowsUnmanagedOnly})
-		if err != nil {
-			return fmt.Errorf("listing workflows failed: %w", err)
-		}
-		if err := checkWorkflowsExportable(workflowIDs, unmanaged, installedIDs, manifest.Name); err != nil {
-			return err
-		}
+	} else if err := checkWorkflowsExportable(workflowIDs, unmanaged); err != nil {
+		return err
 	}
 
 	exported, err := kibanaClient.ExportWorkflows(cmd.Context(), workflowIDs)
@@ -138,19 +123,17 @@ func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// checkWorkflowsExportable returns an error if any of the given workflow IDs is neither an unmanaged
-// workflow, authored by users, nor a workflow installed by Fleet for the current package. This applies
-// the same rule as selectableWorkflows to explicitly requested IDs, so managed workflows such as
-// Kibana's system workflows, or the ones installed for other packages, are not exported as assets of
-// this package. Only unmanaged workflows are listed, as listing managed ones requires extra privileges.
-func checkWorkflowsExportable(ids []string, unmanaged []kibana.Workflow, installedIDs map[string]bool, pkgName string) error {
+// checkWorkflowsExportable returns an error if any of the given workflow IDs is not an unmanaged
+// workflow, authored by users. Managed workflows, such as Kibana's system workflows or the ones
+// installed by Fleet, are read-only and not exported as package assets.
+func checkWorkflowsExportable(ids []string, unmanaged []kibana.Workflow) error {
 	unmanagedIDs := make(map[string]bool, len(unmanaged))
 	for _, workflow := range unmanaged {
 		unmanagedIDs[workflow.ID] = true
 	}
 	for _, id := range ids {
-		if !unmanagedIDs[id] && !installedIDs[id] {
-			return fmt.Errorf("workflow %s not found among the workflows authored by users, nor among the ones installed by Fleet for package %s", id, pkgName)
+		if !unmanagedIDs[id] {
+			return fmt.Errorf("workflow %s not found among the workflows authored by users", id)
 		}
 	}
 	return nil
@@ -173,41 +156,8 @@ func transformExportedWorkflows(pkgName string, exported []kibana.ExportedWorkfl
 	return files, nil
 }
 
-// selectableWorkflows returns the workflows that can be exported to the current package: the
-// unmanaged ones, authored by users, and the ones installed by Fleet for this package. Other
-// managed workflows, such as Kibana's own system workflows, are excluded.
-func selectableWorkflows(workflows []kibana.Workflow, installedIDs map[string]bool) []kibana.Workflow {
-	var selectable []kibana.Workflow
-	for _, workflow := range workflows {
-		if !workflow.Managed || installedIDs[workflow.ID] {
-			selectable = append(selectable, workflow)
-		}
-	}
-	return selectable
-}
-
-func noWorkflowsFoundMessage(includeManaged bool) string {
-	if includeManaged {
-		return "No workflows were found in Kibana."
-	}
-	return fmt.Sprintf("No workflows authored by users were found in Kibana. Use --%s to include the workflows installed by Fleet for this package.", cobraext.WorkflowsManagedFlagName)
-}
-
-// promptWorkflowIDs prompts the user to select workflows to export. By default it only lists
-// unmanaged workflows, the ones authored by users. If includeManaged is set, it also lists the
-// workflows installed by Fleet for the current package.
-func promptWorkflowIDs(ctx context.Context, kibanaClient *kibana.Client, includeManaged bool, installedIDs map[string]bool) ([]string, error) {
-	listOptions := kibana.ListWorkflowsOptions{Managed: kibana.WorkflowsUnmanagedOnly}
-	if includeManaged {
-		listOptions.Managed = kibana.WorkflowsManagedAll
-	}
-
-	workflows, err := kibanaClient.ListWorkflows(ctx, listOptions)
-	if err != nil {
-		return nil, fmt.Errorf("listing workflows failed: %w", err)
-	}
-
-	workflows = selectableWorkflows(workflows, installedIDs)
+// promptWorkflowIDs prompts the user to select workflows to export among the given ones.
+func promptWorkflowIDs(workflows []kibana.Workflow) ([]string, error) {
 	if len(workflows) == 0 {
 		return nil, nil
 	}

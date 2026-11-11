@@ -209,9 +209,6 @@ const (
 	WorkflowIDsFlagName        = "id"
 	WorkflowIDsFlagDescription = "Kibana workflow IDs (comma-separated values)"
 
-	WorkflowsManagedFlagName        = "managed"
-	WorkflowsManagedFlagDescription = "also list the workflows installed by Fleet for the current package when selecting workflows to export"
-
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 

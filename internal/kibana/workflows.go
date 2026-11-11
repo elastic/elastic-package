@@ -8,16 +8,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
-
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const (
@@ -25,11 +21,6 @@ const (
 	WorkflowsManagedAll = "all"
 	// WorkflowsUnmanagedOnly lists only unmanaged workflows, the ones authored by users.
 	WorkflowsUnmanagedOnly = "unmanaged"
-
-	// fleetPackageWorkflowIDPrefix is the prefix of the IDs of workflows installed by Fleet from packages.
-	fleetPackageWorkflowIDPrefix = "system-fleet-package-workflow-"
-
-	workflowAssetType packages.AssetType = "workflow"
 
 	workflowsAPIVersion  = "2023-10-31"
 	workflowsMaxPageSize = 100
@@ -154,53 +145,6 @@ func (c *Client) ExportWorkflows(ctx context.Context, ids []string) ([]ExportedW
 	}
 
 	return resp.Entries, nil
-}
-
-// InstalledPackageWorkflowIDs returns the IDs of the workflows installed by Fleet for the given package,
-// in its installation space and in any additional space. Workflow IDs include a hash of their space, so
-// they don't collide across spaces. It returns an empty set if the package is not installed.
-func (c *Client) InstalledPackageWorkflowIDs(ctx context.Context, pkgName string) (map[string]bool, error) {
-	pkg, err := c.GetPackage(ctx, pkgName)
-	var notFound *ErrPackageNotFound
-	if errors.As(err, &notFound) {
-		return map[string]bool{}, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("could not get package %s: %w", pkgName, err)
-	}
-	if pkg.InstallationInfo == nil {
-		return map[string]bool{}, nil
-	}
-
-	ids := make(map[string]bool)
-	addWorkflowIDs := func(assets []packages.Asset) {
-		for _, asset := range assets {
-			if asset.Type == workflowAssetType {
-				ids[asset.ID] = true
-			}
-		}
-	}
-	addWorkflowIDs(pkg.InstallationInfo.InstalledKibanaAssets)
-	for _, assets := range pkg.InstallationInfo.AdditionalSpacesInstalledKibana {
-		addWorkflowIDs(assets)
-	}
-	return ids, nil
-}
-
-// FleetPackageWorkflowFileBase returns the file base of the package file a Fleet-installed workflow was
-// installed from, as encoded in its ID: lowercased and with "_" replaced by "-". It returns false if the
-// ID is not the ID of a Fleet-installed workflow.
-func FleetPackageWorkflowFileBase(id string) (string, bool) {
-	rest, found := strings.CutPrefix(id, fleetPackageWorkflowIDPrefix)
-	if !found {
-		return "", false
-	}
-	// The ID is "{prefix}{hash(space)}-{hash(package)}-{fileBase}".
-	parts := strings.SplitN(rest, "-", 3)
-	if len(parts) != 3 || parts[2] == "" {
-		return "", false
-	}
-	return parts[2], true
 }
 
 func (c *Client) checkWorkflowsSupport() error {
