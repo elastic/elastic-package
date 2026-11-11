@@ -81,8 +81,7 @@ func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*Workf
 		return nil, fmt.Errorf("invalid workflow: %w", err)
 	}
 
-	// Package workflows must be disabled, users enable them after installation.
-	if _, err := doc.SetKeyValue("$", "enabled", false, yamledit.IndexAppend); err != nil {
+	if err := disableWorkflow(doc); err != nil {
 		return nil, fmt.Errorf("could not disable workflow %q: %w", definition.Name, err)
 	}
 
@@ -105,4 +104,11 @@ func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*Workf
 	}
 
 	return &WorkflowFile{Name: fileName, Content: buf.Bytes()}, nil
+}
+
+// disableWorkflow sets "enabled: false" in the workflow document. Package workflows must be
+// disabled, users enable them after installation.
+func disableWorkflow(doc *yamledit.Document) error {
+	_, err := doc.SetKeyValue("$", "enabled", false, yamledit.IndexAppend)
+	return err
 }
