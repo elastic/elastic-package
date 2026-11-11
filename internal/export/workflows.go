@@ -91,6 +91,8 @@ func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*Workf
 
 // disableWorkflow sets "enabled: false" in the workflow document. Package workflows must be
 // disabled, users enable them after installation.
+// If more document mutations are needed, compose them as a []func(*yamledit.Document) error
+// pipeline, similar to objectTransformer.
 func disableWorkflow(doc *yamledit.Document) error {
 	_, err := doc.SetKeyValue("$", "enabled", false, yamledit.IndexAppend)
 	return err
