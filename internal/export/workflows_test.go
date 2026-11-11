@@ -99,14 +99,9 @@ steps:
 `,
 		},
 		{
-			title:       "missing required fields",
+			title:       "missing name",
 			content:     "description: nothing else\n",
-			expectedErr: "invalid workflow: missing name\nmissing triggers\nmissing steps",
-		},
-		{
-			title:       "empty steps",
-			content:     "name: Test\ntriggers:\n  - type: manual\nsteps: []\n",
-			expectedErr: "missing steps",
+			expectedErr: `cannot build a file name from workflow name ""`,
 		},
 		{
 			title:       "invalid yaml",

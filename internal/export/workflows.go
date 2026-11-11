@@ -6,7 +6,6 @@ package export
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -28,9 +27,7 @@ type WorkflowFile struct {
 }
 
 type workflowDefinition struct {
-	Name     string `yaml:"name"`
-	Triggers []any  `yaml:"triggers"`
-	Steps    []any  `yaml:"steps"`
+	Name string `yaml:"name"`
 }
 
 // workflowFileName returns the name of the file that stores the workflow with the given name
@@ -57,7 +54,7 @@ func fleetWorkflowFileName(pkgName, fileBase string) (string, error) {
 }
 
 // TransformWorkflow prepares a workflow, as exported from Kibana, to be stored in the given package.
-// It validates the required fields and disables the workflow, preserving comments and key order.
+// It disables the workflow, preserving comments and key order.
 // Workflows installed by Fleet keep the name of the package file they were installed from, other
 // workflows are named after their name.
 func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*WorkflowFile, error) {
@@ -65,20 +62,6 @@ func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*Workf
 	doc, err := yamledit.ParseDocumentBytes([]byte(workflow.YAML), &definition)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse workflow: %w", err)
-	}
-
-	var errs []error
-	if definition.Name == "" {
-		errs = append(errs, errors.New("missing name"))
-	}
-	if len(definition.Triggers) == 0 {
-		errs = append(errs, errors.New("missing triggers"))
-	}
-	if len(definition.Steps) == 0 {
-		errs = append(errs, errors.New("missing steps"))
-	}
-	if err := errors.Join(errs...); err != nil {
-		return nil, fmt.Errorf("invalid workflow: %w", err)
 	}
 
 	if err := disableWorkflow(doc); err != nil {

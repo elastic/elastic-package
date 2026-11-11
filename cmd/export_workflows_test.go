@@ -114,7 +114,7 @@ func TestTransformExportedWorkflows(t *testing.T) {
 
 	t.Run("invalid workflow", func(t *testing.T) {
 		_, err := transformExportedWorkflows("my_pkg", []kibana.ExportedWorkflow{
-			{ID: "invalid", YAML: "name: Invalid\n"},
+			{ID: "invalid", YAML: "name: [unclosed\n"},
 		})
 		require.ErrorContains(t, err, "transforming workflow invalid failed")
 	})
