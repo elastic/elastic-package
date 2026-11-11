@@ -34,14 +34,6 @@ func TestListWorkflows(t *testing.T) {
 		}
 	})
 
-	t.Run("all", func(t *testing.T) {
-		workflows, err := client.ListWorkflows(t.Context(), kibana.ListWorkflowsOptions{Managed: kibana.WorkflowsManagedAll})
-		require.NoError(t, err)
-
-		assert.Contains(t, workflowIDs(workflows), id)
-		assert.True(t, containsManagedWorkflow(workflows), "expected managed workflows to be listed")
-	})
-
 	t.Run("query", func(t *testing.T) {
 		workflows, err := client.ListWorkflows(t.Context(), kibana.ListWorkflowsOptions{Query: testWorkflowName})
 		require.NoError(t, err)
@@ -116,13 +108,4 @@ func workflowIDs(workflows []kibana.Workflow) []string {
 		ids = append(ids, w.ID)
 	}
 	return ids
-}
-
-func containsManagedWorkflow(workflows []kibana.Workflow) bool {
-	for _, w := range workflows {
-		if w.Managed {
-			return true
-		}
-	}
-	return false
 }

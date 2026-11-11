@@ -17,8 +17,6 @@ import (
 )
 
 const (
-	// WorkflowsManagedAll lists both managed and unmanaged workflows.
-	WorkflowsManagedAll = "all"
 	// WorkflowsUnmanagedOnly lists only unmanaged workflows, the ones authored by users.
 	WorkflowsUnmanagedOnly = "unmanaged"
 
@@ -48,8 +46,8 @@ type ExportedWorkflow struct {
 
 // ListWorkflowsOptions are the options to filter the workflows listed by ListWorkflows.
 type ListWorkflowsOptions struct {
-	// Managed filters by managed status, one of WorkflowsManagedAll or WorkflowsUnmanagedOnly.
-	// Kibana defaults to WorkflowsUnmanagedOnly when empty.
+	// Managed filters by managed status. Only WorkflowsUnmanagedOnly is supported, which is also
+	// Kibana's default when empty.
 	Managed string
 	// Query is a free-text search query.
 	Query string

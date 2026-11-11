@@ -51,7 +51,7 @@ func TestListWorkflowsPagination(t *testing.T) {
 		require.NoError(t, json.NewEncoder(w).Encode(resp))
 	})
 
-	workflows, err := client.ListWorkflows(t.Context(), ListWorkflowsOptions{Managed: WorkflowsManagedAll, Query: "alert"})
+	workflows, err := client.ListWorkflows(t.Context(), ListWorkflowsOptions{Managed: WorkflowsUnmanagedOnly, Query: "alert"})
 	require.NoError(t, err)
 
 	assert.Len(t, workflows, total)
@@ -65,7 +65,7 @@ func TestListWorkflowsPagination(t *testing.T) {
 		assert.Equal(t, workflowsAPIVersion, r.Header.Get("elastic-api-version"))
 		assert.Equal(t, strconv.Itoa(i+1), r.URL.Query().Get("page"))
 		assert.Equal(t, "100", r.URL.Query().Get("size"))
-		assert.Equal(t, "all", r.URL.Query().Get("managed"))
+		assert.Equal(t, "unmanaged", r.URL.Query().Get("managed"))
 		assert.Equal(t, "alert", r.URL.Query().Get("query"))
 	}
 }
