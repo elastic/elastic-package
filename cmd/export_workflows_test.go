@@ -5,14 +5,11 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
@@ -117,25 +114,5 @@ func TestTransformExportedWorkflows(t *testing.T) {
 			{ID: "invalid", YAML: "name: [unclosed\n"},
 		})
 		require.ErrorContains(t, err, "transforming workflow invalid failed")
-	})
-}
-
-func TestCheckWorkflowFilesNotExist(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "my_pkg-existing.yml"), []byte("name: existing\n"), 0644))
-
-	t.Run("new files", func(t *testing.T) {
-		err := checkWorkflowFilesNotExist(dir, []*export.WorkflowFile{{Name: "my_pkg-new.yml"}})
-		require.NoError(t, err)
-	})
-
-	t.Run("directory does not exist", func(t *testing.T) {
-		err := checkWorkflowFilesNotExist(filepath.Join(dir, "missing"), []*export.WorkflowFile{{Name: "my_pkg-new.yml"}})
-		require.NoError(t, err)
-	})
-
-	t.Run("existing file", func(t *testing.T) {
-		err := checkWorkflowFilesNotExist(dir, []*export.WorkflowFile{{Name: "my_pkg-new.yml"}, {Name: "my_pkg-existing.yml"}})
-		require.ErrorContains(t, err, "my_pkg-existing.yml already exists, use --force to overwrite it")
 	})
 }

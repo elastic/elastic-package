@@ -6,9 +6,7 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -39,11 +37,6 @@ func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 	includeManaged, err := cmd.Flags().GetBool(cobraext.WorkflowsManagedFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.WorkflowsManagedFlagName)
-	}
-
-	force, err := cmd.Flags().GetBool(cobraext.WorkflowsForceFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.WorkflowsForceFlagName)
 	}
 
 	var opts []kibana.ClientOption
@@ -130,12 +123,6 @@ func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	workflowsDir := filepath.Join(packageRoot, export.WorkflowsDir)
-	if !force {
-		if err := checkWorkflowFilesNotExist(workflowsDir, files); err != nil {
-			return err
-		}
-	}
-
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		return fmt.Errorf("creating workflows directory failed: %w", err)
 	}
@@ -184,20 +171,6 @@ func transformExportedWorkflows(pkgName string, exported []kibana.ExportedWorkfl
 		files = append(files, file)
 	}
 	return files, nil
-}
-
-func checkWorkflowFilesNotExist(workflowsDir string, files []*export.WorkflowFile) error {
-	for _, file := range files {
-		path := filepath.Join(workflowsDir, file.Name)
-		_, err := os.Stat(path)
-		if err == nil {
-			return fmt.Errorf("workflow file %s already exists, use --%s to overwrite it", path, cobraext.WorkflowsForceFlagName)
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("checking workflow file %s failed: %w", path, err)
-		}
-	}
-	return nil
 }
 
 // selectableWorkflows returns the workflows that can be exported to the current package: the

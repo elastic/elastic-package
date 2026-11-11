@@ -34,7 +34,7 @@ The exported YAML is kept as authored in Kibana, including comments, with these 
 
 Known issue: for workflows that Fleet installed from the package, Kibana returns YAML regenerated from the stored definition, not the file shipped in the package. Exporting them with `--managed` drops the comments and the original formatting of the package file, for example by folding multi-line queries. This will be addressed when editing package workflows in Kibana is supported.
 
-The command fails if a workflow file already exists. Use `--force` to overwrite it.
+Existing workflow files with the same name are overwritten.
 
 ## Check and build the package
 

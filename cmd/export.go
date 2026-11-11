@@ -48,7 +48,6 @@ func setupExportCommand() *cobraext.Command {
 	}
 	exportWorkflowsCmd.Flags().StringSliceP(cobraext.WorkflowIDsFlagName, "d", nil, cobraext.WorkflowIDsFlagDescription)
 	exportWorkflowsCmd.Flags().Bool(cobraext.WorkflowsManagedFlagName, false, cobraext.WorkflowsManagedFlagDescription)
-	exportWorkflowsCmd.Flags().Bool(cobraext.WorkflowsForceFlagName, false, cobraext.WorkflowsForceFlagDescription)
 	exportWorkflowsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportWorkflowsCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 

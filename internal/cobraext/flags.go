@@ -212,9 +212,6 @@ const (
 	WorkflowsManagedFlagName        = "managed"
 	WorkflowsManagedFlagDescription = "also list the workflows installed by Fleet for the current package when selecting workflows to export"
 
-	WorkflowsForceFlagName        = "force"
-	WorkflowsForceFlagDescription = "overwrite workflow files that already exist in the package"
-
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
