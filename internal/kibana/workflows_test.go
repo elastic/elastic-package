@@ -7,7 +7,6 @@ package kibana
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -35,7 +34,9 @@ func newWorkflowsTestClient(t *testing.T, version string, handler http.HandlerFu
 	return client
 }
 
-func TestListWorkflows(t *testing.T) {
+// TestListWorkflowsPagination uses a stub server because a real stack doesn't have enough workflows
+// to span several pages. The API responses are covered by recorded tests in workflows_export_test.go.
+func TestListWorkflowsPagination(t *testing.T) {
 	const total = 150
 	var requests []*http.Request
 	client := newWorkflowsTestClient(t, "9.7.0-SNAPSHOT", func(w http.ResponseWriter, r *http.Request) {
@@ -79,42 +80,6 @@ func TestListWorkflowsError(t *testing.T) {
 	require.ErrorContains(t, err, "API status code = 403")
 }
 
-func TestExportWorkflows(t *testing.T) {
-	client := newWorkflowsTestClient(t, "9.7.0", func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/api/workflows/export", r.URL.Path)
-		assert.Equal(t, workflowsAPIVersion, r.Header.Get("elastic-api-version"))
-
-		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		var req exportWorkflowsRequest
-		require.NoError(t, json.Unmarshal(body, &req))
-
-		var resp exportWorkflowsResponse
-		for _, id := range req.IDs {
-			if id == "missing" {
-				continue
-			}
-			resp.Entries = append(resp.Entries, ExportedWorkflow{ID: id, YAML: "name: " + id + "\n"})
-		}
-		require.NoError(t, json.NewEncoder(w).Encode(resp))
-	})
-
-	t.Run("all found", func(t *testing.T) {
-		exported, err := client.ExportWorkflows(t.Context(), []string{"a", "b"})
-		require.NoError(t, err)
-		assert.Equal(t, []ExportedWorkflow{
-			{ID: "a", YAML: "name: a\n"},
-			{ID: "b", YAML: "name: b\n"},
-		}, exported)
-	})
-
-	t.Run("missing workflow", func(t *testing.T) {
-		_, err := client.ExportWorkflows(t.Context(), []string{"a", "missing"})
-		require.ErrorContains(t, err, `workflow "missing" not found`)
-	})
-}
-
 func TestWorkflowsUnsupportedKibanaVersion(t *testing.T) {
 	client := newWorkflowsTestClient(t, "9.4.6", func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("unexpected request to %s", r.URL)
@@ -153,6 +118,9 @@ func TestFleetPackageWorkflowFileBase(t *testing.T) {
 	}
 }
 
+// TestInstalledPackageWorkflowIDs uses a stub server because Fleet doesn't install workflows from
+// packages yet. The response shape follows https://github.com/elastic/kibana/pull/299129.
+// TODO: Replace with a recorded test once a released Kibana installs workflow assets.
 func TestInstalledPackageWorkflowIDs(t *testing.T) {
 	cases := []struct {
 		title    string
