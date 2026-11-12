@@ -4,7 +4,7 @@
 
 Integration packages can ship [Kibana Workflows](https://www.elastic.co/docs/explore-analyze/workflows) as assets, stored as YAML files in the `kibana/workflow` directory of the package. Fleet installs them as managed workflows when the package is installed.
 
-Workflow assets require an integration package with `format_version: 3.8.0` or later, and Kibana 9.7.0 or later set in the package manifest with `conditions.kibana.version`. `elastic-package check` reports an error if the package doesn't meet these requirements.
+Workflow assets are supported in integration packages of any `format_version`. Fleet installs them in Kibana 9.7.0 and later, and earlier versions ignore them, so set `conditions.kibana.version` in the package manifest accordingly (for example, `^9.7.0`).
 
 ## Author a workflow in Kibana
 
