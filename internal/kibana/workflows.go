@@ -64,6 +64,11 @@ type exportWorkflowsRequest struct {
 	IDs []string `json:"ids"`
 }
 
+type createWorkflowRequest struct {
+	ID   string `json:"id"`
+	YAML string `json:"yaml"`
+}
+
 type exportWorkflowsResponse struct {
 	Entries []ExportedWorkflow `json:"entries"`
 }
@@ -143,6 +148,59 @@ func (c *Client) ExportWorkflows(ctx context.Context, ids []string) ([]ExportedW
 	}
 
 	return resp.Entries, nil
+}
+
+// GetWorkflow gets the workflow with the given ID in the current space. found is false if
+// there is no such workflow.
+func (c *Client) GetWorkflow(ctx context.Context, id string) (Workflow, bool, error) {
+	if err := c.checkWorkflowsSupport(); err != nil {
+		return Workflow{}, false, err
+	}
+
+	statusCode, respBody, err := c.sendWorkflowsRequest(ctx, http.MethodGet, "/api/workflows/workflow/"+url.PathEscape(id), nil)
+	if err != nil {
+		return Workflow{}, false, fmt.Errorf("could not get workflow %q: %w", id, err)
+	}
+	switch statusCode {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		return Workflow{}, false, nil
+	default:
+		return Workflow{}, false, fmt.Errorf("could not get workflow %q; API status code = %d; response body = %s", id, statusCode, respBody)
+	}
+
+	var workflow Workflow
+	if err := json.Unmarshal(respBody, &workflow); err != nil {
+		return Workflow{}, false, fmt.Errorf("could not decode workflow %q: %w", id, err)
+	}
+	return workflow, true, nil
+}
+
+// CreateWorkflow creates a workflow with the given ID from its YAML definition. Kibana fails if
+// the ID is already taken.
+func (c *Client) CreateWorkflow(ctx context.Context, id, yaml string) (Workflow, error) {
+	if err := c.checkWorkflowsSupport(); err != nil {
+		return Workflow{}, err
+	}
+
+	body, err := json.Marshal(createWorkflowRequest{ID: id, YAML: yaml})
+	if err != nil {
+		return Workflow{}, fmt.Errorf("could not encode workflow creation request: %w", err)
+	}
+
+	statusCode, respBody, err := c.sendWorkflowsRequest(ctx, http.MethodPost, "/api/workflows/workflow", body)
+	if err != nil {
+		return Workflow{}, fmt.Errorf("could not create workflow %q: %w", id, err)
+	}
+	if statusCode != http.StatusOK {
+		return Workflow{}, fmt.Errorf("could not create workflow %q; API status code = %d; response body = %s", id, statusCode, respBody)
+	}
+
+	var workflow Workflow
+	if err := json.Unmarshal(respBody, &workflow); err != nil {
+		return Workflow{}, fmt.Errorf("could not decode created workflow %q: %w", id, err)
+	}
+	return workflow, nil
 }
 
 func (c *Client) checkWorkflowsSupport() error {
