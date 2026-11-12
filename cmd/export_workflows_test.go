@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,28 +32,48 @@ func TestCheckWorkflowsExportable(t *testing.T) {
 	})
 }
 
+func TestListWorkflowFiles(t *testing.T) {
+	t.Run("missing directory", func(t *testing.T) {
+		files, err := listWorkflowFiles(filepath.Join(t.TempDir(), "kibana", "workflow"))
+		require.NoError(t, err)
+		assert.Empty(t, files)
+	})
+
+	t.Run("existing files", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "my_pkg-alert-triage.yml"), nil, 0644))
+		require.NoError(t, os.Mkdir(filepath.Join(dir, "subdir"), 0755))
+
+		files, err := listWorkflowFiles(dir)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"my_pkg-alert-triage.yml"}, files)
+	})
+}
+
 func TestTransformExportedWorkflows(t *testing.T) {
 	t.Run("file names", func(t *testing.T) {
 		files, err := transformExportedWorkflows("my_pkg", []kibana.ExportedWorkflow{
 			{ID: "authored", YAML: testWorkflowYAML("Authored Workflow")},
-		})
+			{ID: "my-pkg-alert-triage", YAML: testWorkflowYAML("Alert Triage Renamed")},
+		}, []string{"my_pkg-alert-triage.yml"})
 		require.NoError(t, err)
-		require.Len(t, files, 1)
+		require.Len(t, files, 2)
 		assert.Equal(t, "my_pkg-authored-workflow.yml", files[0].Name)
+		assert.Equal(t, "my_pkg-alert-triage.yml", files[1].Name)
 	})
 
 	t.Run("same file name", func(t *testing.T) {
 		_, err := transformExportedWorkflows("my_pkg", []kibana.ExportedWorkflow{
 			{ID: "first", YAML: testWorkflowYAML("Alert Triage")},
 			{ID: "second", YAML: testWorkflowYAML("alert triage")},
-		})
+		}, nil)
 		require.ErrorContains(t, err, "workflows first and second would be exported to the same file my_pkg-alert-triage.yml")
 	})
 
 	t.Run("invalid workflow", func(t *testing.T) {
 		_, err := transformExportedWorkflows("my_pkg", []kibana.ExportedWorkflow{
 			{ID: "invalid", YAML: "name: [unclosed\n"},
-		})
+		}, nil)
 		require.ErrorContains(t, err, "transforming workflow invalid failed")
 	})
 }

@@ -431,7 +431,7 @@ _Context: package_
 
 Use this command to export workflows from the Kibana instance.
 
-Use this command to download selected workflows from Kibana and store them as workflow assets of the package, in the kibana/workflow directory. Workflows are stored disabled, as required for package assets, in files named after the package and the workflow name.
+Use this command to download selected workflows from Kibana and store them as workflow assets of the package, in the kibana/workflow directory. Workflows are stored disabled, as required for package assets, in files named after the package and the workflow name. Workflows made editable with elastic-package edit workflows are stored in the file they were installed from.
 
 ### `elastic-package find [flags]`
 
