@@ -46,7 +46,7 @@ func TestTransformWorkflow(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join("testdata", "workflows", "alert_triage.kibana.yml"))
 		require.NoError(t, err)
 
-		file, err := TransformWorkflow("my_pkg", kibana.ExportedWorkflow{ID: "alert-triage-v2", YAML: string(content)})
+		file, err := TransformWorkflow("my_pkg", kibana.ExportedWorkflow{ID: "alert-triage-v2", YAML: string(content)}, nil)
 		require.NoError(t, err)
 
 		expected, err := os.ReadFile(filepath.Join("testdata", "workflows", file.Name))
@@ -112,7 +112,7 @@ steps:
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			file, err := TransformWorkflow("my_pkg", kibana.ExportedWorkflow{ID: "test", YAML: c.content})
+			file, err := TransformWorkflow("my_pkg", kibana.ExportedWorkflow{ID: "test", YAML: c.content}, nil)
 			if c.expectedErr != "" {
 				require.ErrorContains(t, err, c.expectedErr)
 				return
@@ -120,6 +120,29 @@ steps:
 			require.NoError(t, err)
 			assert.Equal(t, "my_pkg-test.yml", file.Name)
 			assert.Equal(t, c.expected, string(file.Content))
+		})
+	}
+}
+
+func TestTransformWorkflowExistingFile(t *testing.T) {
+	content := "name: Alert Triage Renamed\nenabled: true\ntriggers:\n  - type: manual\nsteps:\n  - name: log\n    type: console\n"
+	existingFiles := []string{"my_pkg-other.yml", "my_pkg-alert-triage.yml", "README.md"}
+
+	cases := []struct {
+		title    string
+		id       string
+		expected string
+	}{
+		{title: "ID matches an existing file", id: "my-pkg-alert-triage", expected: "my_pkg-alert-triage.yml"},
+		{title: "no matching file", id: "8f3c0f4e-2b8a-4d2e-9d47-0f8f5f5b6c1a", expected: "my_pkg-alert-triage-renamed.yml"},
+		{title: "ID matches a non-workflow file", id: "readme", expected: "my_pkg-alert-triage-renamed.yml"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			file, err := TransformWorkflow("my_pkg", kibana.ExportedWorkflow{ID: c.id, YAML: content}, existingFiles)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, file.Name)
 		})
 	}
 }

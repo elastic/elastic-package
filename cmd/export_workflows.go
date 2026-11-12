@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ import (
 
 const exportWorkflowsLongDescription = `Use this command to export workflows from the Kibana instance.
 
-Use this command to download selected workflows from Kibana and store them as workflow assets of the package, in the kibana/workflow directory. Workflows are stored disabled, as required for package assets, in files named after the package and the workflow name.`
+Use this command to download selected workflows from Kibana and store them as workflow assets of the package, in the kibana/workflow directory. Workflows are stored disabled, as required for package assets, in files named after the package and the workflow name. Workflows made editable with elastic-package edit workflows are stored in the file they were installed from.`
 
 func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Kibana workflows")
@@ -102,12 +103,17 @@ func exportWorkflowsCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("exporting workflows failed: %w", err)
 	}
 
-	files, err := transformExportedWorkflows(manifest.Name, exported)
+	workflowsDir := filepath.Join(packageRoot, export.WorkflowsDir)
+	existingFiles, err := listWorkflowFiles(workflowsDir)
 	if err != nil {
 		return err
 	}
 
-	workflowsDir := filepath.Join(packageRoot, export.WorkflowsDir)
+	files, err := transformExportedWorkflows(manifest.Name, exported, existingFiles)
+	if err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
 		return fmt.Errorf("creating workflows directory failed: %w", err)
 	}
@@ -139,11 +145,30 @@ func checkWorkflowsExportable(ids []string, unmanaged []kibana.Workflow) error {
 	return nil
 }
 
-func transformExportedWorkflows(pkgName string, exported []kibana.ExportedWorkflow) ([]*export.WorkflowFile, error) {
+// listWorkflowFiles returns the names of the files in the workflows directory of the package.
+// It returns an empty list if the directory doesn't exist.
+func listWorkflowFiles(workflowsDir string) ([]string, error) {
+	entries, err := os.ReadDir(workflowsDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading workflows directory failed: %w", err)
+	}
+	var files []string
+	for _, entry := range entries {
+		if entry.Type().IsRegular() {
+			files = append(files, entry.Name())
+		}
+	}
+	return files, nil
+}
+
+func transformExportedWorkflows(pkgName string, exported []kibana.ExportedWorkflow, existingFiles []string) ([]*export.WorkflowFile, error) {
 	files := make([]*export.WorkflowFile, 0, len(exported))
 	sources := make(map[string]string, len(exported))
 	for _, workflow := range exported {
-		file, err := export.TransformWorkflow(pkgName, workflow)
+		file, err := export.TransformWorkflow(pkgName, workflow, existingFiles)
 		if err != nil {
 			return nil, fmt.Errorf("transforming workflow %s failed: %w", workflow.ID, err)
 		}

@@ -41,9 +41,28 @@ func workflowFileName(pkgName, workflowName string) (string, error) {
 	return pkgName + "-" + slug + ".yml", nil
 }
 
+// existingWorkflowFileName returns the file, among the given existing ones, whose workflow is
+// installed with the given ID, or an empty string if there is none. Fleet installs a workflow with
+// an ID that ends with its file base, lowercased and with "_" replaced by "-", and
+// "edit workflows" makes it editable with that suffix as ID.
+func existingWorkflowFileName(workflowID string, existingFiles []string) string {
+	for _, fileName := range existingFiles {
+		fileBase, found := strings.CutSuffix(fileName, ".yml")
+		if !found {
+			continue
+		}
+		if strings.ReplaceAll(strings.ToLower(fileBase), "_", "-") == workflowID {
+			return fileName
+		}
+	}
+	return ""
+}
+
 // TransformWorkflow prepares a workflow, as exported from Kibana, to be stored in the given package.
-// It disables the workflow, preserving comments and key order, and names the file after the workflow name.
-func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*WorkflowFile, error) {
+// It disables the workflow, preserving comments and key order. If the workflow ID matches one of the
+// existing files, as with workflows made editable with "edit workflows", it is stored in that file.
+// Otherwise, the file is named after the workflow name.
+func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow, existingFiles []string) (*WorkflowFile, error) {
 	var definition workflowDefinition
 	doc, err := yamledit.ParseDocumentBytes([]byte(workflow.YAML), &definition)
 	if err != nil {
@@ -54,9 +73,12 @@ func TransformWorkflow(pkgName string, workflow kibana.ExportedWorkflow) (*Workf
 		return nil, fmt.Errorf("could not disable workflow %q: %w", definition.Name, err)
 	}
 
-	fileName, err := workflowFileName(pkgName, definition.Name)
-	if err != nil {
-		return nil, err
+	fileName := existingWorkflowFileName(workflow.ID, existingFiles)
+	if fileName == "" {
+		fileName, err = workflowFileName(pkgName, definition.Name)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var buf bytes.Buffer
