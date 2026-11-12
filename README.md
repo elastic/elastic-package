@@ -393,7 +393,7 @@ Use this command as an exploratory tool to dump objects as they are installed by
 
 _Context: package_
 
-Use this command to edit assets relevant for the package, e.g. Kibana dashboards.
+Use this command to edit assets relevant for the package, e.g. Kibana dashboards or workflows.
 
 ### `elastic-package edit dashboards`
 
@@ -402,6 +402,16 @@ _Context: package_
 Use this command to make dashboards editable.
 
 Pass a comma-separated list of dashboard ids with -d or use the interactive prompt to make managed dashboards editable in Kibana.
+
+### `elastic-package edit workflows`
+
+_Context: package_
+
+Use this command to make workflows editable.
+
+Pass a comma-separated list of workflow ids with -d or use the interactive prompt to make managed workflows editable in Kibana.
+
+Workflows installed by Fleet are read-only, so this command creates an editable copy of each one, with the name of its file in the package as ID. Export the copy with elastic-package export workflows to update that file.
 
 ### `elastic-package export`
 
