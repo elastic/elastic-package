@@ -2,6 +2,9 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/stack_parameters.sh"
+
 cleanup() {
   local r=$?
   if [ "${r}" -ne 0 ]; then
@@ -67,6 +70,8 @@ elastic-package stack up -d -v
 
 eval "$(elastic-package stack shellinit)"
 
+stackVersion=$(default_stack_version)
+
 # Install packages from working copy
 for d in test/packages/*/*/; do
   # Added set +x in a sub-shell to avoid printing the testype command in the output
@@ -78,6 +83,11 @@ for d in test/packages/*/*/; do
   fi
   # Composable packages are tested separately via test-composable-packages.sh.
   if [ "${packageTestType}" == "composable" ]; then
+    continue
+  fi
+  # Packages pinned to a newer stack are tested on that stack by test-check-packages.sh.
+  if requires_newer_stack "$d" "${stackVersion}"; then
+    echo "--- Skipping package: ${d} (requires a stack newer than ${stackVersion})"
     continue
   fi
   package_name=$(yq -r '.name' "${d}/manifest.yml")
