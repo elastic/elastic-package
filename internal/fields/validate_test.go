@@ -118,13 +118,42 @@ func TestValidate_WithStringNumberFields(t *testing.T) {
 		WithStringNumberFields([]string{
 			"foo.count",  // Contains a number as string.
 			"foo.metric", // Contains a floating number as string.
+			"foo.signal", // Contains an integer as string.
 		}),
-		WithSpecVersion("2.3.0"), // Needed to validate normalization.
+		WithSpecVersion("3.8.0"), // Needed to validate normalization and all numeric types.
 		WithDisabledDependencyManagement())
 
 	e := readSampleEvent(t, "testdata/stringnumbers.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
+}
+
+func TestValidate_WithoutStringNumberFields(t *testing.T) {
+	t.Run("3.8.0", func(t *testing.T) {
+		validator := createValidatorForTestdata(t,
+			WithSpecVersion("3.8.0"),
+			WithDisabledDependencyManagement())
+
+		e := readSampleEvent(t, "testdata/stringnumbers.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Len(t, errs, 3)
+		assert.ErrorContains(t, errs, `field "foo.count"'s Go type, string, does not match the expected field type: long`)
+		assert.ErrorContains(t, errs, `field "foo.metric"'s Go type, string, does not match the expected field type: double`)
+		assert.ErrorContains(t, errs, `field "foo.signal"'s Go type, string, does not match the expected field type: integer`)
+	})
+
+	// Before 3.8.0, only float, long and double fields are validated.
+	t.Run("3.7.0", func(t *testing.T) {
+		validator := createValidatorForTestdata(t,
+			WithSpecVersion("3.7.0"),
+			WithDisabledDependencyManagement())
+
+		e := readSampleEvent(t, "testdata/stringnumbers.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Len(t, errs, 2)
+		assert.ErrorContains(t, errs, `field "foo.count"'s Go type, string, does not match the expected field type: long`)
+		assert.ErrorContains(t, errs, `field "foo.metric"'s Go type, string, does not match the expected field type: double`)
+	})
 }
 
 func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
@@ -816,6 +845,155 @@ func Test_parseElementValue(t *testing.T) {
 			} else {
 				assert.Empty(t, errs)
 			}
+		})
+	}
+}
+
+func Test_parseElementValueNumericTypes(t *testing.T) {
+	numericTypes := []string{
+		"long", "integer", "short", "byte", "unsigned_long",
+		"double", "float", "half_float", "scaled_float",
+	}
+	for _, fieldType := range numericTypes {
+		for _, test := range []struct {
+			title              string
+			value              any
+			stringNumberFields []string
+			fail               bool
+		}{
+			{title: "number", value: float64(-89)},
+			{title: "json number", value: json.Number("7.0")},
+			{title: "array of numbers", value: []any{float64(1), json.Number("2")}},
+			{title: "string with unit", value: "-89 dBm", fail: true},
+			{title: "numeric string", value: "-54", fail: true},
+			{title: "allowed numeric string", value: "-54", stringNumberFields: []string{"signal"}},
+			{title: "allowed non-numeric string", value: "-89 dBm", stringNumberFields: []string{"signal"}, fail: true},
+			{title: "boolean", value: true, fail: true},
+			{title: "object", value: map[string]any{"value": float64(1)}, fail: true},
+		} {
+			t.Run(fieldType+"/"+test.title, func(t *testing.T) {
+				definition := FieldDefinition{Name: "signal", Type: fieldType}
+				v := Validator{
+					Schema:                       []FieldDefinition{definition},
+					disabledDependencyManagement: true,
+					stringNumberFields:           test.stringNumberFields,
+					specVersion:                  *semver3_8_0,
+				}
+
+				errs := v.parseElementValue("signal", definition, test.value, common.MapStr{})
+				if test.fail {
+					require.Len(t, errs, 1)
+					assert.Regexp(t, "(does not match the expected field type: |cannot be indexed as )"+fieldType+`\b`, errs[0].Error())
+				} else {
+					assert.Empty(t, errs)
+				}
+			})
+		}
+	}
+}
+
+func Test_parseElementValueNumericTypesStringNumberFieldsCoercion(t *testing.T) {
+	// strconv.ParseFloat accepts these, but Elasticsearch cannot coerce them,
+	// so they fail even for fields listed in string_number_fields.
+	coercedTypes := []string{"integer", "short", "byte", "unsigned_long", "half_float", "scaled_float"}
+	for _, fieldType := range coercedTypes {
+		for _, value := range []string{"1_000", "Inf", "0x1p3"} {
+			t.Run(fieldType+"/"+value, func(t *testing.T) {
+				definition := FieldDefinition{Name: "signal", Type: fieldType}
+				v := Validator{
+					Schema:                       []FieldDefinition{definition},
+					disabledDependencyManagement: true,
+					stringNumberFields:           []string{"signal"},
+					specVersion:                  *semver3_8_0,
+				}
+
+				errs := v.parseElementValue("signal", definition, value, common.MapStr{})
+				require.Len(t, errs, 1)
+				assert.ErrorContains(t, errs[0], "cannot be indexed as "+fieldType)
+			})
+		}
+	}
+}
+
+func Test_parseElementValueNumericTypesBeforeSpec3_8_0(t *testing.T) {
+	// Before 3.8.0, numeric types other than float, long and double only reject
+	// values that Elasticsearch cannot coerce to a number.
+	coercedTypes := []string{"integer", "short", "byte", "unsigned_long", "half_float", "scaled_float"}
+	for _, fieldType := range coercedTypes {
+		for _, test := range []struct {
+			title string
+			value any
+			fail  bool
+		}{
+			{title: "number", value: float64(-89)},
+			{title: "json number", value: json.Number("7.0")},
+			{title: "numeric string", value: "-54"},
+			{title: "decimal string", value: "7.5"},
+			{title: "exponent string", value: "1e3"},
+			{title: "empty string", value: ""},
+			{title: "surrounding whitespace", value: " 5 "},
+			{title: "java float suffix", value: "1f"},
+			{title: "null", value: nil},
+			{title: "only whitespace", value: " ", fail: true},
+			{title: "NaN", value: "NaN", fail: true},
+			{title: "infinity", value: "Infinity", fail: true},
+			{title: "digit separator", value: "1_000", fail: true},
+			{title: "thousands separator", value: "1,000", fail: true},
+			{title: "array of numeric strings", value: []any{"1", float64(2)}},
+			{title: "string with unit", value: "-89 dBm", fail: true},
+			{title: "word", value: "Auto", fail: true},
+			{title: "ip", value: "216.160.83.60", fail: true},
+			{title: "array with string with unit", value: []any{float64(1), "7.0 dB"}, fail: true},
+			{title: "nested array of numbers", value: []any{[]any{float64(1), "2"}, []any{float64(3)}}},
+			{title: "nested array with string with unit", value: []any{[]any{float64(1)}, []any{"7.0 dB"}}, fail: true},
+			{title: "nested array with object", value: []any{[]any{map[string]any{"value": float64(1)}}}, fail: true},
+			{title: "boolean", value: true, fail: true},
+			{title: "object", value: map[string]any{"value": float64(1)}, fail: true},
+		} {
+			t.Run(fieldType+"/"+test.title, func(t *testing.T) {
+				definition := FieldDefinition{Name: "signal", Type: fieldType}
+				v := Validator{
+					Schema:                       []FieldDefinition{definition},
+					disabledDependencyManagement: true,
+					specVersion:                  *semver.MustParse("3.7.0"),
+				}
+
+				errs := v.parseElementValue("signal", definition, test.value, common.MapStr{})
+				if test.fail {
+					require.Len(t, errs, 1)
+					assert.ErrorContains(t, errs[0], "cannot be indexed as "+fieldType)
+				} else {
+					assert.Empty(t, errs)
+				}
+			})
+		}
+	}
+
+	t.Run("error message", func(t *testing.T) {
+		definition := FieldDefinition{Name: "fortinet.firewall.rsrp", Type: "integer"}
+		v := Validator{
+			Schema:                       []FieldDefinition{definition},
+			disabledDependencyManagement: true,
+			specVersion:                  *semver.MustParse("3.7.0"),
+		}
+
+		errs := v.parseElementValue("fortinet.firewall.rsrp", definition, "-89 dBm", common.MapStr{})
+		require.Len(t, errs, 1)
+		assert.EqualError(t, errs[0], `field "fortinet.firewall.rsrp"'s value "-89 dBm" cannot be indexed as integer: Elasticsearch only coerces numbers and numeric strings into numeric fields`)
+	})
+
+	// float, long and double keep rejecting numeric strings, whatever the spec version.
+	for _, fieldType := range []string{"float", "long", "double"} {
+		t.Run(fieldType+"/numeric string", func(t *testing.T) {
+			definition := FieldDefinition{Name: "signal", Type: fieldType}
+			v := Validator{
+				Schema:                       []FieldDefinition{definition},
+				disabledDependencyManagement: true,
+				specVersion:                  *semver.MustParse("3.7.0"),
+			}
+
+			errs := v.parseElementValue("signal", definition, "-54", common.MapStr{})
+			assert.Len(t, errs, 1)
 		})
 	}
 }
