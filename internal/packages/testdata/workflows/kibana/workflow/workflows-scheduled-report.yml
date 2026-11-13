@@ -1,0 +1,29 @@
+name: Scheduled ES|QL report
+description: Every day, counts documents per data stream and indexes the result.
+enabled: false
+tags:
+  - workflows
+
+triggers:
+  - type: scheduled
+    with:
+      every: 1d
+  - type: manual
+
+steps:
+  - name: count_per_data_stream
+    type: elasticsearch.esql.query
+    with:
+      query: >
+        FROM logs-*
+        | STATS docs = COUNT(*) BY data_stream.dataset
+        | SORT docs DESC
+        | LIMIT 10
+
+  - name: index_report
+    type: elasticsearch.index
+    with:
+      index: workflow-demo-reports
+      document:
+        '@timestamp': '{{ execution.startedAt }}'
+        top_datasets: '${{ steps.count_per_data_stream.output.values }}'

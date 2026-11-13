@@ -9,7 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -19,6 +22,10 @@ import (
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
+
+// workflowAssetsMinKibanaVersion is the first Kibana version that installs workflow assets.
+// Older versions ignore the kibana/workflow folder.
+var workflowAssetsMinKibanaVersion = semver.MustParse("9.7.0")
 
 type tester struct {
 	testFolder             testrunner.TestFolder
@@ -157,6 +164,18 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
 
+	var workflowsSkip *testrunner.SkipConfig
+	if slices.ContainsFunc(expectedAssets, isWorkflowAsset) {
+		kibanaVersion, err := r.kibanaClient.Version()
+		if err != nil {
+			return result.WithError(fmt.Errorf("cannot get Kibana version: %w", err))
+		}
+		workflowsSkip, err = workflowAssetsSkip(kibanaVersion)
+		if err != nil {
+			return result.WithError(err)
+		}
+	}
+
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
@@ -166,15 +185,13 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			TestType:   TestType,
 		})
 
-		var tr []testrunner.TestResult
-		if !findActualAsset(installedAssets, e) {
-			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  "could not find expected asset",
-				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
-			})
-		} else {
-			tr, _ = rc.WithSuccess()
+		if workflowsSkip != nil && isWorkflowAsset(e) {
+			tr, _ := rc.WithSkip(workflowsSkip)
+			results = append(results, tr[0])
+			continue
 		}
+
+		tr, _ := checkExpectedAsset(rc, installedAssets, e)
 		result := tr[0]
 		if r.withCoverage && e.SourcePath != "" {
 			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), e.SourcePath, r.coverageType, true)
@@ -206,14 +223,60 @@ func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
+// workflowAssetsSkip returns a skip config for workflow assets when the stack doesn't support them.
+func workflowAssetsSkip(versionInfo kibana.VersionInfo) (*testrunner.SkipConfig, error) {
+	kibanaVersion, err := semver.NewVersion(versionInfo.Number)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse Kibana version %q: %w", versionInfo.Number, err)
+	}
+	if !kibanaVersion.LessThan(workflowAssetsMinKibanaVersion) {
+		return nil, nil
+	}
+	return &testrunner.SkipConfig{
+		Reason: fmt.Sprintf("workflow assets require Kibana %s or later (current: %s)", workflowAssetsMinKibanaVersion, versionInfo.Number),
+	}, nil
+}
+
+func checkExpectedAsset(rc *testrunner.ResultComposer, installedAssets []packages.Asset, e packages.Asset) ([]testrunner.TestResult, error) {
+	a, found := findActualAsset(installedAssets, e)
+	if !found {
+		return rc.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  "could not find expected asset",
+			Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
+		})
+	}
+	if a.Deferred {
+		return rc.WithError(testrunner.ErrTestCaseFailed{
+			Reason: "asset installation was deferred",
+			Details: fmt.Sprintf("Fleet skipped the installation of %s asset \"%s\". "+
+				"For workflows, enable stack.fleet_workflow_assets_enabled and check that the license includes Workflows.", e.Type, a.ID),
+		})
+	}
+	return rc.WithSuccess()
+}
+
+func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) (packages.Asset, bool) {
 	for _, a := range actualAssets {
-		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {
-			return true
+		if a.Type == expectedAsset.Type && matchAssetID(a, expectedAsset) {
+			return a, true
 		}
 	}
 
-	return false
+	return packages.Asset{}, false
+}
+
+// matchAssetID compares asset IDs. Fleet generates workflow IDs by prefixing the
+// file name with space and package hashes, so only the suffix is compared. Actual
+// assets come from this package's installation, so they can't belong to another package.
+func matchAssetID(actual, expected packages.Asset) bool {
+	if isWorkflowAsset(expected) {
+		return strings.HasSuffix(actual.ID, "-"+expected.ID)
+	}
+	return actual.ID == expected.ID
+}
+
+func isWorkflowAsset(asset packages.Asset) bool {
+	return asset.Type == packages.AssetTypeKibanaWorkflow.TypeName()
 }
 
 func formatAssetsAsString(assets []packages.Asset) string {
