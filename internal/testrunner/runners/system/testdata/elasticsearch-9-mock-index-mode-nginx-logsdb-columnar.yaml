@@ -1,0 +1,106 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.27.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.27.2,t=7.17.10,hc=1.27.2
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 547
+        uncompressed: false
+        body: |
+            {
+              "name" : "8f1a486a297c",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "kOF3O6WRSXyokXjZgB1E9w",
+              "version" : {
+                "number" : "9.6.0-SNAPSHOT",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "f947e5e15963a7e2e81430be69af2f2fc9d4e4c2",
+                "build_date" : "2026-10-15T00:08:49.049044351Z",
+                "build_snapshot" : true,
+                "lucene_version" : "10.5.1",
+                "minimum_wire_compatibility_version" : "8.19.0",
+                "minimum_index_compatibility_version" : "8.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "547"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 19:23:36 GMT
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 3.92175ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.27.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.27.2,t=7.17.10,hc=1.27.2
+        url: https://127.0.0.1:9200/_data_stream/logs-nginx.access-12345
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 916
+        uncompressed: false
+        body: '{"data_streams":[{"name":"logs-nginx.access-12345","timestamp_field":{"name":"@timestamp"},"indices":[{"index_name":".ds-logs-nginx.access-12345-2026.10.22-000001","index_uuid":"0Fvtyrt6SZyRb6_DJCsN_g","managed_by":"Index Lifecycle Management","prefer_ilm":true,"ilm_policy":"logs@lifecycle","index_mode":"logsdb_columnar"}],"generation":1,"_meta":{"managed_by":"fleet","package":{"name":"nginx"},"managed":true},"status":"YELLOW","template":"logs-nginx.access","ilm_policy":"logs@lifecycle","next_generation_managed_by":"Index Lifecycle Management","prefer_ilm":true,"hidden":false,"system":false,"allow_custom_routing":false,"replicated":false,"rollover_on_write":false,"index_mode":"logsdb_columnar","settings":{},"mappings":{},"failure_store":{"enabled":true,"rollover_on_write":true,"indices":[],"lifecycle":{"enabled":true,"effective_retention":"30d","retention_determined_by":"default_failures_retention"}}}]}'
+        headers:
+            Content-Length:
+                - "916"
+            Content-Type:
+                - application/json
+            Date:
+                - Thu, 22 Oct 2026 19:23:36 GMT
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 981.834µs
