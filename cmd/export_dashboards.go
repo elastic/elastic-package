@@ -147,7 +147,9 @@ func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
 		return dashboardIDs, nil
 	}
 
-	installedPackage, err := promptPackagesInstalled(options.ctx, options.kibanaClient, options.defaultPackage)
+	// Latest option is always to list all available dashboards even if they are not related
+	// to any package. This is helpful in case the user is working on a new dashboard.
+	installedPackage, err := promptPackagesInstalled(options.ctx, options.kibanaClient, options.defaultPackage, "Which package would you like to export dashboards from?", newDashboardOption)
 	if err != nil {
 		return nil, fmt.Errorf("prompt for package selection failed: %w", err)
 	}
@@ -185,7 +187,9 @@ func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
 	return dashboardIDs, nil
 }
 
-func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, defaultPackageName string) (string, error) {
+// promptPackagesInstalled prompts the user to select one of the packages installed in Kibana, or one
+// of the given extra options. It returns an empty string if there are no options to select.
+func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, defaultPackageName, message string, extraOptions ...string) (string, error) {
 	installedPackages, err := kibanaClient.FindInstalledPackages(ctx)
 	if err != nil {
 		return "", fmt.Errorf("finding installed packages failed: %w", err)
@@ -201,11 +205,12 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, d
 			break
 		}
 	}
-	// Latest option is always to list all available dashboards even if they are not related
-	// to any package. This is helpful in case the user is working on a new dashboard.
-	options = append(options, newDashboardOption)
+	options = append(options, extraOptions...)
+	if len(options) == 0 {
+		return "", nil
+	}
 
-	packagesPrompt := tui.NewSelect("Which package would you like to export dashboards from?", options, defaultOption)
+	packagesPrompt := tui.NewSelect(message, options, defaultOption)
 
 	var selectedOption string
 	err = tui.AskOne(packagesPrompt, &selectedOption, tui.Required)

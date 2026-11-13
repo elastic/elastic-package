@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 )
 
-const exportLongDescription = `Use this command to export assets relevant for the package, e.g. Kibana dashboards.`
+const exportLongDescription = `Use this command to export assets relevant for the package, e.g. Kibana dashboards or workflows.`
 
 func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd := &cobra.Command{
@@ -39,6 +39,17 @@ func setupExportCommand() *cobraext.Command {
 	exportIngestPipelinesCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportIngestPipelinesCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 
+	exportWorkflowsCmd := &cobra.Command{
+		Use:   "workflows",
+		Short: "Export workflows from Kibana",
+		Long:  exportWorkflowsLongDescription,
+		Args:  cobra.NoArgs,
+		RunE:  exportWorkflowsCmd,
+	}
+	exportWorkflowsCmd.Flags().StringSliceP(cobraext.WorkflowIDsFlagName, "d", nil, cobraext.WorkflowIDsFlagDescription)
+	exportWorkflowsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportWorkflowsCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
+
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export package assets",
@@ -46,6 +57,7 @@ func setupExportCommand() *cobraext.Command {
 	}
 	cmd.AddCommand(exportDashboardCmd)
 	cmd.AddCommand(exportIngestPipelinesCmd)
+	cmd.AddCommand(exportWorkflowsCmd)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
