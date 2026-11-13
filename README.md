@@ -407,7 +407,7 @@ Pass a comma-separated list of dashboard ids with -d or use the interactive prom
 
 _Context: package_
 
-Use this command to export assets relevant for the package, e.g. Kibana dashboards.
+Use this command to export assets relevant for the package, e.g. Kibana dashboards or workflows.
 
 ### `elastic-package export dashboards`
 
@@ -424,6 +424,14 @@ _Context: package_
 Use this command to export ingest pipelines with referenced pipelines from the Elasticsearch instance.
 
 Use this command to download selected ingest pipelines and its referenced processor pipelines from Elasticsearch. Select data stream or the package root directories to download the pipelines. Pipelines are downloaded as is and will need adjustment to meet your package needs.
+
+### `elastic-package export workflows`
+
+_Context: package_
+
+Use this command to export workflows from the Kibana instance.
+
+Use this command to download selected workflows from Kibana and store them as workflow assets of the package, in the kibana/workflow directory. Workflows are stored disabled, as required for package assets, in files named after the package and the workflow name.
 
 ### `elastic-package find [flags]`
 
