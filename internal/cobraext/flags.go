@@ -32,7 +32,7 @@ const (
 	AgentPolicyDescription = "name of the agent policy"
 
 	AllowSnapshotFlagName    = "allow-snapshot"
-	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
+	AllowSnapshotDescription = "allow to run the command against an Elastic stack SNAPSHOT version"
 
 	BenchPathFlagName        = "path"
 	BenchPathFlagDescription = "path of the benchmark scenario to run"
@@ -205,6 +205,9 @@ const (
 
 	IngestPipelineIDsFlagName        = "id"
 	IngestPipelineIDsFlagDescription = "Elasticsearch ingest pipeline IDs (comma-separated values)"
+
+	WorkflowIDsFlagName        = "id"
+	WorkflowIDsFlagDescription = "Kibana workflow IDs (comma-separated values)"
 
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
