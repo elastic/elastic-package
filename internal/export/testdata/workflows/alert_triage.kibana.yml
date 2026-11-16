@@ -1,0 +1,19 @@
+# Triage new alerts and notify the on-call team.
+name: Alert Triage (v2)
+enabled: true
+description: Enrich alerts and post a summary.
+tags: ["alerts"]
+triggers:
+  - type: alert
+steps:
+  # Search related events from the last hour.
+  - name: search_related
+    type: elasticsearch.search
+    with:
+      index: "logs-*"
+      query:
+        match_all: {}
+  - name: notify
+    type: console
+    with:
+      message: "Found {{ steps.search_related.output.hits.total.value }} related events"
