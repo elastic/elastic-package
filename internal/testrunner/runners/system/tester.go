@@ -243,14 +243,19 @@ type tester struct {
 
 	kibanaPolicyOverrides map[string]any
 
+	// logsdbColumnar is true when the test configuration enables logsdb_columnar. It changes
+	// the whole package installation, so these tests don't run in parallel with others.
+	logsdbColumnar bool
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
-	removeAgentHandler        func(context.Context) error
-	deleteTestPolicyHandler   func(context.Context) error
-	cleanTestScenarioHandler  func(context.Context) error
-	resetAgentPolicyHandler   func(context.Context) error
-	resetAgentLogLevelHandler func(context.Context) error
-	shutdownServiceHandler    func(context.Context) error
-	shutdownAgentHandler      func(context.Context) error
+	removeAgentHandler         func(context.Context) error
+	deleteTestPolicyHandler    func(context.Context) error
+	cleanTestScenarioHandler   func(context.Context) error
+	resetAgentPolicyHandler    func(context.Context) error
+	resetAgentLogLevelHandler  func(context.Context) error
+	shutdownServiceHandler     func(context.Context) error
+	shutdownAgentHandler       func(context.Context) error
+	resetLogsDBColumnarHandler func(context.Context) error
 }
 
 type SystemTesterOptions struct {
@@ -383,6 +388,14 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		r.kibanaPolicyOverrides = overrides
 	}
 
+	// The test configuration is loaded again with the service information when the test runs.
+	// It's read here to know whether the test can run in parallel.
+	config, err := newConfig(filepath.Join(r.testFolder.Path, r.configFileName), servicedeployer.ServiceInfo{}, r.serviceVariant)
+	if err != nil {
+		return nil, err
+	}
+	r.logsdbColumnar = config.LogsDBColumnar
+
 	return &r, nil
 }
 
@@ -402,7 +415,7 @@ func (r *tester) String() string {
 // Parallel indicates if this tester can run in parallel or not.
 func (r tester) Parallel() bool {
 	// it is required independent Elastic Agents to run in parallel system tests
-	return r.runIndependentElasticAgent && r.globalTestConfig.Parallel
+	return r.runIndependentElasticAgent && r.globalTestConfig.Parallel && !r.logsdbColumnar
 }
 
 // Run runs the system tests defined under the given folder
@@ -682,6 +695,14 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 		r.cleanTestScenarioHandler = nil
 	}
 
+	// Run after deleting the data streams of the test, so none of them is marked for rollover.
+	if r.resetLogsDBColumnarHandler != nil {
+		if err := r.resetLogsDBColumnarHandler(cleanupCtx); err != nil {
+			merr = append(merr, err)
+		}
+		r.resetLogsDBColumnarHandler = nil
+	}
+
 	if len(merr) == 0 {
 		return nil
 	}
@@ -934,6 +955,7 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 	syntheticsIndexModes := []string{
 		"logs", // Replaced in 8.15.0 with "logsdb", see https://github.com/elastic/elasticsearch/pull/111054
 		"logsdb",
+		"logsdb_columnar", // _source is always rebuilt from doc values
 		"time_series",
 	}
 	if slices.Contains(syntheticsIndexModes, results.Template.Settings.Index.Mode) {
@@ -1170,6 +1192,78 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	}
 	if resp.IsError() {
 		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
+	}
+	return nil
+}
+
+// enableLogsDBColumnar turns on the logsdb_columnar index mode of the package installation, and
+// registers the handler that turns it off again, unless it was already on.
+func (r *tester) enableLogsDBColumnar(ctx context.Context) error {
+	pkgName := r.pkgManifest.Name
+	pkg, err := r.kibanaClient.GetPackage(ctx, pkgName)
+	if err != nil {
+		return fmt.Errorf("could not get package %s: %w", pkgName, err)
+	}
+	if pkg.InstallationInfo != nil && pkg.InstallationInfo.LogsDBColumnarEnabled {
+		logger.Debugf("logsdb_columnar index mode already enabled for package %s", pkgName)
+		return nil
+	}
+
+	logger.Debugf("Enabling logsdb_columnar index mode for package %s...", pkgName)
+	if err := r.kibanaClient.SetLogsDBColumnar(ctx, pkgName, true); err != nil {
+		return err
+	}
+	r.resetLogsDBColumnarHandler = func(ctx context.Context) error {
+		logger.Debugf("Disabling logsdb_columnar index mode for package %s...", pkgName)
+		return r.kibanaClient.SetLogsDBColumnar(ctx, pkgName, false)
+	}
+	return nil
+}
+
+// checkLogsDBColumnarIndexMode fails the test if a backing index of a logs data stream doesn't use
+// the logsdb_columnar index mode. Fleet only applies it to logs data streams.
+func checkLogsDBColumnarIndexMode(ctx context.Context, api *elasticsearch.API, dataStream string) error {
+	if dataStreamDataType(dataStream) != "logs" {
+		return nil
+	}
+
+	resp, err := api.Indices.GetDataStream(
+		api.Indices.GetDataStream.WithContext(ctx),
+		api.Indices.GetDataStream.WithName(dataStream),
+	)
+	if err != nil {
+		return fmt.Errorf("could not get data stream %s: %w", dataStream, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return fmt.Errorf("could not get data stream %s: %s", dataStream, resp.String())
+	}
+
+	var body struct {
+		DataStreams []struct {
+			Indices []struct {
+				IndexName string `json:"index_name"`
+				IndexMode string `json:"index_mode"`
+			} `json:"indices"`
+		} `json:"data_streams"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return fmt.Errorf("could not decode data stream %s: %w", dataStream, err)
+	}
+
+	var others []string
+	for _, ds := range body.DataStreams {
+		for _, index := range ds.Indices {
+			if index.IndexMode != "logsdb_columnar" {
+				others = append(others, fmt.Sprintf("%s (index mode %q)", index.IndexName, index.IndexMode))
+			}
+		}
+	}
+	if len(others) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("logsdb_columnar is enabled in the test configuration, but data stream %s doesn't use it", dataStream),
+			Details: strings.Join(others, ", "),
+		}
 	}
 	return nil
 }
@@ -1431,6 +1525,13 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	policy, dsType, dsDataset, err := buildPackagePolicy(policyToTest, policyTemplate.Name, dsName, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not create package data stream: %w", err)
+	}
+	// Before adding the package policy, so the data streams of the test are created in this mode.
+	// With --no-provision it was already done by --setup.
+	if config.LogsDBColumnar && !r.runTearDown && !r.runTestsOnly {
+		if err := r.enableLogsDBColumnar(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if r.runTearDown {
 		logger.Debug("Skip adding data stream config to policy")
@@ -2082,6 +2183,12 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 
 	for _, sds := range scenario.dataStreams {
 		logger.Debugf("Validating data stream %s (index template %s)", sds.dataStream, sds.indexTemplateName)
+		if config.LogsDBColumnar {
+			if err := checkLogsDBColumnarIndexMode(ctx, r.esAPI, sds.dataStream); err != nil {
+				return result.WithError(err)
+			}
+		}
+
 		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 			fields.WithSchemaURLs(r.schemaURLs),
 			fields.WithSpecVersion(r.pkgManifest.SpecVersion),

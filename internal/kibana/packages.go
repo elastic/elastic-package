@@ -192,6 +192,7 @@ type FleetPackage struct {
 	InstallationInfo *struct {
 		InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
 		InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+		LogsDBColumnarEnabled        bool             `json:"logsdb_columnar_enabled"`
 	} `json:"installationInfo"`
 }
 
@@ -248,6 +249,25 @@ func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, er
 	default:
 		return nil, fmt.Errorf("package %s not found in response: %s", name, string(respBody))
 	}
+}
+
+// SetLogsDBColumnar turns the logsdb_columnar index mode of an installed package on or off.
+// Fleet applies it to the index templates of the package's logs data streams, so data streams
+// created afterwards use it. It requires a Kibana version with logsdb_columnar support.
+func (c *Client) SetLogsDBColumnar(ctx context.Context, name string, enabled bool) error {
+	path := c.epmPackageUrl(name, "")
+	reqBody, err := json.Marshal(map[string]bool{"logsdb_columnar": enabled})
+	if err != nil {
+		return fmt.Errorf("could not encode request: %w", err)
+	}
+	statusCode, respBody, err := c.put(ctx, path, reqBody)
+	if err != nil {
+		return fmt.Errorf("could not update package: %w", err)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not set logsdb_columnar to %t for package %s; API status code = %d; response body = %s", enabled, name, statusCode, string(respBody))
+	}
+	return nil
 }
 
 func (c *Client) epmPackageUrl(name, version string) string {
