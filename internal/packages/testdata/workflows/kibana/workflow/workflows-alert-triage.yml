@@ -1,0 +1,35 @@
+name: Alert triage
+description: Runs for every alert of a rule and indexes a triage note per alert.
+enabled: false
+tags:
+  - workflows
+  - security
+
+settings:
+  timeout: 5m
+  concurrency:
+    max: 1
+
+triggers:
+  - type: alert
+
+steps:
+  - name: log_alert_rule
+    type: console
+    with:
+      message: 'Alert from rule: {{ event.rule.name }}'
+
+  - name: triage_each_alert
+    type: foreach
+    foreach: '{{ event.alerts }}'
+    steps:
+      - name: index_triage_note
+        type: elasticsearch.index
+        with:
+          index: workflow-demo-triage-notes
+          id: '{{ execution.id }}-{{ foreach.index }}'
+          document:
+            '@timestamp': '{{ execution.startedAt }}'
+            rule: '{{ event.rule.name }}'
+            alert_id: '{{ foreach.item._id }}'
+            note: Triaged by workflows

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/multierror"
 )
@@ -18,20 +19,31 @@ import (
 type AssetType string
 
 type assetTypeFolder struct {
-	typeName   AssetType
-	folderName string
+	typeName    AssetType
+	folderName  string
+	filePattern string
+	readID      func(assetPath string) (string, error)
 }
 
 func newAssetType(typeName AssetType) assetTypeFolder {
-	return assetTypeFolder{
-		typeName:   typeName,
-		folderName: string(typeName),
-	}
+	return newAssetTypeWithFolder(typeName, string(typeName))
 }
+
 func newAssetTypeWithFolder(typeName AssetType, folderName string) assetTypeFolder {
 	return assetTypeFolder{
-		typeName:   typeName,
-		folderName: folderName,
+		typeName:    typeName,
+		folderName:  folderName,
+		filePattern: "*.json",
+		readID:      readAssetID,
+	}
+}
+
+func newYAMLAssetType(typeName AssetType, readID func(assetPath string) (string, error)) assetTypeFolder {
+	return assetTypeFolder{
+		typeName:    typeName,
+		folderName:  string(typeName),
+		filePattern: "*.yml",
+		readID:      readID,
 	}
 }
 
@@ -46,12 +58,22 @@ var (
 	AssetTypeKibanaMap           = newAssetType("map")
 	AssetTypeKibanaLens          = newAssetType("lens")
 	AssetTypeSecurityRule        = newAssetTypeWithFolder("security-rule", "security_rule")
+	AssetTypeKibanaWorkflow      = newYAMLAssetType("workflow", workflowAssetID)
 )
+
+// TypeName returns the asset type name as reported by Fleet.
+func (a assetTypeFolder) TypeName() AssetType {
+	return a.typeName
+}
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
 type Asset struct {
 	ID   string    `json:"id"`
 	Type AssetType `json:"type"`
+
+	// Deferred is set by Fleet for assets whose installation has been skipped,
+	// e.g. workflows when the required feature flags or license are missing.
+	Deferred bool `json:"deferred,omitempty"`
 
 	// These fields are not expected to be part of responses from APIs
 	DataStream string `json:"-"`
@@ -92,6 +114,7 @@ func loadKibanaAssets(packageRoot string) ([]Asset, error) {
 			AssetTypeKibanaMap,
 			AssetTypeKibanaLens,
 			AssetTypeSecurityRule,
+			AssetTypeKibanaWorkflow,
 		}
 
 		assets []Asset
@@ -100,7 +123,7 @@ func loadKibanaAssets(packageRoot string) ([]Asset, error) {
 	for _, assetType := range assetTypes {
 		a, err := loadFileBasedAssets(kibanaAssetsFolderPath, assetType)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("could not load kibana %s assets: %w", assetType, err))
+			errs = append(errs, fmt.Errorf("could not load kibana %s assets: %w", assetType.typeName, err))
 			continue
 		}
 
@@ -191,14 +214,14 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType assetTypeFolde
 		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType.typeName, err)
 	}
 
-	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, "*.json"))
+	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, assetType.filePattern))
 	if err != nil {
 		return nil, fmt.Errorf("could not read %s files: %w", assetType.typeName, err)
 	}
 
 	var assets []Asset
 	for _, assetPath := range paths {
-		assetID, err := readAssetID(assetPath)
+		assetID, err := assetType.readID(assetPath)
 		if err != nil {
 			return nil, fmt.Errorf("can't read asset ID (path: %s): %w", assetPath, err)
 		}
@@ -233,4 +256,15 @@ func readAssetID(assetPath string) (string, error) {
 		return "", errors.New("empty asset ID")
 	}
 	return assetBody.ID, nil
+}
+
+// workflowAssetID returns the ID of a workflow asset. Workflows don't declare an ID;
+// Fleet derives it from the file name, normalized to lowercase with "_" replaced by "-",
+// and prefixes it with space and package hashes.
+func workflowAssetID(assetPath string) (string, error) {
+	fileBase := strings.TrimSuffix(filepath.Base(assetPath), filepath.Ext(assetPath))
+	if fileBase == "" {
+		return "", errors.New("empty workflow file name")
+	}
+	return strings.ReplaceAll(strings.ToLower(fileBase), "_", "-"), nil
 }

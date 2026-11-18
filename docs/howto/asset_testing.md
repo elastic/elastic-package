@@ -18,6 +18,16 @@ Conceptually, running an asset load test involves the following steps:
 
 As a package developer, you do not need to do any work to define an asset loading test for your package. All the necessary information is already present in the package's files.
 
+### Workflow assets
+
+Workflows in `kibana/workflow/` are installed by Kibana 9.7.0 or later. On older stacks, the asset tests for workflows are reported as skipped.
+
+Fleet installs workflows only when the Fleet workflow assets feature is enabled and the license includes Workflows. Otherwise, it skips them silently and reports them as deferred, and the asset test fails. To enable the feature on a local stack, run:
+
+```
+elastic-package stack up -d -U stack.fleet_workflow_assets_enabled=true
+```
+
 ## Running an asset loading test
 
 First, you must build your package. This corresponds to step 1 as described in the [_Conceptual process_](#Conceptual-process) section.
