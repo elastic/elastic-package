@@ -169,9 +169,12 @@ func TestSnapshotZipInstallWiring(t *testing.T) {
 	}
 	require.NoError(t, yaml.Unmarshal(config, &manifest))
 	updated := string(makefile)
+	// Updatecli's PR dry run uses SCM main, before the new recipe is merged.
+	onMain := regexp.MustCompile(`(?m)^test-build-install-zip-9x-snapshot:\n\t[^\n]+\n`).ReplaceAllString(updated, "")
 	for _, target := range manifest.Targets {
 		pattern, err := regexp.Compile(target.Spec.MatchPattern)
 		require.NoError(t, err)
+		assert.True(t, pattern.MatchString(onMain), "every target must also match the pre-merge Makefile on SCM main")
 		replacement := strings.ReplaceAll(target.Spec.ReplacePattern, `{{ source "latestSnapshot" }}`, "9.99.0-test")
 		updated = pattern.ReplaceAllString(updated, replacement)
 	}
