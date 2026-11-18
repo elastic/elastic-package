@@ -5,6 +5,7 @@
 package docs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -18,6 +19,8 @@ import (
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -820,6 +823,50 @@ func TestAlertRuleDescriptionMarkdownEscapes(t *testing.T) {
 			_, renderedHTML := renderAlertRuleReadme(t, root)
 			assert.Contains(t, renderedHTML, `href="https://example.com/a(b)"`)
 			assert.Contains(t, renderedHTML, `<code>C:\temp</code>`)
+		})
+	}
+}
+
+func TestAlertRuleDescriptionCodeSpans(t *testing.T) {
+	for _, engines := range [][]string{{"v2"}, {"v1", "v2"}} {
+		t.Run(strings.Join(engines, "+"), func(t *testing.T) {
+			root, dir := copyAlertRuleTemplatesFixture(t, "3.7.0")
+			for _, engine := range engines {
+				writeAlertRuleReadmeTemplate(t, dir, engine+".json", engine, map[string]any{
+					"name": "Example", "description": "Use `STATS count = COUNT(*) | WHERE count > 2` and ``a `b` {c} | d``.",
+				})
+			}
+			rendered, _ := renderAlertRuleReadme(t, root)
+			body := strings.NewReplacer("<details>", "", "</details>", "", "<summary>View the alert rule templates</summary>", "").Replace(rendered)
+			var output bytes.Buffer
+			require.NoError(t, goldmark.New(goldmark.WithExtensions(extension.GFM)).Convert([]byte(body), &output))
+			assert.Contains(t, output.String(), `<code>STATS count = COUNT(*) | WHERE count &gt; 2</code>`)
+			assert.Contains(t, output.String(), "<code>a `b` {c} | d</code>")
+		})
+	}
+}
+
+func TestAlertRuleCodeSpanBoundaries(t *testing.T) {
+	cases := []string{
+		"`COUNT(*)`", "``a `b` {c}``", "`a \\| b`",
+		"\\``COUNT(*)`", "\\```COUNT(*)``", "prefix `unmatched ** tail",
+		"[run](https://example.com/a`b) `COUNT(*)`",
+		"[run `code`](https://example.com/a\\(b\\))",
+	}
+	for ticks := 1; ticks <= 4; ticks++ {
+		for backslashes := range 5 {
+			cases = append(cases, strings.Repeat(`\`, backslashes)+strings.Repeat("`", ticks)+" COUNT(*) | x > {y} "+strings.Repeat("`", ticks))
+		}
+	}
+	markdown := goldmark.New(goldmark.WithExtensions(extension.GFM))
+	codes := regexp.MustCompile(`<code>.*?</code>`)
+	for _, description := range cases {
+		t.Run(description, func(t *testing.T) {
+			var expected, actual bytes.Buffer
+			require.NoError(t, markdown.Convert([]byte("Description: "+description), &expected))
+			require.NoError(t, markdown.Convert([]byte("| Description |\n|---|\n| "+escapeAlertRuleTableCell(description)+" |\n"), &actual))
+			assert.Equal(t, codes.FindAllString(expected.String(), -1), codes.FindAllString(actual.String(), -1))
+			assert.Equal(t, 1, strings.Count(actual.String(), "<td>"))
 		})
 	}
 }

@@ -16,6 +16,9 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -347,7 +350,32 @@ func classicAlertRuleTableDescription(value string) string {
 }
 
 func escapeAlertRuleTableCell(value string) string {
-	value = escaper.Replace(normalizeAlertRuleText(value))
+	value = normalizeAlertRuleText(value)
+	// A paragraph prefix keeps leading backticks in inline context, as in a cell.
+	const prefix = "Description: "
+	source := []byte(prefix + value)
+	document := goldmark.New().Parser().Parse(text.NewReader(source))
+	var result strings.Builder
+	start := len(prefix)
+	// This walker never returns an error.
+	_ = ast.Walk(document, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if _, ok := node.(*ast.CodeSpan); !ok || !entering || node.FirstChild() == nil {
+			return ast.WalkContinue, nil
+		}
+		first := node.FirstChild().(*ast.Text).Segment.Start
+		last := node.LastChild().(*ast.Text).Segment.Stop
+		result.WriteString(escapeAlertRuleDescriptionText(string(source[start:first])))
+		// GFM removes this table escape before interpreting inline code.
+		result.WriteString(strings.ReplaceAll(string(source[first:last]), "|", `\|`))
+		start = last
+		return ast.WalkSkipChildren, nil
+	})
+	result.WriteString(escapeAlertRuleDescriptionText(string(source[start:])))
+	return result.String()
+}
+
+func escapeAlertRuleDescriptionText(value string) string {
+	value = escaper.Replace(value)
 	// Escape a table separator only when an even number of backslashes precedes
 	// it. Preserve existing Markdown escapes, including link URLs and code paths.
 	return alertRuleTablePipes.ReplaceAllStringFunc(value, func(pipe string) string {
