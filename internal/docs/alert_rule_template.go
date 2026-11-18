@@ -37,7 +37,7 @@ var alertRuleNameEscaper = strings.NewReplacer(
 
 var alertRuleLineBreaks = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
 
-var alertRuleTablePipes = regexp.MustCompile(`\\*\|`)
+var alertRuleDescriptionEscapes = regexp.MustCompile(`\\*[*{}<>|]`)
 
 // alertRuleTemplate is the part of an alerting_rule_template asset shown in the README.
 type alertRuleTemplate struct {
@@ -375,14 +375,12 @@ func escapeAlertRuleTableCell(value string) string {
 }
 
 func escapeAlertRuleDescriptionText(value string) string {
-	value = escaper.Replace(value)
-	// Escape a table separator only when an even number of backslashes precedes
-	// it. Preserve existing Markdown escapes, including link URLs and code paths.
-	return alertRuleTablePipes.ReplaceAllStringFunc(value, func(pipe string) string {
-		if len(pipe)%2 == 0 {
-			return pipe
+	// Keep existing Markdown escapes intact, including those in link URLs.
+	return alertRuleDescriptionEscapes.ReplaceAllStringFunc(value, func(match string) string {
+		if len(match)%2 == 0 {
+			return match
 		}
-		return pipe[:len(pipe)-1] + `\|`
+		return match[:len(match)-1] + `\` + match[len(match)-1:]
 	})
 }
 

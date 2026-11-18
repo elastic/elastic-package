@@ -887,6 +887,20 @@ func TestAlertRuleDescriptionPipeEscapes(t *testing.T) {
 	}
 }
 
+func TestAlertRuleDescriptionEscapedLinks(t *testing.T) {
+	for _, target := range []string{`a\*b`, `a\{b\}`, `a\<b\>`, `a\\b`, `a\(b\)`} {
+		t.Run(target, func(t *testing.T) {
+			description := "See [Runbook](https://example.com/" + target + ")."
+			md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+			var expected, actual bytes.Buffer
+			require.NoError(t, md.Convert([]byte(description), &expected))
+			require.NoError(t, md.Convert([]byte("| Description |\n|---|\n| "+escapeAlertRuleTableCell(description)+" |\n"), &actual))
+			links := regexp.MustCompile(`href="[^"]*"`)
+			assert.Equal(t, links.FindAllString(expected.String(), -1), links.FindAllString(actual.String(), -1))
+		})
+	}
+}
+
 func TestAlertRuleTemplatesFixtureReadmes(t *testing.T) {
 	links, err := readLinksMap("../../scripts/links_table.yml")
 	require.NoError(t, err)
