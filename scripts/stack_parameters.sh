@@ -22,6 +22,8 @@ default_stack_version() {
 # requires_newer_stack succeeds when the package pins, in its .stack_version
 # file, a stack version newer than the given one, so it cannot be installed
 # there.
+# The Alerting v2 fixture workaround can be removed once DefaultStackVersion
+# reaches 9.6.0.
 requires_newer_stack() {
   local package_root="$1"
   local stack_version="${2%%-*}"

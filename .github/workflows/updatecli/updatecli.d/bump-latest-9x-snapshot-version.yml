@@ -42,3 +42,12 @@ targets:
       file: Makefile
       matchpattern: '(./scripts/test-stack-command.sh) 9\.[^\s]+-SNAPSHOT'
       replacepattern: '$1 {{ source "latestSnapshot" }}-SNAPSHOT'
+  update-zip-install-snapshot:
+    name: '[updatecli] Update ZIP installation snapshot to {{ source "latestSnapshot" }}'
+    kind: file
+    sourceid: latestSnapshot
+    scmid: default
+    spec:
+      file: Makefile
+      matchpattern: '(./scripts/test-build-install-zip.sh) 9\.[^\s]+-SNAPSHOT'
+      replacepattern: '$1 {{ source "latestSnapshot" }}-SNAPSHOT'

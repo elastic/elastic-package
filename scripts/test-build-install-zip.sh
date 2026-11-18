@@ -5,6 +5,8 @@ set -euxo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/stack_parameters.sh"
 
+stackVersion="${1:-$(default_stack_version)}"
+
 cleanup() {
   local r=$?
   if [ "${r}" -ne 0 ]; then
@@ -66,11 +68,9 @@ rm -r build/packages/*/
 
 echo "--- Prepare Elastic stack"
 # Boot up the stack
-elastic-package stack up -d -v
+elastic-package stack up -d -v --version "$stackVersion"
 
 eval "$(elastic-package stack shellinit)"
-
-stackVersion=$(default_stack_version)
 
 # Install packages from working copy
 for d in test/packages/*/*/; do

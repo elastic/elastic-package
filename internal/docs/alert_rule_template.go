@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -33,6 +34,8 @@ var alertRuleNameEscaper = strings.NewReplacer(
 
 var alertRuleLineBreaks = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
 
+var alertRuleTablePipes = regexp.MustCompile(`\\*\|`)
+
 // alertRuleTemplate is the part of an alerting_rule_template asset shown in the README.
 type alertRuleTemplate struct {
 	name        string
@@ -52,7 +55,7 @@ func parseAlertRuleTemplate(raw []byte) (alertRuleTemplate, error) {
 		} `json:"attributes"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return alertRuleTemplate{}, err
+		return alertRuleTemplate{}, fmt.Errorf("invalid alert rule template JSON: %w", err)
 	}
 	// Only the string "v2" selects Alerting v2. A missing, null, or non-string
 	// engine is classic, as in the package-spec SVR00014 validator.
@@ -344,11 +347,15 @@ func classicAlertRuleTableDescription(value string) string {
 }
 
 func escapeAlertRuleTableCell(value string) string {
-	value = normalizeAlertRuleText(value)
-	// Escape existing backslashes first so a backslash before a pipe cannot
-	// cancel the pipe escape and split the table cell.
-	value = strings.ReplaceAll(value, "\\", "\\\\")
-	return strings.ReplaceAll(escaper.Replace(value), "|", "\\|")
+	value = escaper.Replace(normalizeAlertRuleText(value))
+	// Escape a table separator only when an even number of backslashes precedes
+	// it. Preserve existing Markdown escapes, including link URLs and code paths.
+	return alertRuleTablePipes.ReplaceAllStringFunc(value, func(pipe string) string {
+		if len(pipe)%2 == 0 {
+			return pipe
+		}
+		return pipe[:len(pipe)-1] + `\|`
+	})
 }
 
 func escapeAlertRuleName(value string) string {

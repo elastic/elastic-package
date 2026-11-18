@@ -807,6 +807,39 @@ func TestSingleEngineReadmeEscaping(t *testing.T) {
 	}
 }
 
+func TestAlertRuleDescriptionMarkdownEscapes(t *testing.T) {
+	for _, engines := range [][]string{{"v2"}, {"v1", "v2"}} {
+		t.Run(strings.Join(engines, "+"), func(t *testing.T) {
+			root, dir := copyAlertRuleTemplatesFixture(t, "3.7.0")
+			for _, engine := range engines {
+				writeAlertRuleReadmeTemplate(t, dir, engine+".json", engine, map[string]any{
+					"name":        "Example",
+					"description": "See [Runbook](https://example.com/a\\(b\\)) and `C:\\temp`.",
+				})
+			}
+			_, renderedHTML := renderAlertRuleReadme(t, root)
+			assert.Contains(t, renderedHTML, `href="https://example.com/a(b)"`)
+			assert.Contains(t, renderedHTML, `<code>C:\temp</code>`)
+		})
+	}
+}
+
+func TestAlertRuleDescriptionPipeEscapes(t *testing.T) {
+	for backslashes := range 5 {
+		t.Run(fmt.Sprint(backslashes), func(t *testing.T) {
+			root, dir := copyAlertRuleTemplatesFixture(t, "3.7.0")
+			writeAlertRuleReadmeTemplate(t, dir, "v2.json", "v2", map[string]any{
+				"name":        "Example",
+				"description": "Before " + strings.Repeat(`\`, backslashes) + "| after",
+			})
+			_, renderedHTML := renderAlertRuleReadme(t, root)
+			cells := regexp.MustCompile(`<td[^>]*>(.*?)</td>`).FindAllStringSubmatch(renderedHTML, -1)
+			require.Len(t, cells, 2, "pipe must stay inside the description cell")
+			assert.Equal(t, "Before "+strings.Repeat(`\`, backslashes/2)+"| after", cells[1][1])
+		})
+	}
+}
+
 func TestAlertRuleTemplatesFixtureReadmes(t *testing.T) {
 	links, err := readLinksMap("../../scripts/links_table.yml")
 	require.NoError(t, err)

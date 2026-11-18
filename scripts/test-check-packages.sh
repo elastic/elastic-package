@@ -12,6 +12,19 @@ export SUFFIX_FOLDER_DUMP_LOGS="${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}
 export PACKAGE_TEST_TYPE="${PACKAGE_TEST_TYPE:-"other"}"
 export PACKAGE_UNDER_TEST="${PACKAGE_UNDER_TEST:-*}"
 
+# Buildkite selects parallel packages individually. Do the same for local batch
+# runs so each package keeps its own stack version and provider settings.
+if [[ "$PACKAGE_TEST_TYPE" == "parallel" && "$PACKAGE_UNDER_TEST" == *[\*\?\[]* ]]; then
+  for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
+    if [[ ! -d "$d" ]]; then
+      echo "No packages match ${PACKAGE_UNDER_TEST}" >&2
+      exit 1
+    fi
+    PACKAGE_UNDER_TEST=$(basename "$d") bash "$0" "$@"
+  done
+  exit 0
+fi
+
 cleanup() {
   r=$?
   if [ "${r}" -ne 0 ]; then
