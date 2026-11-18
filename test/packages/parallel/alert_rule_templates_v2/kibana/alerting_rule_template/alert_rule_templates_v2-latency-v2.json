@@ -1,0 +1,25 @@
+{
+    "id": "alert_rule_templates_v2-latency-v2",
+    "type": "alerting_rule_template",
+    "managed": true,
+    "attributes": {
+        "engine": "v2",
+        "rule": {
+            "kind": "alert",
+            "metadata": {
+                "name": "[Sample] Latency high",
+                "description": "Alerts when the average request latency is above 500 ms.",
+                "tags": ["Sample"]
+            },
+            "schedule": {"every": "1m", "lookback": "5m"},
+            "time_field": "@timestamp",
+            "query": {
+                "base": "FROM metrics-sample-default | STATS latency = AVG(sample.latency.ms) BY service.name",
+                "breach": {"segment": "WHERE latency > 500"}
+            },
+            "recovery": {"strategy": "condition", "segment": "WHERE latency < 400"},
+            "no_data": {"strategy": "keep_last"},
+            "grouping": {"fields": ["service.name"]}
+        }
+    }
+}

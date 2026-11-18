@@ -139,6 +139,9 @@ test-build-zip:
 test-build-install-zip:
 	./scripts/test-build-install-zip.sh
 
+test-build-install-zip-9x-snapshot:
+	./scripts/test-build-install-zip.sh 9.7.0-a4ce2d27-SNAPSHOT
+
 test-build-install-zip-file:
 	./scripts/test-build-install-zip-file.sh
 

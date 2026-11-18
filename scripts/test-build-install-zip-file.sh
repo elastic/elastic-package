@@ -2,6 +2,9 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/stack_parameters.sh"
+
 cleanup() {
   local r=$?
   if [ "${r}" -ne 0 ]; then
@@ -41,9 +44,9 @@ installAndVerifyPackage() {
   local PACKAGE_NAME_VERSION=""
   PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
 
-  # Replace dash with a slash in the file name to match the API endpoint format
+  # Replace the name/version separator with a slash to match the API endpoint.
   # e.g. "apache-999.999.999" becomes "apache/999.999.999"
-  PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
+  PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION/-//}"
 
   echo "--- Installing package: ${PACKAGE_NAME_VERSION}"
   elastic-package install -v --zip "${zipFile}"
@@ -93,8 +96,10 @@ while getopts ":sv:h" o; do
 done
 
 ARG_VERSION=""
+stackVersion=$(default_stack_version)
 if [ "${STACK_VERSION}" != "default" ]; then
   ARG_VERSION="--version ${STACK_VERSION}"
+  stackVersion="${STACK_VERSION}"
 fi
 
 echo "--- Prepare Elastic stack"
@@ -108,6 +113,8 @@ ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
 # Build packages
+# A skipped package may still have an archive from a previous invocation.
+rm -f build/packages/*.zip
 for d in test/packages/*/*/; do
   # Added set +x in a sub-shell to avoid printing the testype command in the output
   # This helps to keep the CI output cleaner
@@ -119,6 +126,11 @@ for d in test/packages/*/*/; do
   # Composable packages require the local registry to be running during build;
   # they are tested separately via test-composable-packages.sh.
   if [ "${packageTestType}" == "composable" ]; then
+    continue
+  fi
+  # Packages pinned to a newer stack are tested on that stack by test-check-packages.sh.
+  if requires_newer_stack "$d" "${stackVersion}"; then
+    echo "--- Skipping package: ${d} (requires a stack newer than ${stackVersion})"
     continue
   fi
   echo "--- Building zip package: ${d}"
