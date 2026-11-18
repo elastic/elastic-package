@@ -407,7 +407,7 @@ Pass a comma-separated list of dashboard ids with -d or use the interactive prom
 
 _Context: package_
 
-Use this command to export assets relevant for the package, e.g. Kibana dashboards.
+Use this command to export assets relevant for the package, e.g. Kibana dashboards or workflows.
 
 ### `elastic-package export dashboards`
 
@@ -424,6 +424,14 @@ _Context: package_
 Use this command to export ingest pipelines with referenced pipelines from the Elasticsearch instance.
 
 Use this command to download selected ingest pipelines and its referenced processor pipelines from Elasticsearch. Select data stream or the package root directories to download the pipelines. Pipelines are downloaded as is and will need adjustment to meet your package needs.
+
+### `elastic-package export workflows`
+
+_Context: package_
+
+Use this command to export workflows from the Kibana instance.
+
+Use this command to download selected workflows from Kibana and store them as workflow assets of the package, in the kibana/workflow directory. Workflows are stored disabled, as required for package assets, in files named after the package and the workflow name.
 
 ### `elastic-package find [flags]`
 
@@ -930,6 +938,11 @@ The following settings are available per profile:
   packages in Fleet. Supported in Kibana 9.2 and later. Defaults to false.
 * `stack.fleet_auto_install_task_interval` sets the interval for the Fleet auto-install content packages task.
   Supported in Kibana 9.2 and later. Defaults to "10m".
+* `stack.fleet_workflow_assets_enabled` can be set to true to enable the Fleet `fleet.enableWorkflowAssets`
+  feature flag, so Fleet installs workflow assets from packages. Supported in Kibana 9.7 and later. Defaults to false.
+  The Kibana Workflows plugins are enabled by default and require an enterprise license, which the default
+  "trial" subscription includes. Note: Fleet support is pending [elastic/kibana#299129](https://github.com/elastic/kibana/pull/299129);
+  until it is merged and available in a 9.7.0-SNAPSHOT build, this setting has no effect.
 
 ### AI-powered Documentation Configuration
 

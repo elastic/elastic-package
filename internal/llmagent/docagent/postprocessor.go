@@ -190,34 +190,56 @@ func appendDataStreamSubsection(content, dsName string, needsEvent, needsFields 
 	return beforeInsert + sb.String() + "\n\n" + afterInsert
 }
 
-// Canonical Agentless deployment subsection block (matches package-docs-readme.md.tmpl).
-const agentlessSectionBlock = `### Agentless deployment
+const (
+	// agentlessHeading is the current title of the Elastic Managed (agentless) deployment subsection.
+	agentlessHeading = "Elastic Managed enabled integration"
+	// legacyAgentlessHeading is the title used by older README templates.
+	legacyAgentlessHeading = "Agentless deployment"
+)
 
-Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
+// Canonical Elastic Managed (agentless) deployment subsection block (matches package-docs-readme.md.tmpl).
+const agentlessSectionBlock = "### " + agentlessHeading + `
 
-For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html)`
+Elastic Managed integrations are only supported on Elastic Cloud Serverless and Elastic Cloud Hosted deployments. An Elastic Managed integration lets you ingest data from a cloud source while avoiding the orchestration, management, and maintenance associated with standard ingest infrastructure. Elastic runs the collector for you, so you can focus on your data instead of the infrastructure that collects it.
+
+For more information, refer to [Elastic Managed integrations](https://www.elastic.co/docs/manage-data/ingest/managed-integrations/managed-integrations) and the [Elastic Managed integrations FAQ](https://www.elastic.co/docs/manage-data/ingest/managed-integrations/managed-integrations-faq).`
 
 var (
 	howDoIDeploySectionRegex = regexp.MustCompile(`(?mi)^##\s+How do I deploy this integration\?\s*$`)
 	agentBasedHeadingRegex   = regexp.MustCompile(`(?mi)^###\s+Agent-based deployment\s*$`)
-	agentlessHeadingRegex    = regexp.MustCompile(`(?mi)^###\s+Agentless deployment\s*$`)
-	nextH2OrH3Regex          = regexp.MustCompile(`(?m)^(?:##|###)\s+`)
+	// Matches the current "Elastic Managed enabled integration" heading and the legacy
+	// "Agentless deployment" heading. The legacy match prevents a duplicate section when the
+	// LLM carries the old heading forward from an existing README, and lets the old block be
+	// removed or replaced with the canonical one.
+	agentlessHeadingRegex       = regexp.MustCompile(`(?mi)^###\s+(?:` + regexp.QuoteMeta(agentlessHeading) + `|` + regexp.QuoteMeta(legacyAgentlessHeading) + `)\s*$`)
+	legacyAgentlessHeadingRegex = regexp.MustCompile(`(?mi)^###\s+` + regexp.QuoteMeta(legacyAgentlessHeading) + `\s*$`)
+	nextH2OrH3Regex             = regexp.MustCompile(`(?m)^(?:##|###)\s+`)
 )
 
-// EnsureAgentlessSection ensures the Agentless deployment subsection is present iff the package has agentless enabled.
+// EnsureAgentlessSection ensures the Elastic Managed (agentless) deployment subsection is present iff the package has agentless enabled.
 func (d *DocumentationAgent) EnsureAgentlessSection(content string, pkgCtx *validators.PackageContext) string {
 	wantAgentless := pkgCtx != nil && pkgCtx.HasAgentlessEnabled()
 	hasSection := hasAgentlessSection(content)
 	if !wantAgentless {
 		if hasSection {
 			content = removeAgentlessSection(content)
-			logger.Debugf("Post-processor: Removed Agentless deployment section (not enabled in package)")
+			logger.Debugf("Post-processor: Removed Elastic Managed deployment sections (not enabled in package)")
 		}
 		return content
 	}
 	if !hasSection {
 		content = insertAgentlessSection(content)
-		logger.Debugf("Post-processor: Added Agentless deployment section")
+		logger.Debugf("Post-processor: Added Elastic Managed deployment section")
+		return content
+	}
+	// Collapse a legacy "Agentless deployment" block, or more than one matching block, into a
+	// single canonical Elastic Managed block. Skip when there is no deploy section to insert
+	// into, so the existing section is not dropped.
+	hasLegacy := legacyAgentlessHeadingRegex.MatchString(content)
+	hasDuplicates := len(agentlessHeadingRegex.FindAllStringIndex(content, -1)) > 1
+	if (hasLegacy || hasDuplicates) && findAfterDeploySectionHeading(content) >= 0 {
+		content = insertAgentlessSection(removeAgentlessSection(content))
+		logger.Debugf("Post-processor: Replaced legacy or duplicate agentless sections with a single Elastic Managed deployment section")
 	}
 	return content
 }
@@ -226,7 +248,15 @@ func hasAgentlessSection(content string) bool {
 	return agentlessHeadingRegex.MatchString(content)
 }
 
+// removeAgentlessSection removes every Elastic Managed or legacy Agentless deployment subsection.
 func removeAgentlessSection(content string) string {
+	for hasAgentlessSection(content) {
+		content = removeFirstAgentlessSection(content)
+	}
+	return content
+}
+
+func removeFirstAgentlessSection(content string) string {
 	loc := agentlessHeadingRegex.FindStringIndex(content)
 	if loc == nil {
 		return content

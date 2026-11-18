@@ -264,7 +264,8 @@ func (r tester) TearDown(ctx context.Context) error {
 }
 
 // isDataStreamUsingOTelCollectorInput returns true if the data stream under test uses the
-// otelcol input type. For input packages the singular PolicyTemplate.Input field is checked
+// otelcol input type or sets use_otel_suffix, which is only allowed on data streams without
+// inputs. For input packages the singular PolicyTemplate.Input field is checked
 // directly. For composable integration packages the built manifest is read to resolve the
 // input type materialised from the required input package.
 func (r tester) isDataStreamUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
@@ -275,11 +276,23 @@ func (r tester) isDataStreamUsingOTelCollectorInput(manifest *packages.PackageMa
 		return true
 	}
 
-	// For composable integration packages, check the built manifest where "package:" references
-	// are materialised into concrete input types.
 	if r.testFolder.DataStream == "" {
 		return false
 	}
+
+	// Data streams with use_otel_suffix have no inputs to resolve, so the source
+	// manifest is enough and no build is needed.
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, r.testFolder.DataStream)
+	if err != nil {
+		logger.Debugf("failed to read data stream manifest for OTel detection: %v", err)
+		return false
+	}
+	if dsManifest.UseOtelSuffix {
+		return true
+	}
+
+	// For composable integration packages, check the built manifest where "package:" references
+	// are materialised into concrete input types.
 	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(r.packageRoot)
 	if err != nil {
 		logger.Debugf("failed to read built manifest for OTel detection: %v", err)

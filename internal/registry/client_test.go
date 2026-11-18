@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 	"github.com/stretchr/testify/require"
@@ -382,6 +383,75 @@ func TestDownloadPackage(t *testing.T) {
 		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
 		require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed on verification failure")
 	})
+}
+
+func TestDownloadPackageRetriesByDefault(t *testing.T) {
+	t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
+
+	zipBytes := testAcmePackageZip(t)
+	var attempts atomic.Int32
+	srv := newFlakyZipServer(t, zipBytes, 1, &attempts)
+
+	dest := t.TempDir()
+	// No RetryMax option: a default client must retry transient failures.
+	client, err := NewClient(srv.URL, fastRetryWait())
+	require.NoError(t, err)
+
+	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+	require.NoError(t, err)
+	require.FileExists(t, zipPath)
+	require.Equal(t, int32(2), attempts.Load(), "default client should retry transient failures")
+}
+
+func TestDownloadPackageDoesNotRetryNonRecoverableStatus(t *testing.T) {
+	var attempts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		// 404 is a permanent failure (e.g. package/version does not exist) and
+		// must not be retried, even with retries enabled.
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	dest := t.TempDir()
+	client, err := NewClient(srv.URL, RetryMax(5), fastRetryWait())
+	require.NoError(t, err)
+
+	_, err = client.DownloadPackage("acme", "1.0.0", dest)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "unexpected status code 404")
+	require.Equal(t, int32(1), attempts.Load(), "404 must fail fast without retries")
+}
+
+// fastRetryWait sets short retry backoff bounds so tests exercising retries
+// run in milliseconds instead of the default seconds. Both bounds use the same
+// value: the tests care only about speed, not the backoff spread.
+func fastRetryWait() ClientOption {
+	return func(c *Client) {
+		c.retryWaitMin = time.Millisecond
+		c.retryWaitMax = time.Millisecond
+	}
+}
+
+// newFlakyZipServer returns a registry test server that fails the first
+// failFirst requests for the acme package zip with a transient 502, then
+// serves zipBytes. It records the number of zip requests in attempts.
+func newFlakyZipServer(t *testing.T, zipBytes []byte, failFirst int32, attempts *atomic.Int32) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
+			http.NotFound(w, r)
+			return
+		}
+		if attempts.Add(1) <= failFirst {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		_, err := w.Write(zipBytes)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
 }
 
 // testKeyPairData holds a generated test RSA keypair.

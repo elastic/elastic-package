@@ -13,13 +13,20 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/retry"
 )
 
 const (
 	ProductionURL = "https://epr.elastic.co"
+
+	// defaultRetryMax is the number of retries used when a client is created
+	// without an explicit RetryMax option. It matches the Kibana client so
+	// transient EPR failures are retried by default for all commands.
+	defaultRetryMax = 10
 )
 
 // ClientOption is a functional option for the registry client.
@@ -30,12 +37,18 @@ type Client struct {
 	baseURL              string
 	certificateAuthority string
 	tlsSkipVerify        bool
-	httpClient           *http.Client
+	retryMax             int
+	// retryWaitMin and retryWaitMax override the retry backoff bounds. In
+	// practice only tests set them (to keep retries fast); production leaves them
+	// zero so the retry package defaults apply.
+	retryWaitMin time.Duration
+	retryWaitMax time.Duration
+	httpClient   *http.Client
 }
 
 // NewClient creates a new instance of the client.
 func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
-	c := &Client{baseURL: baseURL}
+	c := &Client{baseURL: baseURL, retryMax: defaultRetryMax}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -61,6 +74,14 @@ func TLSSkipVerify() ClientOption {
 	}
 }
 
+// RetryMax configures the number of retries before failing. A value of 0
+// disables retries.
+func RetryMax(retryMax int) ClientOption {
+	return func(c *Client) {
+		c.retryMax = retryMax
+	}
+}
+
 func (c *Client) newHTTPClient() (*http.Client, error) {
 	client := &http.Client{}
 	if c.tlsSkipVerify {
@@ -76,6 +97,15 @@ func (c *Client) newHTTPClient() (*http.Client, error) {
 			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
 		}
 	}
+
+	if c.retryMax > 0 {
+		client = retry.WrapHTTPClient(client, retry.HTTPOptions{
+			RetryMax:     c.retryMax,
+			RetryWaitMin: c.retryWaitMin,
+			RetryWaitMax: c.retryWaitMax,
+		})
+	}
+
 	return client, nil
 }
 

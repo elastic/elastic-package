@@ -32,7 +32,7 @@ var fieldsToEncode = []string{
 }
 
 func encodeDashboards(buildPackageRoot string) error {
-	savedObjects, err := filepath.Glob(filepath.Join(buildPackageRoot, "kibana", "*", "*"))
+	savedObjects, err := filepath.Glob(filepath.Join(buildPackageRoot, "kibana", "*", "*.json"))
 	if err != nil {
 		return err
 	}

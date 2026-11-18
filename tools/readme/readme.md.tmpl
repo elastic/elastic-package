@@ -306,6 +306,11 @@ The following settings are available per profile:
   packages in Fleet. Supported in Kibana 9.2 and later. Defaults to false.
 * `stack.fleet_auto_install_task_interval` sets the interval for the Fleet auto-install content packages task.
   Supported in Kibana 9.2 and later. Defaults to "10m".
+* `stack.fleet_workflow_assets_enabled` can be set to true to enable the Fleet `fleet.enableWorkflowAssets`
+  feature flag, so Fleet installs workflow assets from packages. Supported in Kibana 9.7 and later. Defaults to false.
+  The Kibana Workflows plugins are enabled by default and require an enterprise license, which the default
+  "trial" subscription includes. Note: Fleet support is pending [elastic/kibana#299129](https://github.com/elastic/kibana/pull/299129);
+  until it is merged and available in a 9.7.0-SNAPSHOT build, this setting has no effect.
 
 ### AI-powered Documentation Configuration
 
