@@ -35,6 +35,10 @@ func AutodetectShell() string {
 
 // ShellInit method exposes environment variables that can be used for testing purposes.
 func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
+	err := checkHostPortsChosen(elasticStackProfile)
+	if err != nil {
+		return "", err
+	}
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
 		return "", fmt.Errorf("reading stack init config: %w", err)

@@ -68,6 +68,7 @@ const (
 
 	configAPMEnabled                             = "stack.apm_enabled"
 	configGeoIPDir                               = "stack.geoip_dir"
+	configHostPorts                              = "stack.host_ports"
 	configKibanaHTTP2Enabled                     = "stack.kibana_http2_enabled"
 	configLogsDBEnabled                          = "stack.logsdb_enabled"
 	configLogstashEnabled                        = "stack.logstash_enabled"
@@ -172,7 +173,7 @@ func fileContentAppender(sources ...resource.FileContent) resource.FileContent {
 	}
 }
 
-func applyResources(profile *profile.Profile, appConfig *install.ApplicationConfiguration, stackVersion, agentVersion string) error {
+func applyResources(profile *profile.Profile, appConfig *install.ApplicationConfiguration, stackVersion, agentVersion string, config Config) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	var agentPorts []string
@@ -214,6 +215,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"fleet_auto_install_content_packages_enabled": profile.Config(configFleetAutoInstallContentPackagesEnabled, "false"),
 		"fleet_workflow_assets_enabled":               profile.Config(configFleetWorkflowAssetsEnabled, "false"),
 	})
+	resourceManager.AddFacter(hostPortFacts(config))
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
 		return fmt.Errorf("failed to create stack directory: %w", err)

@@ -17,7 +17,12 @@ func Update(ctx context.Context, options Options) error {
 	if options.OverrideAgentVersion != "" {
 		agentVersion = options.OverrideAgentVersion
 	}
-	err := applyResources(options.Profile, options.AppConfig, options.StackVersion, agentVersion)
+	config, err := LoadConfig(options.Profile)
+	if err != nil {
+		return fmt.Errorf("failed to load stack config: %w", err)
+	}
+
+	err = applyResources(options.Profile, options.AppConfig, options.StackVersion, agentVersion, config)
 	if err != nil {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}

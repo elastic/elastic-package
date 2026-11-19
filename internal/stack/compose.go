@@ -19,6 +19,7 @@ type ServiceStatus struct {
 	Status  string
 	Version string
 	Labels  *docker.ConfigLabels // Container labels.
+	URL     string               // URL on the host, set if the stack uses random host ports.
 }
 
 const readyServicesSuffix = "is_ready"

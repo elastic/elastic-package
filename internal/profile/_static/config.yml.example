@@ -32,6 +32,12 @@
 # stack.agent.ports:
 # - 127.0.0.1:1514:1514/udp
 
+## Host ports where the services of the stack are published
+# With "fixed", all profiles use the same ports, so only one stack can run at a time.
+# With "random", free ports are used, so the stacks of several profiles can run at the
+# same time. Defaults to "fixed".
+# stack.host_ports: random
+
 ## Set license subscription
 # stack.elastic_subscription: "basic"
 

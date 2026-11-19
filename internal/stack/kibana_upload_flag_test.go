@@ -91,7 +91,7 @@ func renderAndCheck(t *testing.T, version string) bool {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if err := applyResources(p, appConfig, version, version); err != nil {
+	if err := applyResources(p, appConfig, version, version, defaultConfig()); err != nil {
 		t.Fatalf("applyResources: %v", err)
 	}
 	d, err := os.ReadFile(p.Path(ProfileStackPath, KibanaConfigFile))

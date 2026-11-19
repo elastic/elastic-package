@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -406,14 +407,27 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) error
 		tablewriter.WithRenderer(renderer.NewColorized(config)),
 		tablewriter.WithConfig(defaultTableConfig),
 	)
-	table.Header("Service", "Version", "Status", "Image Build Date", "VCS Ref")
+	// URLs are set only for stacks that use random host ports.
+	withURLs := slices.ContainsFunc(servicesStatus, func(service stack.ServiceStatus) bool {
+		return service.URL != ""
+	})
+
+	header := []any{"Service", "Version", "Status", "Image Build Date", "VCS Ref"}
+	if withURLs {
+		header = append(header, "URL")
+	}
+	table.Header(header...)
 	for _, service := range servicesStatus {
 		var buildDate, vcsRef string
 		if service.Labels != nil {
 			buildDate = formatTime(service.Labels.BuildDate)
 			vcsRef = truncate(service.Labels.VCSRef, 10)
 		}
-		if err := table.Append(service.Name, service.Version, service.Status, buildDate, vcsRef); err != nil {
+		row := []any{service.Name, service.Version, service.Status, buildDate, vcsRef}
+		if withURLs {
+			row = append(row, service.URL)
+		}
+		if err := table.Append(row...); err != nil {
 			return fmt.Errorf("appending service status row: %w", err)
 		}
 	}

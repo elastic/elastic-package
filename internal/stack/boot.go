@@ -44,7 +44,12 @@ func BootUp(ctx context.Context, options Options) error {
 		KibanaHost:            "https://127.0.0.1:5601",
 		CACertFile:            options.Profile.Path(CACertificateFile),
 	}
+	config, err := setHostPorts(options, config)
+	if err != nil {
+		return fmt.Errorf("setting host ports failed: %w", err)
+	}
 	printUserConfig(options.Printer, config)
+	printKibanaBrowserURL(options.Printer, options.Profile, config)
 
 	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
 	if err != nil {
@@ -81,7 +86,7 @@ func BootUp(ctx context.Context, options Options) error {
 		agentVersion = options.OverrideAgentVersion
 	}
 
-	err = applyResources(options.Profile, options.AppConfig, options.StackVersion, agentVersion)
+	err = applyResources(options.Profile, options.AppConfig, options.StackVersion, agentVersion, config)
 	if err != nil {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}
@@ -91,7 +96,17 @@ func BootUp(ctx context.Context, options Options) error {
 		return fmt.Errorf("building docker images failed: %w", err)
 	}
 
+	err = storeConfig(options.Profile, config)
+	if err != nil {
+		return fmt.Errorf("failed to store config: %w", err)
+	}
+
 	err = dockerComposeUp(ctx, options)
+	if err != nil && usesRandomHostPorts(config) && !errors.Is(err, context.Canceled) {
+		// A host port can be taken after it is chosen, and then its service fails to
+		// start. Choose the ports again, and start again if some of them changed.
+		err = retryWithNewHostPorts(ctx, options, agentVersion, config, err)
+	}
 	if err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
@@ -112,11 +127,6 @@ func BootUp(ctx context.Context, options Options) error {
 		if err != nil {
 			return fmt.Errorf("running docker-compose failed: %w", err)
 		}
-	}
-
-	err = storeConfig(options.Profile, config)
-	if err != nil {
-		return fmt.Errorf("failed to store config: %w", err)
 	}
 
 	return nil

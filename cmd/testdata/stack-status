@@ -1,0 +1,9 @@
+╭──────────────────┬─────────┬────────────────────┬───────────────────┬────────────╮
+│     SERVICE      │ VERSION │       STATUS       │ IMAGE BUILD DATE  │  VCS REF   │
+├──────────────────┼─────────┼────────────────────┼───────────────────┼────────────┤
+│ elastic-agent    │ 9.5.5   │ running (healthy)  │ 2026-10-01T03:11Z │ f971781446 │
+│ elasticsearch    │ 9.5.5   │ running (healthy)  │                   │            │
+│ fleet-server     │ 9.5.5   │ running (healthy)  │ 2026-10-01T03:11Z │ f971781446 │
+│ kibana           │ 9.5.5   │ running (starting) │                   │            │
+│ package-registry │ latest  │ exited (1)         │                   │            │
+╰──────────────────┴─────────┴────────────────────┴───────────────────┴────────────╯

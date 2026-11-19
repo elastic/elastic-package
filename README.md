@@ -918,6 +918,13 @@ The following settings are available per profile:
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
+* `stack.host_ports` can be set to "random" to publish the services of the stack in free
+  ports of the host, instead of in fixed ones. This allows to run the stacks of several
+  profiles at the same time. The ports are kept when the stack is started again, if they
+  are still free. `elastic-package stack status` shows the URL of each service, and
+  `elastic-package stack up` prints the addresses of Elasticsearch and Kibana. The Kibana
+  URL for browsers has a hostname specific to the profile, so browsers don't mix sessions
+  of different stacks. Supported only by the compose provider. Defaults to "fixed".
 * `stack.kibana_http2_enabled` can be used to control if HTTP/2 should be used in versions of
   kibana that support it. Defaults to true.
 * `stack.logsdb_enabled` can be set to true to activate the feature flag in Elasticsearch that

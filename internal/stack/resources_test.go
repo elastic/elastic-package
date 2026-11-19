@@ -61,7 +61,7 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	appConfig, err := install.Configuration()
 	require.NoError(t, err)
 
-	err = applyResources(p, appConfig, stackVersion, stackVersion)
+	err = applyResources(p, appConfig, stackVersion, stackVersion, defaultConfig())
 	require.NoError(t, err)
 
 	d, err := os.ReadFile(p.Path(ProfileStackPath, ComposeFile))
@@ -230,7 +230,7 @@ package_registry:
 
 			// Now, apply resources and check that the variable has been used.
 			stackVersion := "8.6.1"
-			err = applyResources(p, config, stackVersion, stackVersion)
+			err = applyResources(p, config, stackVersion, stackVersion, defaultConfig())
 			require.NoError(t, err)
 
 			d, err := os.ReadFile(p.Path(ProfileStackPath, DockerfilePackageRegistryFile))
@@ -271,7 +271,7 @@ func TestKibanaConfigWorkflowAssets(t *testing.T) {
 
 			config, err := install.Configuration()
 			require.NoError(t, err)
-			require.NoError(t, applyResources(p, config, tc.version, tc.version))
+			require.NoError(t, applyResources(p, config, tc.version, tc.version, defaultConfig()))
 
 			d, err := os.ReadFile(p.Path(ProfileStackPath, KibanaConfigFile))
 			require.NoError(t, err)
