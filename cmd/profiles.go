@@ -33,7 +33,7 @@ func setupProfilesCommand() *cobraext.Command {
 
 Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand.
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
-User profiles can be configured with a "config.yml" file in the profile directory.`
+User profiles can be configured with a "config.yml" file in the profile directory. Settings can be stored in this file when creating a profile with the --set flag.`
 
 	profileCommand := &cobra.Command{
 		Use:   "profiles",
@@ -52,9 +52,14 @@ User profiles can be configured with a "config.yml" file in the profile director
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFromFlagName)
 			}
+			settings, err := cobraext.GetProfileSetFlags(cmd)
+			if err != nil {
+				return err
+			}
 			options := profile.Options{
 				Name:        newProfileName,
 				FromProfile: fromName,
+				Settings:    settings,
 			}
 			err = profile.CreateProfile(options)
 			if err != nil {
@@ -71,6 +76,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 		},
 	}
 	profileNewCommand.Flags().String(cobraext.ProfileFromFlagName, "", cobraext.ProfileFromFlagDescription)
+	profileNewCommand.Flags().StringArray(cobraext.ProfileSetFlagName, nil, cobraext.ProfileSetFlagDescription)
 
 	profileDeleteCommand := &cobra.Command{
 		Use:   "delete [profile]",

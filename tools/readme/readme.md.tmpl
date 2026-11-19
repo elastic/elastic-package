@@ -269,7 +269,9 @@ You can delete profiles with `elastic-package profiles delete`.
 
 Each profile can have a `config.yml` file that allows to persist configuration settings
 that apply only to commands using this profile. You can find a `config.yml.example` that
-you can copy to start.
+you can copy to start. Settings can also be stored in this file when creating the profile,
+for example with `elastic-package profiles create myprofile --set stack.logstash_enabled=true`.
+The flag can be repeated, and lists use YAML flow style, like `--set 'stack.agent.ports=[127.0.0.1:1514:1514/udp]'`.
 
 The following settings are available per profile:
 

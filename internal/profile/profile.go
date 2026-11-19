@@ -55,6 +55,9 @@ type Options struct {
 	Name              string
 	FromProfile       string
 	OverwriteExisting bool
+
+	// Settings are stored in the configuration file of the profile.
+	Settings map[string]string
 }
 
 func CreateProfile(options Options) error {
@@ -86,7 +89,12 @@ func CreateProfile(options Options) error {
 		return createProfileFrom(options)
 	}
 
-	return createProfile(options, profileResources)
+	configPath := filepath.Join(options.ProfilesDirPath, options.Name, PackageProfileConfigFile)
+	resources, err := resourcesWithSettings(configPath, options.Settings)
+	if err != nil {
+		return err
+	}
+	return createProfile(options, resources)
 }
 
 func createProfile(options Options, resources []resource.Resource) error {
@@ -124,6 +132,12 @@ func createProfileFrom(options Options) error {
 		return fmt.Errorf("failed to load profile to copy %q: %w", options.FromProfile, err)
 	}
 
+	// Prepare the configuration before copying, so no incomplete profile is left if it fails.
+	resources, err := resourcesWithSettings(from.Path(PackageProfileConfigFile), options.Settings)
+	if err != nil {
+		return err
+	}
+
 	profileDir := filepath.Join(options.ProfilesDirPath, options.Name)
 	err = files.CopyAll(from.ProfilePath, profileDir)
 	if err != nil {
@@ -132,7 +146,7 @@ func createProfileFrom(options Options) error {
 
 	overwriteOptions := options
 	overwriteOptions.OverwriteExisting = true
-	return createProfile(overwriteOptions, profileResources)
+	return createProfile(overwriteOptions, resources)
 }
 
 // Profile manages a a given user config profile

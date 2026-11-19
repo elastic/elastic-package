@@ -218,6 +218,9 @@ const (
 	ProfileFormatFlagName        = "format"
 	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
 
+	ProfileSetFlagName        = "set"
+	ProfileSetFlagDescription = "setting to store in the configuration of the new profile, as key=value. Can be repeated. Lists and mappings use YAML flow style, like key=[a, b]"
+
 	ReportFormatFlagName        = "report-format"
 	ReportFormatFlagDescription = "format of test report, eg: human, xUnit, json"
 

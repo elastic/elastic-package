@@ -527,7 +527,7 @@ Use this command to add, remove, and manage multiple config profiles.
 
 Individual user profiles appear in ~/.elastic-package/stack, and contain all the config files needed by the "stack" subcommand.
 Once a new profile is created, it can be specified with the -p flag, or the ELASTIC_PACKAGE_PROFILE environment variable.
-User profiles can be configured with a "config.yml" file in the profile directory.
+User profiles can be configured with a "config.yml" file in the profile directory. Settings can be stored in this file when creating a profile with the --set flag.
 
 ### `elastic-package profiles create`
 
@@ -901,7 +901,9 @@ You can delete profiles with `elastic-package profiles delete`.
 
 Each profile can have a `config.yml` file that allows to persist configuration settings
 that apply only to commands using this profile. You can find a `config.yml.example` that
-you can copy to start.
+you can copy to start. Settings can also be stored in this file when creating the profile,
+for example with `elastic-package profiles create myprofile --set stack.logstash_enabled=true`.
+The flag can be repeated, and lists use YAML flow style, like `--set 'stack.agent.ports=[127.0.0.1:1514:1514/udp]'`.
 
 The following settings are available per profile:
 
