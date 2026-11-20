@@ -21,6 +21,8 @@
       type: long
     - name: metric
       type: double
+    - name: signal
+      type: integer
 - name: container.image.tag
   type: keyword
   normalize:
