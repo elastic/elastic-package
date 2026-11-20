@@ -1,0 +1,150 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package cmd
+
+import (
+	"errors"
+	"fmt"
+	"net/url"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/stack"
+)
+
+const editDashboardsLongDescription = `Use this command to make dashboards editable.
+
+Pass a comma-separated list of dashboard ids with -d or use the interactive prompt to make managed dashboards editable in Kibana.`
+
+func editDashboardsCmd(cmd *cobra.Command, args []string) error {
+	cmd.Println("Make Kibana dashboards editable")
+
+	dashboardIDs, err := cmd.Flags().GetStringSlice(cobraext.DashboardIDsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DashboardIDsFlagName)
+	}
+
+	common.TrimStringSlice(dashboardIDs)
+
+	var opts []kibana.ClientOption
+	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TLSSkipVerifyFlagName)
+	}
+	if tlsSkipVerify {
+		opts = append(opts, kibana.TLSSkipVerify())
+	}
+
+	allowSnapshot, err := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
+	}
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
+	if err != nil {
+		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	kibanaVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("can't get Kibana status information: %w", err)
+	}
+
+	if kibanaVersion.IsSnapshot() {
+		message := fmt.Sprintf("editing dashboards from a SNAPSHOT version of Kibana (%s) is discouraged. It could lead to invalid dashboards (for example if they use features that are reverted or modified before the final release)", kibanaVersion.Version())
+		if !allowSnapshot {
+			return fmt.Errorf("%s. --%s flag can be used to ignore this error", message, cobraext.AllowSnapshotFlagName)
+		}
+		fmt.Printf("Warning: %s\n", message)
+	}
+
+	if len(dashboardIDs) == 0 {
+		// Not mandatory to get the package name here, but it would be helpful for users
+		// to select by default the package where they are located if any.
+		defaultPackage := ""
+		packageRoot, err := packages.MustFindPackageRoot()
+		if err == nil {
+			m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+			if err != nil {
+				return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+			}
+			defaultPackage = m.Name
+		}
+		selectOptions := selectDashboardOptions{
+			ctx:            cmd.Context(),
+			kibanaClient:   kibanaClient,
+			kibanaVersion:  kibanaVersion,
+			defaultPackage: defaultPackage,
+		}
+		dashboardIDs, err = selectDashboardIDs(selectOptions)
+		if err != nil {
+			return fmt.Errorf("selecting dashboard IDs failed: %w", err)
+		}
+
+		if len(dashboardIDs) == 0 {
+			fmt.Println("No dashboards were found in Kibana.")
+			return nil
+		}
+	}
+
+	updatedDashboardIDs := make([]string, 0, len(dashboardIDs))
+	failedDashboardUpdates := make(map[string]error, len(dashboardIDs))
+	for _, dashboardID := range dashboardIDs {
+		err = kibanaClient.SetManagedSavedObject(cmd.Context(), "dashboard", dashboardID, false)
+		if err != nil {
+			failedDashboardUpdates[dashboardID] = err
+		} else {
+			updatedDashboardIDs = append(updatedDashboardIDs, dashboardID)
+		}
+	}
+
+	if len(updatedDashboardIDs) > 0 {
+		urls, err := dashboardURLs(*kibanaClient, updatedDashboardIDs)
+		if err != nil {
+			cmd.Println(fmt.Sprintf("\nFailed to retrieve dashboard URLS: %s", err.Error()))
+			cmd.Println(fmt.Sprintf("The following dashboards are now editable in Kibana:\n%s", strings.Join(updatedDashboardIDs, "\n")))
+		} else {
+			cmd.Println(fmt.Sprintf("\nThe following dashboards are now editable in Kibana:%s\n\nRemember to export modified dashboards with elastic-package export dashboards", urls))
+		}
+	}
+
+	if len(failedDashboardUpdates) > 0 {
+		var combinedErr error
+		for _, err := range failedDashboardUpdates {
+			combinedErr = errors.Join(combinedErr, err)
+		}
+		fmt.Println("")
+		return fmt.Errorf("failed to make one or more dashboards editable: %s", combinedErr.Error())
+	}
+
+	fmt.Println("\nDone")
+	return nil
+}
+
+func dashboardURLs(kibanaClient kibana.Client, dashboardIDs []string) (string, error) {
+	kibanaHost := kibanaClient.Address()
+	kibanaURL, err := url.Parse(kibanaHost)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve Kibana URL: %w", err)
+	}
+	var urls strings.Builder
+	for _, dashboardID := range dashboardIDs {
+		dashboardURL := *kibanaURL
+		dashboardURL.Path = "app/dashboards"
+		dashboardURL.Fragment = "/view/" + dashboardID
+		fmt.Fprintf(&urls, "\n%s", dashboardURL.String())
+	}
+	return urls.String(), nil
+}
