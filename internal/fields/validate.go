@@ -736,6 +736,15 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 			definition := FindElementDefinition(key, v.Schema)
 			if definition != nil {
 				shouldBeArray = v.shouldValueBeArray(definition)
+
+				// The fields API renders geo_point values as GeoJSON, while documents
+				// are expected to use lat/lon objects, as the synthetic _source does.
+				if converted, changed := geoJSONPointsToLatLon(*definition, contents); changed {
+					if _, err := doc.Put(key, converted); err != nil {
+						return nil, fmt.Errorf("key %s could not be updated: %w", key, err)
+					}
+					contents = converted
+				}
 			}
 
 			// if it needs to be normalized, the field is kept as it is
@@ -775,6 +784,66 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 		logger.Debugf("Some keys were not included in sanitized docs because they are multifields: %s", strings.Join(multifields, ", "))
 	}
 	return newDocs, nil
+}
+
+// geoJSONPointsToLatLon converts GeoJSON points, as returned by the fields API for
+// geo_point fields, into lat/lon objects. It handles single values and arrays, and
+// reports whether anything was converted.
+func geoJSONPointsToLatLon(definition FieldDefinition, value any) (any, bool) {
+	fieldType := definition.Type
+	if fieldType == "object" && definition.ObjectType != "" {
+		fieldType = definition.ObjectType
+	}
+	if fieldType != "geo_point" {
+		return value, false
+	}
+
+	if vals, ok := value.([]any); ok {
+		converted := make([]any, len(vals))
+		changed := false
+		for i, val := range vals {
+			point, ok := geoJSONPointToLatLon(val)
+			if ok {
+				changed = true
+				converted[i] = point
+			} else {
+				converted[i] = val
+			}
+		}
+		if !changed {
+			return value, false
+		}
+		return converted, true
+	}
+
+	point, ok := geoJSONPointToLatLon(value)
+	if !ok {
+		return value, false
+	}
+	return point, true
+}
+
+// geoJSONPointToLatLon converts a GeoJSON point like {"type": "Point", "coordinates": [lon, lat]}
+// into {"lat": lat, "lon": lon}.
+func geoJSONPointToLatLon(value any) (common.MapStr, bool) {
+	point, err := common.ToMapStr(value)
+	if err != nil {
+		return nil, false
+	}
+	if len(point) != 2 {
+		return nil, false
+	}
+	if pointType, ok := point["type"].(string); !ok || pointType != "Point" {
+		return nil, false
+	}
+	coordinates, ok := point["coordinates"].([]any)
+	if !ok || len(coordinates) != 2 {
+		return nil, false
+	}
+	return common.MapStr{
+		"lat": coordinates[1],
+		"lon": coordinates[0],
+	}, true
 }
 
 func (v *Validator) shouldValueBeArray(definition *FieldDefinition) bool {

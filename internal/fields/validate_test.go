@@ -1297,3 +1297,110 @@ func createValidatorForTestdata(t *testing.T, opts ...ValidatorOption) *Validato
 	require.NotNil(t, v)
 	return v
 }
+
+func TestSanitizeSyntheticSourceDocs_GeoPoint(t *testing.T) {
+	validator := &Validator{
+		Schema: []FieldDefinition{
+			{
+				Name: "source",
+				Type: "group",
+				Fields: []FieldDefinition{
+					{Name: "ip", Type: "ip"},
+					{Name: "geo.location", Type: "geo_point"},
+				},
+			},
+			{Name: "locations", Type: "geo_point", Normalize: []string{"array"}},
+			{Name: "area", Type: "geo_shape"},
+		},
+		specVersion:           *semver.MustParse("3.0.0"),
+		disabledNormalization: true,
+		loggedWarnings:        map[string]struct{}{},
+	}
+
+	// Documents as returned by the fields API for synthetic source data streams,
+	// which renders geo_point values as GeoJSON.
+	docs := []common.MapStr{
+		{
+			"source.ip": []any{"192.0.2.30"},
+			"source.geo.location": []any{
+				map[string]any{"type": "Point", "coordinates": []any{-115.13722007162869, 36.17496999911964}},
+			},
+			"locations": []any{
+				map[string]any{"type": "Point", "coordinates": []any{4.88969, 52.37404}},
+				map[string]any{"type": "Point", "coordinates": []any{-0.0931, 51.5142}},
+			},
+			"area": []any{
+				map[string]any{"type": "Point", "coordinates": []any{4.88969, 52.37404}},
+			},
+		},
+	}
+
+	sanitized, err := validator.SanitizeSyntheticSourceDocs(docs)
+	require.NoError(t, err)
+	require.Len(t, sanitized, 1)
+
+	location, err := sanitized[0].GetValue("source.geo.location")
+	require.NoError(t, err)
+	assert.Equal(t, common.MapStr{"lat": 36.17496999911964, "lon": -115.13722007162869}, location)
+
+	ip, err := sanitized[0].GetValue("source.ip")
+	require.NoError(t, err)
+	assert.Equal(t, "192.0.2.30", ip)
+
+	// Fields normalized as arrays keep the array, with every point converted.
+	locations, err := sanitized[0].GetValue("locations")
+	require.NoError(t, err)
+	assert.Equal(t, []any{
+		common.MapStr{"lat": 52.37404, "lon": 4.88969},
+		common.MapStr{"lat": 51.5142, "lon": -0.0931},
+	}, locations)
+
+	// GeoJSON is the expected representation for geo_shape fields.
+	area, err := sanitized[0].GetValue("area")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"type": "Point", "coordinates": []any{4.88969, 52.37404}}, area)
+}
+
+func TestGeoJSONPointToLatLon(t *testing.T) {
+	cases := []struct {
+		title    string
+		value    any
+		expected common.MapStr
+		ok       bool
+	}{
+		{
+			title:    "GeoJSON point",
+			value:    map[string]any{"type": "Point", "coordinates": []any{-0.0931, 51.5142}},
+			expected: common.MapStr{"lat": 51.5142, "lon": -0.0931},
+			ok:       true,
+		},
+		{
+			title: "lat/lon object",
+			value: map[string]any{"lat": 51.5142, "lon": -0.0931},
+		},
+		{
+			title: "other GeoJSON type",
+			value: map[string]any{"type": "LineString", "coordinates": []any{[]any{1.0, 2.0}, []any{3.0, 4.0}}},
+		},
+		{
+			title: "point with extra keys",
+			value: map[string]any{"type": "Point", "coordinates": []any{1.0, 2.0}, "crs": "x"},
+		},
+		{
+			title: "point with altitude",
+			value: map[string]any{"type": "Point", "coordinates": []any{1.0, 2.0, 3.0}},
+		},
+		{
+			title: "string value",
+			value: "POINT (-0.0931 51.5142)",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			point, ok := geoJSONPointToLatLon(c.value)
+			assert.Equal(t, c.ok, ok)
+			assert.Equal(t, c.expected, point)
+		})
+	}
+}
