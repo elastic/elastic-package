@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package export
+package export_test
 
 import (
 	"errors"
@@ -20,6 +20,7 @@ import (
 	"gopkg.in/dnaeon/go-vcr.v3/cassette"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/stack"
 
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
@@ -76,7 +77,7 @@ func (s *ingestPipelineExportSuite) SetupTest() {
 
 		writeAssignments := createTestWriteAssignments(s.PipelineIds, s.ExportDir)
 
-		err = IngestPipelines(s.T().Context(), client.API, writeAssignments)
+		err = export.IngestPipelines(s.T().Context(), client.API, writeAssignments)
 
 		s.Require().NoError(err)
 	} else {
@@ -89,7 +90,7 @@ func (s *ingestPipelineExportSuite) TestExportPipelines() {
 
 	outputDir := s.T().TempDir()
 	writeAssignments := createTestWriteAssignments(s.PipelineIds, outputDir)
-	err := IngestPipelines(s.T().Context(), client.API, writeAssignments)
+	err := export.IngestPipelines(s.T().Context(), client.API, writeAssignments)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.ExportDir)
@@ -102,12 +103,12 @@ func (s *ingestPipelineExportSuite) TestExportPipelines() {
 	assertEqualExports(s.T(), s.ExportDir, outputDir)
 }
 
-func createTestWriteAssignments(pipelineIDs []string, outputDir string) PipelineWriteAssignments {
-	writeAssignments := make(PipelineWriteAssignments)
+func createTestWriteAssignments(pipelineIDs []string, outputDir string) export.PipelineWriteAssignments {
+	writeAssignments := make(export.PipelineWriteAssignments)
 
 	for _, pipelineID := range pipelineIDs {
-		writeAssignments[pipelineID] = PipelineWriteLocation{
-			Type:       PipelineWriteLocationTypeRoot,
+		writeAssignments[pipelineID] = export.PipelineWriteLocation{
+			Type:       export.PipelineWriteLocationTypeRoot,
 			Name:       pipelineID,
 			ParentPath: outputDir,
 		}
