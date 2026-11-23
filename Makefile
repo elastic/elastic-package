@@ -88,7 +88,7 @@ test-stack-command-8x:
 	./scripts/test-stack-command.sh 8.19.26-7df96b6f-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.7.0-663facbe-SNAPSHOT
+	./scripts/test-stack-command.sh 9.7.0-dd330300-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -140,7 +140,7 @@ test-build-install-zip:
 	./scripts/test-build-install-zip.sh
 
 test-build-install-zip-9x-snapshot:
-	./scripts/test-build-install-zip.sh 9.7.0-663facbe-SNAPSHOT
+	./scripts/test-build-install-zip.sh 9.7.0-dd330300-SNAPSHOT
 
 test-build-install-zip-file:
 	./scripts/test-build-install-zip-file.sh
