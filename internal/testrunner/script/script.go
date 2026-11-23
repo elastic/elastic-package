@@ -163,7 +163,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 
 	// Per-stream keys (DATA_STREAM, DATA_STREAM_ROOT) are added inside the loop via maps.Clone.
 	baseEnv := map[string]string{
-		"PROFILE":                   appConfig.CurrentProfile(),
+		"PROFILE":                   prof.ProfileName,
 		"CONFIG_ROOT":               loc.RootDir(),
 		"CONFIG_PROFILES":           loc.ProfileDir(),
 		"HOME":                      home,

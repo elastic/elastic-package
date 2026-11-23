@@ -5,6 +5,7 @@
 package script
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,8 +14,57 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
+
+func TestRun_scriptsUseRunnerProfile(t *testing.T) {
+	const (
+		current  = "current"
+		selected = "selected"
+	)
+	tests := []struct {
+		name    string
+		profile string // Profile passed to the runner, as with -p.
+		want    string
+	}{
+		{name: "selected profile", profile: selected, want: selected},
+		{name: "current profile when none is selected", want: current},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", filepath.Join(t.TempDir(), "data"))
+			t.Setenv("GOTMPDIR", t.TempDir())
+			t.Setenv(install.ProfileNameEnvVar, current)
+			require.NoError(t, install.EnsureInstalled())
+			for _, name := range []string{current, selected} {
+				require.NoError(t, profile.CreateProfile(profile.Options{Name: name}))
+			}
+
+			opt := Options{Dir: t.TempDir()}
+			if tt.profile != "" {
+				prof, err := profile.LoadProfile(tt.profile)
+				require.NoError(t, err)
+				opt.Profile = prof
+			}
+			// cmpenv expands environment variables in its second file only.
+			script := `cmpenv want got
+-- got --
+${PROFILE}
+-- want --
+` + tt.want + "\n"
+			require.NoError(t, os.WriteFile(filepath.Join(opt.Dir, "profile.txt"), []byte(script), 0o600))
+
+			var results []testrunner.TestResult
+			require.NoError(t, Run(&results, io.Discard, opt))
+			require.Len(t, results, 1)
+			require.Empty(t, results[0].FailureMsg, results[0].FailureDetails)
+			require.Empty(t, results[0].ErrorMsg)
+		})
+	}
+}
 
 func TestRevisionsFromRegistry_searchOK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -76,7 +76,7 @@ a stack, starting agents and services and validating results.
 
 ## Environment variables
 
-- `PROFILE`: the `elastic-package` profile being used
+- `PROFILE`: the name of the `elastic-package` profile being used, the one selected with `-p`/`--profile` or the current profile by default
 - `CONFIG_ROOT`: the `elastic-package` configuration root path
 - `CONFIG_PROFILES`: the `elastic-package` profiles configuration root path
 - `HOME`: the user's home directory path
