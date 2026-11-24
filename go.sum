@@ -28,6 +28,9 @@ github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f h1:tCbYj7/299ek
 github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f/go.mod h1:gcr0kNtGBqin9zDW9GOHcVntrwnjrK+qdJ06mWYBybw=
 github.com/ProtonMail/gopenpgp/v2 v2.11.1 h1:Pr1AF5CZZ/iEvZeLQkNCu5aQcUZaPVrzjgVpdfbTUhM=
 github.com/ProtonMail/gopenpgp/v2 v2.11.1/go.mod h1:yWyFrTu87WwVgtYsRgNmqbesz0nNYFS4CtldtB3lM68=
+github.com/a2aproject/a2a-go v0.3.15 h1:h5YpCiPq3jxQ5rIns7oDjPag3ivP8u817AzdA4F+NiI=
+github.com/a2aproject/a2a-go/v2 v2.3.1 h1:QWMdOX2UsJ8BJmjs952eo1FRyGsOVl0gFCKeM76AgGE=
+github.com/a2aproject/a2a-go/v2 v2.3.1/go.mod h1:mkZr8y2bUgAVQsjs/5fHK7xrRlAHDybMEyxWh2tKRC8=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
@@ -479,8 +482,8 @@ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
 gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
-google.golang.org/adk v1.9.0 h1:lA7rm1DUZWnJvXgywrm5L7wWu6IMDONvC9HdZTsETDY=
-google.golang.org/adk v1.9.0/go.mod h1:Nbkyt98Tm7ETU7byMYbBaCUHddLPa2DhzX3BTJnKN/U=
+google.golang.org/adk v1.10.0 h1:Zn3R2Hu8/TTPQC7NB1NCcxzx4p8qgrhQAgPsiinWur8=
+google.golang.org/adk v1.10.0/go.mod h1:/Y288zXrQ2gZsGdxrNVOSIu5bMQIBVltMJ+JRixwF4s=
 google.golang.org/api v0.279.0 h1:hsx2M2OaRcaKtVYK6vXEUnQvdjnend7ZYES+lYaot74=
 google.golang.org/api v0.279.0/go.mod h1:B9TqLBwJqVjp1mtt7WeoQwWRwvu/400y5lETOql+giQ=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
