@@ -739,7 +739,9 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 
 				// The fields API renders geo_point values as GeoJSON, while documents
 				// are expected to use lat/lon objects, as the synthetic _source does.
-				if converted, changed := geoJSONPointsToLatLon(*definition, contents); changed {
+				// Rewriting the values here is safe because the documents have already
+				// been validated by the time they are sanitized; keep it that way.
+				if converted, changed := convertGeoPointFieldValue(*definition, contents); changed {
 					if _, err := doc.Put(key, converted); err != nil {
 						return nil, fmt.Errorf("key %s could not be updated: %w", key, err)
 					}
@@ -786,10 +788,10 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 	return newDocs, nil
 }
 
-// geoJSONPointsToLatLon converts GeoJSON points, as returned by the fields API for
+// convertGeoPointFieldValue converts GeoJSON points, as returned by the fields API for
 // geo_point fields, into lat/lon objects. It handles single values and arrays, and
 // reports whether anything was converted.
-func geoJSONPointsToLatLon(definition FieldDefinition, value any) (any, bool) {
+func convertGeoPointFieldValue(definition FieldDefinition, value any) (any, bool) {
 	fieldType := definition.Type
 	if fieldType == "object" && definition.ObjectType != "" {
 		fieldType = definition.ObjectType
