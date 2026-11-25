@@ -92,6 +92,7 @@ a stack, starting agents and services and validating results.
 - `ECS_BASE_SCHEMA_URL`: the ECS base schema URL
 - `PACKAGE_REGISTRY_BASE_URL`: the base URL for the Elastic Package Registry
 - `WORK`: the path to the directory that the script is run in
+- `DOCKER_HOST`, `DOCKER_CONTEXT`, `DOCKER_CONFIG`, `DOCKER_TLS_VERIFY` and `DOCKER_CERT_PATH`: the Docker client settings, when they are set in the environment of `elastic-package`
 
 
 ## Conditions
