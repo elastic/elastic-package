@@ -77,6 +77,7 @@ func TestRun_scriptsGetDockerEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(install.ProfileNameEnvVar, profile.DefaultProfile)
 			setupDataHome(t)
 
 			var script, got, want strings.Builder
