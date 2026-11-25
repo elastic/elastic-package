@@ -65,6 +65,9 @@ would be counterproductive because `elastic-package` calls `docker compose` as a
 subcommand of the Docker CLI, and shell aliases do not propagate to child
 processes.
 
+Script tests pass the variable on to the `docker` commands they run, see
+[Environment variables](script_testing.md#environment-variables).
+
 The [Podman Desktop](https://podman-desktop.io/) flatpak can be installed
 alongside this set-up to provide a GUI for managing containers. It connects to
 the same podman socket and does not interfere with the CLI configuration.
