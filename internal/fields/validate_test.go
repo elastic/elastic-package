@@ -1310,6 +1310,7 @@ func TestSanitizeSyntheticSourceDocs_GeoPoint(t *testing.T) {
 				},
 			},
 			{Name: "locations", Type: "geo_point", Normalize: []string{"array"}},
+			{Name: "places.*", Type: "object", ObjectType: "geo_point"},
 			{Name: "area", Type: "geo_shape"},
 		},
 		specVersion:           *semver.MustParse("3.0.0"),
@@ -1328,6 +1329,9 @@ func TestSanitizeSyntheticSourceDocs_GeoPoint(t *testing.T) {
 			"locations": []any{
 				map[string]any{"type": "Point", "coordinates": []any{4.88969, 52.37404}},
 				map[string]any{"type": "Point", "coordinates": []any{-0.0931, 51.5142}},
+			},
+			"places.home": []any{
+				map[string]any{"type": "Point", "coordinates": []any{13.40495, 52.52001}},
 			},
 			"area": []any{
 				map[string]any{"type": "Point", "coordinates": []any{4.88969, 52.37404}},
@@ -1354,6 +1358,11 @@ func TestSanitizeSyntheticSourceDocs_GeoPoint(t *testing.T) {
 		common.MapStr{"lat": 52.37404, "lon": 4.88969},
 		common.MapStr{"lat": 51.5142, "lon": -0.0931},
 	}, locations)
+
+	// Object fields with object_type geo_point are converted as well.
+	home, err := sanitized[0].GetValue("places.home")
+	require.NoError(t, err)
+	assert.Equal(t, common.MapStr{"lat": 52.52001, "lon": 13.40495}, home)
 
 	// GeoJSON is the expected representation for geo_shape fields.
 	area, err := sanitized[0].GetValue("area")
