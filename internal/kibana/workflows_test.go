@@ -91,3 +91,70 @@ func TestWorkflowsUnsupportedKibanaVersion(t *testing.T) {
 	_, err = client.ExportWorkflows(t.Context(), []string{"a"})
 	require.ErrorContains(t, err, "minimum version is 9.5.0")
 }
+
+func TestGetWorkflow(t *testing.T) {
+	t.Run("found", func(t *testing.T) {
+		client := newWorkflowsTestClient(t, "9.7.0", func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "/api/workflows/workflow/my-pkg-alert-triage", r.URL.Path)
+			assert.Equal(t, workflowsAPIVersion, r.Header.Get("elastic-api-version"))
+			fmt.Fprint(w, `{"id":"my-pkg-alert-triage","name":"Alert Triage","managed":false,"yaml":"name: Alert Triage\n"}`)
+		})
+
+		workflow, found, err := client.GetWorkflow(t.Context(), "my-pkg-alert-triage")
+		require.NoError(t, err)
+		assert.True(t, found)
+		assert.Equal(t, Workflow{ID: "my-pkg-alert-triage", Name: "Alert Triage"}, workflow)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		client := newWorkflowsTestClient(t, "9.7.0", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"Workflow not found"}`)
+		})
+
+		_, found, err := client.GetWorkflow(t.Context(), "missing")
+		require.NoError(t, err)
+		assert.False(t, found)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		client := newWorkflowsTestClient(t, "9.7.0", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprint(w, `{"message":"forbidden"}`)
+		})
+
+		_, _, err := client.GetWorkflow(t.Context(), "my-pkg-alert-triage")
+		require.ErrorContains(t, err, "API status code = 403")
+	})
+}
+
+func TestCreateWorkflow(t *testing.T) {
+	t.Run("created", func(t *testing.T) {
+		client := newWorkflowsTestClient(t, "9.7.0", func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/api/workflows/workflow", r.URL.Path)
+			assert.Empty(t, r.URL.RawQuery)
+			assert.Equal(t, workflowsAPIVersion, r.Header.Get("elastic-api-version"))
+
+			var req createWorkflowRequest
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.Equal(t, createWorkflowRequest{ID: "my-pkg-alert-triage", YAML: "name: Alert Triage\n"}, req)
+			fmt.Fprint(w, `{"id":"my-pkg-alert-triage","name":"Alert Triage","managed":false}`)
+		})
+
+		workflow, err := client.CreateWorkflow(t.Context(), "my-pkg-alert-triage", "name: Alert Triage\n")
+		require.NoError(t, err)
+		assert.Equal(t, Workflow{ID: "my-pkg-alert-triage", Name: "Alert Triage"}, workflow)
+	})
+
+	t.Run("conflict", func(t *testing.T) {
+		client := newWorkflowsTestClient(t, "9.7.0", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			fmt.Fprint(w, `{"message":"Workflow with id 'my-pkg-alert-triage' already exists"}`)
+		})
+
+		_, err := client.CreateWorkflow(t.Context(), "my-pkg-alert-triage", "name: Alert Triage\n")
+		require.ErrorContains(t, err, "already exists")
+	})
+}
