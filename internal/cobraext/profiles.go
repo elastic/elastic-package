@@ -97,12 +97,25 @@ func GetStackUserParameterFlags(cmd *cobra.Command) (map[string]string, error) {
 	if err != nil {
 		return nil, FlagParsingError(err, StackUserParameterFlagName)
 	}
+	return parseKeyValues(parameters, "user parameter")
+}
 
+// GetProfileSetFlags returns the profile settings defined by the user in the command line
+func GetProfileSetFlags(cmd *cobra.Command) (map[string]string, error) {
+	settings, err := cmd.Flags().GetStringArray(ProfileSetFlagName)
+	if err != nil {
+		return nil, FlagParsingError(err, ProfileSetFlagName)
+	}
+	return parseKeyValues(settings, "profile setting")
+}
+
+// parseKeyValues returns the keys and values of flag values in key=value format.
+func parseKeyValues(parameters []string, description string) (map[string]string, error) {
 	values := make(map[string]string)
 	for _, p := range parameters {
 		k, v, valid := strings.Cut(p, "=")
 		if !valid {
-			return nil, fmt.Errorf("invalid format for user parameter, expected key=value, found %q", p)
+			return nil, fmt.Errorf("invalid format for %s, expected key=value, found %q", description, p)
 		}
 		values[k] = v
 	}

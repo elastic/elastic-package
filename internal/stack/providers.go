@@ -84,5 +84,16 @@ func (*composeProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpRe
 }
 
 func (*composeProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
-	return Status(ctx, options)
+	services, err := Status(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := LoadConfig(options.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load stack config: %w", err)
+	}
+	setURLs(services, options.Profile, config)
+
+	return services, nil
 }

@@ -25,7 +25,7 @@ services:
       - "{{ fact "geoip_dir" }}:/usr/share/elasticsearch/config/ingest-geoip"
       - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
     ports:
-      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:{{ fact "host_port_elasticsearch" }}:9200"
 
   elasticsearch_is_ready:
     image: "${ISREADY_IMAGE_REF}"
@@ -54,7 +54,7 @@ services:
       - "../certs/kibana:/usr/share/kibana/config/certs"
       - "./kibana-healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
-      - "127.0.0.1:5601:5601"
+      - "127.0.0.1:{{ fact "host_port_kibana" }}:5601"
 
   kibana_is_ready:
     image: "${ISREADY_IMAGE_REF}"
@@ -86,8 +86,8 @@ services:
     volumes:
       - "../certs/package-registry:/etc/ssl/package-registry"
     ports:
-      - "127.0.0.1:8080:8080"
-      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:{{ fact "host_port_package_registry" }}:8080"
+      - "127.0.0.1:{{ fact "host_port_package_registry_metrics" }}:9000"
 
   package-registry_is_ready:
     image: "${ISREADY_IMAGE_REF}"
@@ -127,9 +127,9 @@ services:
       - "../certs/fleet-server:/etc/ssl/elastic-agent:ro"
       - "./fleet-server-healthcheck.sh:/healthcheck.sh:ro"
     ports:
-      - "127.0.0.1:8220:8220"
+      - "127.0.0.1:{{ fact "host_port_fleet_server" }}:8220"
       {{ if eq $apm_enabled "true" }}
-      - "127.0.0.1:8200:8200"
+      - "127.0.0.1:{{ fact "host_port_apm_server" }}:8200"
       {{ end }}
 
   fleet-server_is_ready:
@@ -189,8 +189,8 @@ services:
     volumes:
       - "../certs/logstash:/usr/share/logstash/config/certs"
     ports:
-       - "127.0.0.1:5044:5044"
-       - "127.0.0.1:9600:9600"
+       - "127.0.0.1:{{ fact "host_port_logstash" }}:5044"
+       - "127.0.0.1:{{ fact "host_port_logstash_api" }}:9600"
     environment:
       - XPACK_MONITORING_ENABLED=false
       - ELASTIC_USER=elastic
