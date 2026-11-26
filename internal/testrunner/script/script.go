@@ -187,6 +187,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if stackVersion != "" {
 		baseEnv["STACK_VERSION"] = stackVersion
 	}
+	addDockerEnv(baseEnv)
 
 	var n int
 	for _, d := range pkgInfo.dirs {
@@ -202,6 +203,27 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		t.Log("[no test files]")
 	}
 	return nil
+}
+
+// dockerEnv holds the variables that select the Docker daemon and the Docker CLI
+// configuration.
+var dockerEnv = []string{
+	"DOCKER_HOST",
+	"DOCKER_CONTEXT",
+	"DOCKER_CONFIG",
+	"DOCKER_TLS_VERIFY",
+	"DOCKER_CERT_PATH",
+}
+
+// addDockerEnv copies the Docker settings of the process to env, so that docker
+// commands executed by scripts use the same daemon as elastic-package. The Docker
+// CLI ignores empty values, so they are left out.
+func addDockerEnv(env map[string]string) {
+	for _, name := range dockerEnv {
+		if value := os.Getenv(name); value != "" {
+			env[name] = value
+		}
+	}
 }
 
 // resolveStackVersion queries the running stack for its version. Returns the

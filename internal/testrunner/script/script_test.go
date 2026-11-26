@@ -5,11 +5,15 @@
 package script
 
 import (
+	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,15 +39,10 @@ func TestRun_scriptsUseRunnerProfile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", filepath.Join(t.TempDir(), "data"))
-			t.Setenv("GOTMPDIR", t.TempDir())
 			t.Setenv(install.ProfileNameEnvVar, current)
-			require.NoError(t, install.EnsureInstalled())
-			for _, name := range []string{current, selected} {
-				require.NoError(t, profile.CreateProfile(profile.Options{Name: name}))
-			}
+			setupDataHome(t, current, selected)
 
-			opt := Options{Dir: t.TempDir()}
+			var opt Options
 			if tt.profile != "" {
 				prof, err := profile.LoadProfile(tt.profile)
 				require.NoError(t, err)
@@ -55,15 +54,75 @@ func TestRun_scriptsUseRunnerProfile(t *testing.T) {
 ${PROFILE}
 -- want --
 ` + tt.want + "\n"
-			require.NoError(t, os.WriteFile(filepath.Join(opt.Dir, "profile.txt"), []byte(script), 0o600))
-
-			var results []testrunner.TestResult
-			require.NoError(t, Run(&results, io.Discard, opt))
-			require.Len(t, results, 1)
-			require.Empty(t, results[0].FailureMsg, results[0].FailureDetails)
-			require.Empty(t, results[0].ErrorMsg)
+			requireScriptPasses(t, opt, script)
 		})
 	}
+}
+
+func TestRun_scriptsGetDockerEnv(t *testing.T) {
+	values := map[string]string{
+		"DOCKER_HOST":       "unix:///run/user/1000/podman/podman.sock",
+		"DOCKER_CONTEXT":    "podman",
+		"DOCKER_CONFIG":     "/home/user/.docker",
+		"DOCKER_TLS_VERIFY": "1",
+		"DOCKER_CERT_PATH":  "/home/user/.docker/certs",
+	}
+	tests := []struct {
+		name string
+		set  func(name string) bool // Whether the variable is set in the process environment.
+	}{
+		{name: "all set", set: func(string) bool { return true }},
+		{name: "one set", set: func(name string) bool { return name == "DOCKER_HOST" }},
+		{name: "none set", set: func(string) bool { return false }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(install.ProfileNameEnvVar, profile.DefaultProfile)
+			setupDataHome(t)
+
+			var script, got, want strings.Builder
+			for _, name := range slices.Sorted(maps.Keys(values)) {
+				value := ""
+				if tt.set(name) {
+					value = values[name]
+					// A missing file fails the script.
+					fmt.Fprintf(&script, "[!env:%[1]s] exists '%[1]s is not set'\n", name)
+				} else {
+					fmt.Fprintf(&script, "[env:%[1]s] exists '%[1]s is set'\n", name)
+				}
+				t.Setenv(name, value)
+				fmt.Fprintf(&got, "%[1]s=${%[1]s}\n", name)
+				fmt.Fprintf(&want, "%s=%s\n", name, value)
+			}
+			// cmpenv expands environment variables in its second file only.
+			script.WriteString("cmpenv want got\n-- got --\n" + got.String() + "-- want --\n" + want.String())
+			requireScriptPasses(t, Options{}, script.String())
+		})
+	}
+}
+
+// setupDataHome makes a temporary data home with the given profiles.
+func setupDataHome(t *testing.T, profiles ...string) {
+	t.Helper()
+	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", filepath.Join(t.TempDir(), "data"))
+	t.Setenv("GOTMPDIR", t.TempDir())
+	require.NoError(t, install.EnsureInstalled())
+	for _, name := range profiles {
+		require.NoError(t, profile.CreateProfile(profile.Options{Name: name}))
+	}
+}
+
+// requireScriptPasses runs a script with the given options and requires it to pass.
+func requireScriptPasses(t *testing.T, opt Options, script string) {
+	t.Helper()
+	opt.Dir = t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(opt.Dir, "script.txt"), []byte(script), 0o600))
+
+	var results []testrunner.TestResult
+	require.NoError(t, Run(&results, io.Discard, opt))
+	require.Len(t, results, 1)
+	require.Empty(t, results[0].FailureMsg, results[0].FailureDetails)
+	require.Empty(t, results[0].ErrorMsg)
 }
 
 func TestRevisionsFromRegistry_searchOK(t *testing.T) {
