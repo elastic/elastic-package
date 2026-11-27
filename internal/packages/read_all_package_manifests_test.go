@@ -5,7 +5,9 @@
 package packages
 
 import (
+	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,4 +122,36 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 			assert.Equal(t, c.expected, found)
 		})
 	}
+}
+
+// TestReadAllPackageManifestsFromRepo_UnreadableDirectory checks that a directory that
+// cannot be entered (read but no execute permission) is skipped instead of aborting the search.
+func TestReadAllPackageManifestsFromRepo_UnreadableDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory permissions are not enforced the same way on Windows")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("permissions are not enforced for root")
+	}
+
+	searchRoot := t.TempDir()
+
+	pkgDir := filepath.Join(searchRoot, "packages", "pkg")
+	require.NoError(t, os.MkdirAll(pkgDir, 0o755))
+	manifest := "format_version: 3.0.0\nname: pkg\ntitle: pkg\nversion: 1.0.0\ntype: integration\n"
+	require.NoError(t, os.WriteFile(filepath.Join(pkgDir, PackageManifestFile), []byte(manifest), 0o644))
+
+	unreadableDir := filepath.Join(searchRoot, "packages", "unreadable")
+	require.NoError(t, os.MkdirAll(unreadableDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(unreadableDir, "README.md"), []byte("not a package\n"), 0o644))
+	require.NoError(t, os.Chmod(unreadableDir, 0o644))
+	t.Cleanup(func() {
+		// Restore permissions so the temporary directory can be removed.
+		_ = os.Chmod(unreadableDir, 0o755)
+	})
+
+	pkgs, err := ReadAllPackageManifestsFromRepo(searchRoot, 3, "")
+	require.NoError(t, err)
+	require.Len(t, pkgs, 1)
+	assert.Equal(t, pkgDir, pkgs[0].Path)
 }

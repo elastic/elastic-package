@@ -592,10 +592,12 @@ func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs s
 
 		manifestPath := filepath.Join(path, PackageManifestFile)
 		if _, err := os.Stat(manifestPath); err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil
+			// Directories whose manifest cannot be checked (e.g. permission denied) are
+			// skipped like unreadable manifests, instead of aborting the whole search.
+			if !errors.Is(err, fs.ErrNotExist) {
+				logger.Debugf("failed to check package manifest (path: %s): %v", manifestPath, err)
 			}
-			return fmt.Errorf("failed to stat package manifest (path: %s): %w", manifestPath, err)
+			return nil
 		}
 
 		// Validate it's a package manifest
