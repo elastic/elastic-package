@@ -16,12 +16,16 @@ import (
 //
 //	packages/excluded/excluded_pkg       depth 3
 //	packages/flat_pkg                    depth 2 (contains a data stream manifest)
+//	packages/flat_pkg/_dev/decoy_pkg     depth 4 (package manifest inside another package, never reported)
 //	packages/group/nested_pkg            depth 3
 //	packages/group/sub/too_deep_pkg      depth 4
 //	packages/invalid_manifest            depth 2 (unparsable manifest.yml)
 func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 	searchRoot, err := filepath.Abs("testdata/find_packages")
 	require.NoError(t, err)
+
+	// Ensure the decoy package exists, so the cases below fail if it is ever reported.
+	require.FileExists(t, filepath.Join(searchRoot, "packages", "flat_pkg", "_dev", "decoy_pkg", PackageManifestFile))
 
 	cases := []struct {
 		name        string
@@ -56,6 +60,17 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 			name:       "depth 4 finds packages nested under two directories",
 			searchRoot: searchRoot,
 			depth:      4,
+			expected: []string{
+				"packages/excluded/excluded_pkg",
+				"packages/flat_pkg",
+				"packages/group/nested_pkg",
+				"packages/group/sub/too_deep_pkg",
+			},
+		},
+		{
+			name:       "packages inside another package are never reported",
+			searchRoot: searchRoot,
+			depth:      10,
 			expected: []string{
 				"packages/excluded/excluded_pkg",
 				"packages/flat_pkg",

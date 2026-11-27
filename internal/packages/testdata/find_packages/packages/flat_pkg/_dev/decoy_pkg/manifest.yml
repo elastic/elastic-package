@@ -1,0 +1,5 @@
+format_version: 3.0.0
+name: decoy_pkg
+title: decoy_pkg
+version: 1.0.0
+type: integration
