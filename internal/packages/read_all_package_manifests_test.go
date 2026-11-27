@@ -21,35 +21,33 @@ import (
 //	packages/group/sub/too_deep_pkg      depth 4
 //	packages/invalid_manifest            depth 2 (unparsable manifest.yml)
 func TestReadAllPackageManifestsFromRepo(t *testing.T) {
-	searchRoot, err := filepath.Abs("testdata/find_packages")
+	fixtureRoot, err := filepath.Abs("testdata/find_packages")
 	require.NoError(t, err)
 
 	// Ensure the decoy package exists, so the cases below fail if it is ever reported.
-	require.FileExists(t, filepath.Join(searchRoot, "packages", "flat_pkg", "_dev", "decoy_pkg", PackageManifestFile))
+	require.FileExists(t, filepath.Join(fixtureRoot, "packages", "flat_pkg", "_dev", "decoy_pkg", PackageManifestFile))
 
 	cases := []struct {
-		name        string
+		name string
+		// searchRoot is relative to the fixture root; empty means the fixture root itself.
 		searchRoot  string
 		depth       int
 		excludeDirs string
 		expected    []string
 	}{
 		{
-			name:       "depth 1 finds no packages",
-			searchRoot: searchRoot,
-			depth:      1,
-			expected:   []string{},
+			name:     "depth 1 finds no packages",
+			depth:    1,
+			expected: []string{},
 		},
 		{
-			name:       "depth 2 finds only packages directly under packages",
-			searchRoot: searchRoot,
-			depth:      2,
-			expected:   []string{"packages/flat_pkg"},
+			name:     "depth 2 finds only packages directly under packages",
+			depth:    2,
+			expected: []string{"packages/flat_pkg"},
 		},
 		{
-			name:       "depth 3 finds packages nested under a group directory",
-			searchRoot: searchRoot,
-			depth:      3,
+			name:  "depth 3 finds packages nested under a group directory",
+			depth: 3,
 			expected: []string{
 				"packages/excluded/excluded_pkg",
 				"packages/flat_pkg",
@@ -57,9 +55,8 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 			},
 		},
 		{
-			name:       "depth 4 finds packages nested under two directories",
-			searchRoot: searchRoot,
-			depth:      4,
+			name:  "depth 4 finds packages nested under two directories",
+			depth: 4,
 			expected: []string{
 				"packages/excluded/excluded_pkg",
 				"packages/flat_pkg",
@@ -68,9 +65,8 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 			},
 		},
 		{
-			name:       "packages inside another package are never reported",
-			searchRoot: searchRoot,
-			depth:      10,
+			name:  "packages inside another package are never reported",
+			depth: 10,
 			expected: []string{
 				"packages/excluded/excluded_pkg",
 				"packages/flat_pkg",
@@ -80,7 +76,6 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 		},
 		{
 			name:        "excluded directories are not visited",
-			searchRoot:  searchRoot,
 			depth:       4,
 			excludeDirs: "excluded",
 			expected: []string{
@@ -91,14 +86,13 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 		},
 		{
 			name:        "multiple excluded directories with spaces",
-			searchRoot:  searchRoot,
 			depth:       4,
 			excludeDirs: "excluded, group",
 			expected:    []string{"packages/flat_pkg"},
 		},
 		{
 			name:       "search root is a package",
-			searchRoot: filepath.Join(searchRoot, "packages", "flat_pkg"),
+			searchRoot: filepath.Join("packages", "flat_pkg"),
 			depth:      0,
 			expected:   []string{"."},
 		},
@@ -106,12 +100,13 @@ func TestReadAllPackageManifestsFromRepo(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pkgs, err := ReadAllPackageManifestsFromRepo(c.searchRoot, c.depth, c.excludeDirs)
+			root := filepath.Join(fixtureRoot, c.searchRoot)
+			pkgs, err := ReadAllPackageManifestsFromRepo(root, c.depth, c.excludeDirs)
 			require.NoError(t, err)
 
 			found := make([]string, 0, len(pkgs))
 			for _, pkg := range pkgs {
-				rel, err := filepath.Rel(c.searchRoot, pkg.Path)
+				rel, err := filepath.Rel(root, pkg.Path)
 				require.NoError(t, err)
 				found = append(found, filepath.ToSlash(rel))
 
