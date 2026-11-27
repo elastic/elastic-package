@@ -1,0 +1,5 @@
+format_version: 3.0.0
+name: nested_pkg
+title: nested_pkg
+version: 1.0.0
+type: integration
