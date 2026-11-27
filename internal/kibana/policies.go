@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -468,6 +469,10 @@ func (c *Client) UpgradePackagePolicyToLatest(ctx context.Context, acknowledgeBr
 	}
 	req.PackagePolicyIds = policyIDs
 	req.AcknowledgeBreakingChanges = acknowledgeBreakingChanges && c.supportsAcknowledgeBreakingChanges()
+	if acknowledgeBreakingChanges && !req.AcknowledgeBreakingChanges {
+		logger.Debugf("Not acknowledging breaking changes: Kibana %s does not support it (requires %d.%d.%d or later)", c.semver,
+			acknowledgeBreakingChangesMinVersion.Major(), acknowledgeBreakingChangesMinVersion.Minor(), acknowledgeBreakingChangesMinVersion.Patch())
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
