@@ -19,11 +19,11 @@ import (
 const findLongDescription = `[Technical Preview]
 This command gives you a list of all packages based on the given query.
 
-The command will search for packages in the working directory for default depth of 2 and return the list of packages that match the given criteria. 
+The command will search for packages in the working directory up to the depth set by --depth and return the list of packages that match the given criteria. When run from the root of a repository, the default depth also finds packages nested under a group directory (e.g. packages/<group>/<package>).
 
 Use --change-directory to change the working directory and --depth to change the depth of the search.`
 
-const findExample = `  elastic-package find --inputs tcp,udp --categories security --depth 3 --output json
+const findExample = `  elastic-package find --inputs tcp,udp --categories security --depth 4 --output json
   elastic-package find --packages 'cisco_*,fortinet_*' --output yaml`
 
 func setupFindCommand() *cobraext.Command {
