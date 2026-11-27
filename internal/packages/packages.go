@@ -546,8 +546,9 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 }
 
 // ReadAllPackageManifestsFromRepo reads all the package manifests in the given directory.
-// It recursively searches for manifest.yml files up to the specified depth.
-// - depth: maximum depth to search (1 = current dir + immediate sub dirs)
+// It recursively searches for package directories up to the specified depth.
+// Once a package is found, its subdirectories are not visited.
+// - depth: maximum depth of a package directory relative to searchRoot (1 = current dir + immediate sub dirs)
 // - excludeDirs: comma-separated list of directory names to exclude (always excludes .git, build)
 func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs string) ([]PackageDirNameAndManifest, error) {
 	// Parse exclude directories
@@ -573,52 +574,54 @@ func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs s
 		// Calculate current depth relative to search root
 		currentDepth := strings.Count(path, string(filepath.Separator)) - searchRootDepth
 
-		// If it's a directory, check if we should skip it
-		if d.IsDir() {
-			dirName := d.Name()
-
-			// Skip excluded directories (but not the search root)
-			if excludeMap[dirName] && searchRoot != path {
-				return filepath.SkipDir
-			}
-
-			// Skip if we've exceeded the depth limit (but allow processing the current level)
-			if currentDepth > depth {
-				return filepath.SkipDir
-			}
-
+		// Only directories are relevant: package roots are detected by looking
+		// for a package manifest inside each visited directory.
+		if !d.IsDir() {
 			return nil
 		}
 
-		// Check if this is a manifest file
-		if d.Name() != PackageManifestFile {
-			return nil
+		// Skip excluded directories (but not the search root)
+		if excludeMap[d.Name()] && searchRoot != path {
+			return filepath.SkipDir
+		}
+
+		// Skip if we've exceeded the depth limit (but allow processing the current level)
+		if currentDepth > depth {
+			return filepath.SkipDir
+		}
+
+		manifestPath := filepath.Join(path, PackageManifestFile)
+		if _, err := os.Stat(manifestPath); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return fmt.Errorf("failed to stat package manifest (path: %s): %w", manifestPath, err)
 		}
 
 		// Validate it's a package manifest
-		ok, err := isPackageManifest(path)
+		ok, err := isPackageManifest(manifestPath)
 		if err != nil {
-			logger.Debugf("failed to validate package manifest (path: %s): %v", path, err)
+			logger.Debugf("failed to validate package manifest (path: %s): %v", manifestPath, err)
 			return nil
 		}
 		if !ok {
 			return nil
 		}
 
-		// Extract directory name (just the package directory name, not the full path)
-		dirName := filepath.Base(filepath.Dir(path))
-		manifest, err := ReadPackageManifest(path)
+		manifest, err := ReadPackageManifest(manifestPath)
 		if err != nil {
-			return fmt.Errorf("failed to read package manifest (path: %s): %w", path, err)
+			return fmt.Errorf("failed to read package manifest (path: %s): %w", manifestPath, err)
 		}
 
 		packages = append(packages, PackageDirNameAndManifest{
-			DirName:  dirName,
+			DirName:  d.Name(),
 			Manifest: manifest,
-			Path:     filepath.Dir(path),
+			Path:     path,
 		})
 
-		return nil
+		// Packages cannot contain other packages, so there is no need to
+		// look further inside this directory.
+		return filepath.SkipDir
 	})
 
 	if err != nil {
