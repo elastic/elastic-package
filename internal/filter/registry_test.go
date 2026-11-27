@@ -57,7 +57,7 @@ func TestFilterRegistry_Execute(t *testing.T) {
 	categoryFlag.values = []string{"security"}
 
 	t.Run("execute with real packages", func(t *testing.T) {
-		registry := NewFilterRegistry(3, "")
+		registry := NewFilterRegistry(cobraext.FilterDepthFlagDefault, "")
 
 		registry.filters = append(registry.filters, categoryFlag)
 
@@ -70,5 +70,22 @@ func TestFilterRegistry_Execute(t *testing.T) {
 		for _, pkg := range filtered {
 			assert.Contains(t, pkg.Manifest.Categories, "security")
 		}
+	})
+
+	t.Run("default depth finds packages nested under a group directory", func(t *testing.T) {
+		searchRoot, err := filepath.Abs("../packages/testdata/find_packages")
+		require.NoError(t, err)
+
+		registry := NewFilterRegistry(cobraext.FilterDepthFlagDefault, "")
+
+		filtered, errors := registry.Execute(searchRoot)
+		require.Empty(t, errors)
+
+		paths := make([]string, 0, len(filtered))
+		for _, pkg := range filtered {
+			paths = append(paths, pkg.Path)
+		}
+		assert.Contains(t, paths, filepath.Join(searchRoot, "packages", "flat_pkg"))
+		assert.Contains(t, paths, filepath.Join(searchRoot, "packages", "group", "nested_pkg"))
 	})
 }
