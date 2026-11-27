@@ -335,7 +335,7 @@ func upgradePackageLatest(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Check(decoratedWith("getting package policy id", json.Unmarshal(m, &pol)))
 		if pol.Package.Name == pkg {
 			n++
-			ts.Check(decoratedWith("upgrading package policy", stk.kibana.UpgradePackagePolicyToLatest(ctx, pol.ID)))
+			ts.Check(decoratedWith("upgrading package policy", stk.kibana.UpgradePackagePolicyToLatest(ctx, false, pol.ID)))
 			fmt.Fprintf(ts.Stdout(), "upgraded package %s from version %s\n", pkg, pol.Package.Version)
 		}
 	}

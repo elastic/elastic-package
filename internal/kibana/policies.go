@@ -7,6 +7,7 @@ package kibana
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
@@ -428,12 +429,45 @@ func (c *Client) ListRawPackagePolicies(ctx context.Context) ([]json.RawMessage,
 	return items, nil
 }
 
-// UpgradePackagePolicyToLatest upgrades the given package in Fleet to the latest available version.
-func (c *Client) UpgradePackagePolicyToLatest(ctx context.Context, policyIDs ...string) error {
+// acknowledgeBreakingChangesMinVersion is the first Kibana version whose Fleet
+// rejects package policy upgrades crossing a breaking change unless they are
+// acknowledged, and accepts the acknowledge_breaking_changes request field.
+// Older versions reject the unknown field.
+// Introduced in Kibana 9.5.7 (PR #301973, November 2026). The -0 prerelease
+// makes snapshots of that version, such as 9.5.7-SNAPSHOT, count as supported.
+var acknowledgeBreakingChangesMinVersion = semver.MustParse("9.5.7-0")
+
+// breakingChangesNotAcknowledgedErrorType is the error type Fleet returns when
+// an upgrade crosses a breaking change that was not acknowledged.
+const breakingChangesNotAcknowledgedErrorType = "breaking_changes_not_acknowledged"
+
+// ErrBreakingChangesNotAcknowledged is returned when Fleet rejects an upgrade
+// because its version range includes breaking changes that were not acknowledged.
+var ErrBreakingChangesNotAcknowledged = errors.New("breaking changes not acknowledged")
+
+// supportsAcknowledgeBreakingChanges reports whether the connected Kibana
+// accepts the acknowledge_breaking_changes field in upgrade requests.
+// Returns true for managed Kibana (no version available) assuming a modern stack.
+func (c *Client) supportsAcknowledgeBreakingChanges() bool {
+	if c.semver == nil {
+		return true
+	}
+	return !c.semver.LessThan(acknowledgeBreakingChangesMinVersion)
+}
+
+// UpgradePackagePolicyToLatest upgrades the given package policies in Fleet to
+// the latest installed package version.
+// When acknowledgeBreakingChanges is true, the request acknowledges any breaking
+// change in the upgrade range. Kibana versions without the breaking changes
+// check don't accept the acknowledgement, so it is only sent to versions that
+// support it.
+func (c *Client) UpgradePackagePolicyToLatest(ctx context.Context, acknowledgeBreakingChanges bool, policyIDs ...string) error {
 	var req struct {
-		PackagePolicyIds []string `json:"packagePolicyIds"`
+		PackagePolicyIds           []string `json:"packagePolicyIds"`
+		AcknowledgeBreakingChanges bool     `json:"acknowledge_breaking_changes,omitempty"`
 	}
 	req.PackagePolicyIds = policyIDs
+	req.AcknowledgeBreakingChanges = acknowledgeBreakingChanges && c.supportsAcknowledgeBreakingChanges()
 	body, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
@@ -444,11 +478,17 @@ func (c *Client) UpgradePackagePolicyToLatest(ctx context.Context, policyIDs ...
 	}
 	if statusCode == http.StatusBadRequest {
 		var resp struct {
-			Message string `json:"message"`
+			Message    string `json:"message"`
+			Attributes struct {
+				Type string `json:"type"`
+			} `json:"attributes"`
 		}
 		err := json.Unmarshal(respBody, &resp)
 		if err != nil {
 			return fmt.Errorf("could not upgrade package: %q", respBody)
+		}
+		if resp.Attributes.Type == breakingChangesNotAcknowledgedErrorType {
+			return fmt.Errorf("could not upgrade package: %w: %s", ErrBreakingChangesNotAcknowledged, resp.Message)
 		}
 		return fmt.Errorf("could not upgrade package: %s", resp.Message)
 	}
