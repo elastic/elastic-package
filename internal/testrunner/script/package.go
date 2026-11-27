@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/requiredinputs"
@@ -300,9 +302,10 @@ func upgradePackageLatest(ts *testscript.TestScript, neg bool, args []string) {
 	flg := flag.NewFlagSet("upgrade", flag.ContinueOnError)
 	profName := flg.String("profile", "default", "profile name")
 	timeout := flg.Duration("timeout", 0, "timeout (zero or lower indicates no timeout)")
+	ackBreakingChanges := flg.Bool("acknowledge_breaking_changes", false, "acknowledge breaking changes in the upgrade range")
 	ts.Check(flg.Parse(args))
 	if flg.NArg() != 0 && flg.NArg() != 1 {
-		ts.Fatalf("usage: upgrade_package_latest [-profile <profile>] [-timeout <duration>] [<package_name>]")
+		ts.Fatalf("usage: upgrade_package_latest [-profile <profile>] [-timeout <duration>] [-acknowledge_breaking_changes] [<package_name>]")
 	}
 
 	if flg.NArg() == 1 {
@@ -335,7 +338,11 @@ func upgradePackageLatest(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Check(decoratedWith("getting package policy id", json.Unmarshal(m, &pol)))
 		if pol.Package.Name == pkg {
 			n++
-			ts.Check(decoratedWith("upgrading package policy", stk.kibana.UpgradePackagePolicyToLatest(ctx, false, pol.ID)))
+			err = stk.kibana.UpgradePackagePolicyToLatest(ctx, *ackBreakingChanges, pol.ID)
+			if errors.Is(err, kibana.ErrBreakingChangesNotAcknowledged) {
+				err = fmt.Errorf("%w (pass -acknowledge_breaking_changes to upgrade_package_latest if crossing these breaking changes is intended)", err)
+			}
+			ts.Check(decoratedWith("upgrading package policy", err))
 			fmt.Fprintf(ts.Stdout(), "upgraded package %s from version %s\n", pkg, pol.Package.Version)
 		}
 	}
