@@ -14,8 +14,8 @@ internal/registry/elastic-gpg-key.asc @elastic/ecosystem
 internal/registry/gpgkey/fetch/ @elastic/ecosystem
 internal/registry/gpgkey_test.go @elastic/ecosystem
 
-# LLM based functionality owned by integration-experience
-internal/llmagent/ @elastic/integration-experience
+# LLM based functionality owned by sec-data-signals
+internal/llmagent/ @elastic/sec-data-signals
 
 # Agentic workflow client triggers (elastic/oblt-aw distribution)
 /.github/workflows/trigger-obs-aw-* @elastic/observablt-ci
