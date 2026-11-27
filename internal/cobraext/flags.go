@@ -165,7 +165,7 @@ const (
 
 	FilterDepthFlagName        = "depth"
 	FilterDepthFlagDescription = "maximum depth to search for packages"
-	FilterDepthFlagDefault     = 2
+	FilterDepthFlagDefault     = 3
 	FilterDepthFlagShorthand   = "d"
 
 	FilterExcludeDirFlagName        = "exclude-dirs"
